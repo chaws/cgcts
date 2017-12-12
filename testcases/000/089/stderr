@@ -1,0 +1,2 @@
+cc1: error: argument to ‘-O’ should be a non-negative integer, ‘g’, ‘s’ or ‘fast’
+make: *** [patched] Error 1

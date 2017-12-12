@@ -1,0 +1,21 @@
+This folder contains all scripts used to import the Darpa Cyber Grand Challenge
+(https://github.com/cybergrandchallenge) into SARD.
+
+My strategy will be sharing half of my day trying to automate bug triggering in order
+to extract all useful line numbers. Since that might not work, I will spend the 
+other half of my day going at it, test by test, manually yanking flawed lines on my own.
+
+Also, there will be always two versions of a test case
+1. one where it's Patched and
+2. one where with the else of the Patched ifdef
+
+Libraries will be STATICALLY compiled before test cases.
+The static library `libcgc.a` will contain compiled files of
+1. libcgc.c
+2. ansi_x931_aes128.c  
+3. maths.S  
+4. tiny-AES128-C/aes.c
+
+The `libpov.a` file will contain all files within `libpov` directory.
+
+Apparently, all projects that need a malloc function will have them implemented within itself  

@@ -1,0 +1,73 @@
+CHAL=Corinth
+
+CC=/usr/bin/gcc
+CXX=/usr/bin/g++
+
+LIBCGC=../../shared/tsid/libcgc.a
+LIBPOV=../../shared/tsid/libpov.a
+LIBS=$(LIBCGC) $(LIBPOV)
+
+FLAGS=-DFORTIFY_SOURCE=0 -DLINUX -Derrno=__cgc_errno -fno-builtin -w -g3 -m32 -fno-stack-protector
+CFLAGS=$(FLAGS) -std=gnu99
+CXXFLAGS=$(FLAGS) -g -std=gnu++11 
+
+INCLUDE=-I ../../shared/tsid/include -I ../../shared/tsid/include/tiny-AES128-C
+POV_INCLUDE=$(INCLUDE) -I ../../shared/tsid/include/libpov -I ../../shared/tsid/include/libpov/pov
+
+LCGC=-L $(dir $(LIBCGC)) -lcgc
+LPOV=$(LCGC) -lpov
+
+all: $(LIBCGC) patched vulnerable pov
+
+patched:
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/fs.c.o -c lib/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/math.c.o -c lib/math.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o src/handler.c.o -c src/handler.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o src/protocol.c.o -c src/protocol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o src/types.c.o -c src/types.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o src/messages.c.o -c src/messages.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o src/monte.c.o -c src/monte.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fblocks -o src/block.c.o -c src/block.c
+	$(CC) $(FLAGS) -o Corinth_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/libc.c.o lib/stdio.c.o lib/string.c.o src/handler.c.o src/protocol.c.o src/service.c.o src/types.c.o src/messages.c.o src/monte.c.o src/block.c.o $(LCGC) 
+
+vulnerable:
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/fs.c.o -c lib/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/math.c.o -c lib/math.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/handler.c.o -c src/handler.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/protocol.c.o -c src/protocol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/types.c.o -c src/types.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/messages.c.o -c src/messages.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/monte.c.o -c src/monte.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/block.c.o -c src/block.c
+	$(CC) $(FLAGS) -o Corinth lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/libc.c.o lib/stdio.c.o lib/string.c.o src/handler.c.o src/protocol.c.o src/service.c.o src/types.c.o src/messages.c.o src/monte.c.o src/block.c.o $(LCGC) 
+
+pov: $(LIBPOV)
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fblocks -pedantic -o pov_1/handler.c.o -c pov_1/handler.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fblocks -pedantic -o pov_1/protocol.c.o -c pov_1/protocol.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fblocks -pedantic -o pov_1/messages.c.o -c pov_1/messages.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fblocks -pedantic -o pov_1/monte.c.o -c pov_1/monte.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fblocks -pedantic -o pov_1/block.c.o -c pov_1/block.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fblocks -pedantic -o pov_1/pov1.c.o -c pov_1/pov1.c
+	$(CC) $(FLAGS) -o Corinth_pov_1 pov_1/handler.c.o pov_1/protocol.c.o pov_1/messages.c.o pov_1/monte.c.o pov_1/block.c.o pov_1/pov1.c.o $(LPOV) 
+
+$(LIBS):
+	$(MAKE) -C $(dir $@) $(notdir $@)
+
+clean:
+	rm -f pov_1/handler.c.o pov_1/protocol.c.o pov_1/messages.c.o pov_1/monte.c.o pov_1/block.c.o pov_1/pov1.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/libc.c.o lib/stdio.c.o lib/string.c.o src/handler.c.o src/protocol.c.o src/service.c.o src/types.c.o src/messages.c.o src/monte.c.o src/block.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/libc.c.o lib/stdio.c.o lib/string.c.o src/handler.c.o src/protocol.c.o src/service.c.o src/types.c.o src/messages.c.o src/monte.c.o src/block.c.o Corinth_pov_1 Corinth_patched Corinth

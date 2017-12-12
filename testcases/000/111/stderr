@@ -1,0 +1,33 @@
+src/main.cc.o: In function `Pet::~Pet()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:109: undefined reference to `operator delete(void*)'
+src/main.cc.o: In function `Pet::~Pet()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:109: undefined reference to `operator delete(void*)'
+src/main.cc.o: In function `petlist::~petlist()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:205: undefined reference to `operator delete(void*)'
+src/main.cc.o: In function `petlist::append(Pet*)':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:218: undefined reference to `operator new(unsigned int)'
+src/main.cc.o: In function `petlist::remove(int)':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:278: undefined reference to `operator delete(void*)'
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:285: undefined reference to `operator delete(void*)'
+src/main.cc.o: In function `do_create(char const*, char const*)':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:310: undefined reference to `operator new(unsigned int)'
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:312: undefined reference to `operator new(unsigned int)'
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:314: undefined reference to `operator new(unsigned int)'
+src/main.cc.o: In function `Cat::~Cat()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:121: undefined reference to `operator delete(void*)'
+src/main.cc.o: In function `Cat::~Cat()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:121: undefined reference to `operator delete(void*)'
+src/main.cc.o: In function `Dog::~Dog()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:129: undefined reference to `operator delete(void*)'
+src/main.cc.o: In function `Dog::~Dog()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:129: undefined reference to `operator delete(void*)'
+src/main.cc.o: In function `Hotdog::~Hotdog()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:137: undefined reference to `operator delete(void*)'
+src/main.cc.o:/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/111/src/main.cc:137: more undefined references to `operator delete(void*)' follow
+src/main.cc.o:(.rodata._ZTV3Pet[_ZTV3Pet]+0x8): undefined reference to `__cxa_pure_virtual'
+src/main.cc.o:(.rodata._ZTV3Pet[_ZTV3Pet]+0xc): undefined reference to `__cxa_pure_virtual'
+src/main.cc.o:(.rodata._ZTV3Pet[_ZTV3Pet]+0x10): undefined reference to `__cxa_pure_virtual'
+src/main.cc.o:(.rodata._ZTV3Pet[_ZTV3Pet]+0x14): undefined reference to `__cxa_pure_virtual'
+src/main.cc.o:(.rodata._ZTV3Pet[_ZTV3Pet]+0x18): undefined reference to `__cxa_pure_virtual'
+collect2: error: ld returned 1 exit status
+make: *** [patched] Error 1

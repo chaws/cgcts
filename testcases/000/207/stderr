@@ -1,0 +1,4 @@
+src/main.c:37:13: error: variably modified ‘line’ at file scope
+ static char line[LINE_SIZE];
+             ^
+make: *** [patched] Error 1

@@ -1,0 +1,15 @@
+In file included from lib/libmixology.c:25:0:
+lib/cgc_libcompound.h:34:23: error: variably modified ‘chem_formulas’ at file scope
+ static chem_formula_t chem_formulas[N_FORMULAS] = {
+                       ^
+In file included from lib/libmixology.c:26:0:
+lib/cgc_libmixology.h:46:7: error: variably modified ‘compound_name’ at file scope
+  char compound_name[MAX_NEW_CMPND_SZ];
+       ^
+lib/cgc_libmixology.h:65:13: error: variably modified ‘last_compound’ at file scope
+ static char last_compound[MAX_NEW_CMPND_SZ];
+             ^
+lib/cgc_libmixology.h:88:18: error: variably modified ‘commands’ at file scope
+ static command_t commands[NUM_CMDS] = {
+                  ^
+make: *** [patched] Error 1

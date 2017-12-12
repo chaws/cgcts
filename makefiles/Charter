@@ -1,0 +1,52 @@
+CHAL=Charter
+
+CC=/usr/bin/gcc
+CXX=/usr/bin/g++
+
+LIBCGC=../../shared/tsid/libcgc.a
+LIBPOV=../../shared/tsid/libpov.a
+LIBS=$(LIBCGC) $(LIBPOV)
+
+FLAGS=-DFORTIFY_SOURCE=0 -DLINUX -Derrno=__cgc_errno -fno-builtin -w -g3 -m32 -fno-stack-protector
+CFLAGS=$(FLAGS) -std=gnu99
+CXXFLAGS=$(FLAGS) -g -std=gnu++11 
+
+INCLUDE=-I ../../shared/tsid/include -I ../../shared/tsid/include/tiny-AES128-C
+POV_INCLUDE=$(INCLUDE) -I ../../shared/tsid/include/libpov -I ../../shared/tsid/include/libpov/pov
+
+LCGC=-L $(dir $(LIBCGC)) -lcgc
+LPOV=$(LCGC) -lpov
+
+all: $(LIBCGC) patched vulnerable pov
+
+patched:
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mno-sse -fblocks -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/rand.c.o -c src/rand.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/sparks.c.o -c src/sparks.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/data.c.o -c src/data.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/bars.c.o -c src/bars.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/block.c.o -c src/block.c
+	$(CC) $(FLAGS) -o Charter_patched lib/libc.c.o src/rand.c.o src/sparks.c.o src/service.c.o src/data.c.o src/bars.c.o src/block.c.o $(LCGC) 
+
+vulnerable:
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mno-sse -fblocks -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/rand.c.o -c src/rand.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/sparks.c.o -c src/sparks.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/data.c.o -c src/data.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/bars.c.o -c src/bars.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mno-sse -fblocks -o src/block.c.o -c src/block.c
+	$(CC) $(FLAGS) -o Charter lib/libc.c.o src/rand.c.o src/sparks.c.o src/service.c.o src/data.c.o src/bars.c.o src/block.c.o $(LCGC) 
+
+pov: $(LIBPOV)
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -mno-sse -fblocks -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -mno-sse -fblocks -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CC) $(FLAGS) -o Charter_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CC) $(FLAGS) -o Charter_pov_1 pov_1/pov.c.o $(LPOV) 
+
+$(LIBS):
+	$(MAKE) -C $(dir $@) $(notdir $@)
+
+clean:
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/libc.c.o src/rand.c.o src/sparks.c.o src/service.c.o src/data.c.o src/bars.c.o src/block.c.o lib/libc.c.o src/rand.c.o src/sparks.c.o src/service.c.o src/data.c.o src/bars.c.o src/block.c.o Charter_pov_2 Charter_pov_1 Charter_patched Charter

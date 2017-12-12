@@ -1,0 +1,68 @@
+src/pizza.cc.o: In function `Pizza::~Pizza()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizza.cc:58: undefined reference to `operator delete(void*)'
+src/pizza.cc.o: In function `Pizza::~Pizza()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizza.cc:58: undefined reference to `operator delete(void*)'
+src/pizza.cc.o:(.rodata._ZTV5Pizza[_ZTV5Pizza]+0x14): undefined reference to `__cxa_pure_virtual'
+src/pizza.cc.o:(.rodata._ZTV5Pizza[_ZTV5Pizza]+0x18): undefined reference to `__cxa_pure_virtual'
+src/pizza.cc.o:(.rodata._ZTV5Pizza[_ZTV5Pizza]+0x1c): undefined reference to `__cxa_pure_virtual'
+src/orderiomanager.cc.o: In function `OrderIoManager::~OrderIoManager()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/orderiomanager.cc:32: undefined reference to `operator delete(void*)'
+src/orderiomanager.cc.o: In function `OrderIoManager::~OrderIoManager()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/orderiomanager.cc:32: undefined reference to `operator delete(void*)'
+src/pizzaiomanager.cc.o: In function `PizzaIoManager::~PizzaIoManager()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzaiomanager.cc:40: undefined reference to `operator delete(void*)'
+src/pizzaiomanager.cc.o: In function `PizzaIoManager::~PizzaIoManager()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzaiomanager.cc:40: undefined reference to `operator delete(void*)'
+src/pizzaiomanager.cc.o: In function `PizzaIoManager::create_pizza_pie()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzaiomanager.cc:60: undefined reference to `operator new(unsigned int)'
+src/pizzaiomanager.cc.o: In function `PizzaIoManager::create_pizza_sub()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzaiomanager.cc:102: undefined reference to `operator new(unsigned int)'
+src/pizzaiomanager.cc.o: In function `PizzaIoManager::create_pizza_bowl()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzaiomanager.cc:134: undefined reference to `operator new(unsigned int)'
+src/iomanager.cc.o: In function `IoManager::IoManager(unsigned long)':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/iomanager.cc:29: undefined reference to `operator new[](unsigned int)'
+src/iomanager.cc.o: In function `IoManager::~IoManager()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/iomanager.cc:35: undefined reference to `operator delete(void*)'
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/iomanager.cc:38: undefined reference to `operator delete(void*)'
+src/iomanager.cc.o: In function `IoManager::~IoManager()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/iomanager.cc:38: undefined reference to `operator delete(void*)'
+src/pizzabowl.cc.o: In function `PizzaBowl::~PizzaBowl()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzabowl.cc:40: undefined reference to `operator delete(void*)'
+src/pizzabowl.cc.o: In function `PizzaBowl::~PizzaBowl()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzabowl.cc:40: undefined reference to `operator delete(void*)'
+src/sauce.cc.o:/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/sauce.cc:76: more undefined references to `operator delete(void*)' follow
+src/sauce.cc.o: In function `Sauce::pour_sauce(char const*)':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/sauce.cc:84: undefined reference to `operator new(unsigned int)'
+src/topping.cc.o: In function `Topping::~Topping()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/topping.cc:32: undefined reference to `operator delete(void*)'
+src/topping.cc.o: In function `Topping::~Topping()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/topping.cc:32: undefined reference to `operator delete(void*)'
+src/topping.cc.o:(.rodata._ZTV7Topping[_ZTV7Topping]+0x10): undefined reference to `__cxa_pure_virtual'
+src/topping.cc.o:(.rodata._ZTV7Topping[_ZTV7Topping]+0x14): undefined reference to `__cxa_pure_virtual'
+src/meat.cc.o: In function `Meat::~Meat()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/meat.cc:76: undefined reference to `operator delete(void*)'
+src/meat.cc.o: In function `Meat::~Meat()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/meat.cc:76: undefined reference to `operator delete(void*)'
+src/meat.cc.o: In function `Meat::add_meat(char const*)':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/meat.cc:84: undefined reference to `operator new(unsigned int)'
+src/cheese.cc.o: In function `Cheese::~Cheese()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/cheese.cc:74: undefined reference to `operator delete(void*)'
+src/cheese.cc.o: In function `Cheese::~Cheese()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/cheese.cc:74: undefined reference to `operator delete(void*)'
+src/cheese.cc.o: In function `Cheese::select_cheese(char const*)':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/cheese.cc:82: undefined reference to `operator new(unsigned int)'
+src/pizzapie.cc.o: In function `PizzaPie::~PizzaPie()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzapie.cc:69: undefined reference to `operator delete(void*)'
+src/pizzapie.cc.o: In function `PizzaPie::~PizzaPie()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzapie.cc:69: undefined reference to `operator delete(void*)'
+src/pizzasub.cc.o: In function `PizzaSub::~PizzaSub()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzasub.cc:72: undefined reference to `operator delete(void*)'
+src/pizzasub.cc.o: In function `PizzaSub::~PizzaSub()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/pizzasub.cc:72: undefined reference to `operator delete(void*)'
+src/veggie.cc.o: In function `Veggie::~Veggie()':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/veggie.cc:76: undefined reference to `operator delete(void*)'
+src/veggie.cc.o:/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/veggie.cc:76: more undefined references to `operator delete(void*)' follow
+src/veggie.cc.o: In function `Veggie::pick_veggie(char const*)':
+/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/211/src/veggie.cc:84: undefined reference to `operator new(unsigned int)'
+collect2: error: ld returned 1 exit status
+make: *** [patched] Error 1

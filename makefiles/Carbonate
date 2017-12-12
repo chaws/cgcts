@@ -1,0 +1,62 @@
+CHAL=Carbonate
+
+CC=/usr/bin/gcc
+CXX=/usr/bin/g++
+
+LIBCGC=../../shared/tsid/libcgc.a
+LIBPOV=../../shared/tsid/libpov.a
+LIBS=$(LIBCGC) $(LIBPOV)
+
+FLAGS=-DFORTIFY_SOURCE=0 -DLINUX -Derrno=__cgc_errno -fno-builtin -w -g3 -m32 -fno-stack-protector
+CFLAGS=$(FLAGS) -std=gnu99
+CXXFLAGS=$(FLAGS) -g -std=gnu++11 
+
+INCLUDE=-I ../../shared/tsid/include -I ../../shared/tsid/include/tiny-AES128-C
+POV_INCLUDE=$(INCLUDE) -I ../../shared/tsid/include/libpov -I ../../shared/tsid/include/libpov/pov
+
+LCGC=-L $(dir $(LIBCGC)) -lcgc
+LPOV=$(LCGC) -lpov
+
+all: $(LIBCGC) patched vulnerable pov
+
+patched:
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o src/set.c.o -c src/set.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o src/handler.c.o -c src/handler.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o src/protocol.c.o -c src/protocol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o src/carbonate.c.o -c src/carbonate.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o src/scramble.c.o -c src/scramble.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o src/scramble_gen.c.o -c src/scramble_gen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o src/messages.c.o -c src/messages.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fblocks -o src/block.c.o -c src/block.c
+	$(CC) $(FLAGS) -o Carbonate_patched lib/prng.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o lib/libc.c.o src/set.c.o src/handler.c.o src/protocol.c.o src/carbonate.c.o src/scramble.c.o src/scramble_gen.c.o src/messages.c.o src/block.c.o $(LCGC) 
+
+vulnerable:
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/set.c.o -c src/set.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/handler.c.o -c src/handler.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/protocol.c.o -c src/protocol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/carbonate.c.o -c src/carbonate.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/scramble.c.o -c src/scramble.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/scramble_gen.c.o -c src/scramble_gen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/messages.c.o -c src/messages.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fblocks -o src/block.c.o -c src/block.c
+	$(CC) $(FLAGS) -o Carbonate lib/prng.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o lib/libc.c.o src/set.c.o src/handler.c.o src/protocol.c.o src/carbonate.c.o src/scramble.c.o src/scramble_gen.c.o src/messages.c.o src/block.c.o $(LCGC) 
+
+pov: $(LIBPOV)
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fblocks -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CC) $(FLAGS) -o Carbonate_pov_1 pov_1/pov.c.o $(LPOV) 
+
+$(LIBS):
+	$(MAKE) -C $(dir $@) $(notdir $@)
+
+clean:
+	rm -f pov_1/pov.c.o lib/prng.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o lib/libc.c.o src/set.c.o src/handler.c.o src/protocol.c.o src/carbonate.c.o src/scramble.c.o src/scramble_gen.c.o src/messages.c.o src/block.c.o lib/prng.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o lib/libc.c.o src/set.c.o src/handler.c.o src/protocol.c.o src/carbonate.c.o src/scramble.c.o src/scramble_gen.c.o src/messages.c.o src/block.c.o Carbonate_pov_1 Carbonate_patched Carbonate

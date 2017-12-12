@@ -1,0 +1,3 @@
+Run `make' to build `libcgc.a' and `libpov.a'.
+
+These should be all necessary libraries needed to compile CGC test cases
