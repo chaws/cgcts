@@ -19,3 +19,4 @@ The static library `libcgc.a` will contain compiled files of
 The `libpov.a` file will contain all files within `libpov` directory.
 
 Apparently, all projects that need a malloc function will have them implemented within itself  
+
