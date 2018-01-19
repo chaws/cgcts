@@ -1,270 +1,166 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 
+#   Brian Caswell <bmc@lungetech.com>
+#   Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+import string
+import sys
+import os
+
 from generator.actions import Actions
-import random
-import re
-import struct
+from random import choice,randint
+from struct import *
 
-def random_alpha():
-    alphabet = list(set([chr(x) for x in xrange(256)]) - set(['\0']))
-    length = random.randint(10, 50)
-    return ''.join([random.choice(alphabet) for x in xrange(length)])
+def chunks(l, n):
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
 
-def random_number():
-    return random.randint(10, 100000)
+def random_alpha(a, b):
+    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
 
-def get_f(v, f, n):
-    if n == 0 and f[0] is None:
-        s = ''
-        last = sorted([int(x) for x in f.keys()])[-1]
-        for x in xrange(last+1):
-            if x == 0:
-                continue
-            if x > 1:
-                s += v['OFS']
-            s += f.get(x, '')
-        f[0] = s
-    elif not 1 in f:
-        x = 1
-        for w in f[0].split(' '):
-            f[x] = w
-            x += 1
-    return f.get(n, '')
+def get_rand_array(nspace):
+    arrs = filter(lambda x: x[1] == "arr",nspace.values())
+    if len(arrs) == 0:
+        return None
+    return choice(arrs)[0]
 
-def truncate_i(v):
-    i = v.get('i') & 0xffffffff
-    i = struct.unpack('<i', struct.pack('<I', i))[0]
-    v['i'] = i
+def get_unique_name(nspace):
+    #for some stupid reason, this check isn't working
+    #for now, we just make it unlikely a collision will occur
+    name = random_alpha(10,16)
+    while name in nspace:
+        name = random_alpha(10,16)
+    return name
 
-def print_i(v):
-    i = v.get('i', '')
-    return str(i) + '\n'
+types = ["num","arr","view"]
+viewtypes = ["uint","int","ushort","short","ubyte","byte"]
+viewtypeinfo = {
+    "uint":(4,"<I",(0,2**32-1)),
+    "int":(4,"<i",(-(2**31),2**31-1)),
+    "ushort":(2,"<H",(0,2**16-1)),
+    "short":(2,"<h",(-(2**15),2**15-1)),
+    "ubyte":(1,"B",(0,255)),
+    "byte":(1,"b",(-128,127))
+}
 
-def to_bool(s):
-    if isinstance(s, int):
-        return 1 if s else 0
-    if s == '':
-        return 0
-    return 1
-
-def to_int(s):
-    if isinstance(s, int):
-        return s
-    m = re.match('([+-]?[0-9]+)', s)
-    if not m:
-        return 0
-    i = int(m.group(1))
-    i = struct.unpack('<i', struct.pack('<I', i & 0xffffffff))[0]
-    return i
-
-def test1(v, f):
-    return get_f(v, f, 0) + '\n'
-
-def test2(v, f):
-    return get_f(v, f, 1) + get_f(v, f, 2) + '\n'
-
-def test3(v, f):
-    return get_f(v, f, 1) + v['OFS'] + get_f(v, f, 2) + '\n'
-
-def test4(v, f):
-    v['OFS'] = 'a'
-    get_f(v, f, 1)
-    f[3] = 'foo'
-    f[0] = None
-    return get_f(v, f, 0) + '\n'
-
-def test4b(v, f):
-    v['OFS'] = ' '
-    return ''
-
-def test5(v, f):
-    return ''.join (['%d\n' % x for x in xrange(8)])
-
-def test6(v, f):
-    v['i'] = 0
-    return print_i(v)
-
-def test7(v, f):
-    return print_i(v)
-
-def test8(v, f):
-    v['i'] = to_int(v.get('i', 0)) + 10
-    truncate_i(v)
-    return print_i(v)
-
-def test9(v, f):
-    v['i'] = to_int(v.get('i', 0)) * 90
-    truncate_i(v)
-    return print_i(v)
-
-def test10(v, f):
-    v['i'] = to_int(v.get('i', 0)) - 2
-    truncate_i(v)
-    return print_i(v)
-
-def test11(v, f):
-    v['i'] = int(float(to_int(v.get('i', 0))) / 8)
-    truncate_i(v)
-    return print_i(v)
-
-def test12(v, f):
-    v['i'] = to_int(v.get('i', 0)) * 3
-    truncate_i(v)
-    return print_i(v)
-
-def test13(v, f):
-    v['i'] = to_int(v.get('i', 0))
-    if v['i'] < 0:
-        v['i'] = -(v['i'] % 2)
-    else:
-        v['i'] = v['i'] % 2
-    truncate_i(v)
-    return print_i(v)
-
-def test14(v, f):
-    v['i'] = 0 if to_bool(v.get('i', 0)) != 0 else 1
-    return print_i(v)
-
-def test15(v, f):
-    v['i'] = -to_int(v.get('i', 0))
-    truncate_i(v)
-    return print_i(v)
-
-def test16(v, f):
-    i = "a" + str(v.get('i', "")) + "b"
-    v['i'] = i
-
-    return print_i(v)
-
-def test17(v, f):
-    i = "10" + str(v.get('i', ""))
-    v['i'] = i
-
-    return print_i(v)
-
-def test18(v, f):
-    i = v.get('i', 0)
-    j = 4
-    if isinstance(i, str):
-        j = str(j)
-    if i > j:
-        i = 1
-    else:
-        i = -1
-    v['i'] = i
-    return print_i(v)
-
-def test19(v, f):
-    i = to_int(v.get('i', 0))
-    if to_bool(v.get('i', 0)) != 0 and (i - 1) != 0:
-        i = 1
-    else:
-        i = 0
-    v['i'] = i
-
-    return print_i(v)
-
-def test20(v, f):
-    i = to_int(v.get('i', 0))
-    if (i * 8) != 0 or (i - 2) != 0:
-        i = 1
-    else:
-        i = 0
-    v['i'] = i
-    
-    return print_i(v)
-
-def test21(v, f):
-    return '0\n'
-
-class Fuzzy(Actions):
-    TESTS = [
-        (test1, 'print;'),
-        (test2, 'print $1 $2;'),
-        (test3, 'print $1, $2;'),
-        (test4, 'OFS = "a"; $3 = "foo"; print;'),
-        (test4b, 'OFS = " ";'),
-        (test5, 'for (loop = 0; loop < 8; loop += 1) print loop;'),
-        (test6, 'for (i = 0; i < 10; --i) break; print i;'),
-        (test7, 'print i;'),
-        (test8, 'i += 10; print i;'),
-        (test9, 'i = i * 90; print i;'),
-        (test10, 'i -= 2; print i;'),
-        (test11, 'i /= 8; print i;'),
-        (test12, 'i *= 3; print i;'),
-        (test13, 'i %= 2; print i;'),
-        (test14, 'i = !i; print i;'),
-        (test15, 'i = -i; print i;'),
-        (test16, 'i = "a" i "b"; print i;'),
-        (test17, 'i = "10" i; print i;'),
-        (test18, 'i = i > 4 ? 1 : -1; print i;'),
-        (test19, 'i = i && (i - 1); print i;'),
-        (test20, 'i = (i * 8) || (i - 2); print i;'),
-        (test21, 'printf "#d#s", foobar, ORS;'),
-    ]
-
-    def execute(self, stmt):
-        out = ''
-        for x in stmt:
-            out += x[0](self.state['vars'], self.state['fields'])
-        return out
-
-    def generate_stmt(self):
-        ntests = random.randint(len(self.TESTS), len(self.TESTS) * 8)
-        stmt = [random.choice(self.TESTS) for x in xrange(ntests)]
-        s = '\n'.join([x[1] for x in stmt])
-        self.state['results'][s] = stmt
-        return s
-
+class GREATVIEW(Actions):
     def start(self):
-        self.state['data'] = '''Lorem ipsum dolor sit amet, 
-consectetur adipiscing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua.
-Ut enim ad minim veniam, quis nostrud exercitation 
-ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute
- irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
- Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
- mollit anim id est laborum.'''
-        self.state['results'] = {}
-        self.state['programs'] = []
-        self.state['vars'] = {
-            'OFS': ' '
-        }
+        self.nspace = {}
+        self.expected = []
+        self.arrs = {}
 
-    def generate(self):
-        pass
+    def validnew(self):
+        name = get_unique_name(self.nspace)
+        ntype = choice(types)
+        arg2 = ""
+        cmd = ""
+        if ntype == "num":
+            arg1 = randint(-(2**31),2**31-1)
+        elif ntype == "arr":
+            arg1 = randint(1,200)
+            self.arrs[name] = [0]*arg1
+        elif ntype == "view":
+            arg1 = get_rand_array(self.nspace)
+            if not arg1:
+                newarr = get_unique_name(self.nspace)
+                newarrsize = randint(1,200)
+                cmd += "new arr %s %s\n" % (newarr,newarrsize)
+                self.nspace[newarr] = (newarr,"arr",newarrsize,arg2)
+                self.arrs[newarr] = [0]*newarrsize
+                arg1 = newarr
+            arg2 = " "+choice(viewtypes)
+        cmd += "new %s %s %s%s\n" % (ntype,name,arg1,arg2)
+        if ntype != "view":
+            self.nspace[name] = (name,ntype,arg1,arg2)
+        else:
+            #need to keep a ref to arr in case it's deleted prematurely
+            self.nspace[name] = (name,ntype,[self.nspace[arg1],self.arrs[arg1],arg1],arg2.strip())
 
-    def begin(self):
-        s = self.generate_stmt()
-        self.state['programs'].append(('BEGIN', s))
-        self.write('\nBEGIN { %s }' % s)
+        self.write(cmd)
 
-    def normal(self):
-        word = random.choice(self.state['data'].split())
-        s = self.generate_stmt()
-        self.state['programs'].append((word, s))
-        self.write('\n/%s/ { %s }' % (word, s))
+    def validget(self):
+        if len(self.nspace) == 0:
+            self.validnew()
+        name,vtype,arg1,arg2 = choice(self.nspace.values())
+        if vtype == "num":
+            cmd = "get %s\n" % name
+            res = str(arg1)
+        elif vtype == "arr":
+            idx = randint(0,arg1-1)
+            cmd = "get %s %s\n"  % (name, idx)
+            res = str(self.arrs[name][idx])
+        else:
+            #this is nasty, but...well...that's what I get for storing everything as ints 
+            data = "".join(pack("<i",i) for i in arg1[1])
+
+            #calc idx of view
+            vti = viewtypeinfo[arg2]
+            maxsize = (arg1[0][2] / vti[0]) - vti[0]
+
+            if maxsize < vti[0]:
+                #our array is too small, just ignore for now
+                return
+
+            idx = randint(0,maxsize)
+            res = str(unpack(vti[1],data[(idx*vti[0]):(idx*vti[0])+vti[0]])[0])
+            cmd = "get %s %s\n" % (name, idx)
+
+        self.write(cmd)
+        self.expected.append(res)
+
+    def validset(self):
+        if len(self.nspace) == 0:
+            self.validnew()
+        name,vtype,arg1,arg2 = choice(self.nspace.values())
+        newval = randint(-(2**31),2**31-1)
+        if vtype == "num":
+            cmd = "set %s %s\n" % (name,newval)
+            self.nspace[name] = (name,vtype,newval,"")
+        elif vtype == "arr":
+            idx = randint(0,arg1-1)
+            cmd = "set %s %s %s\n" % (name,idx,newval)
+            self.arrs[name][idx] = newval
+        else:
+            #It's a view. We ignore this.
+            #The original patch for the bug that inspired this CB was, of course,
+            #to simply remove the ability to override the bounds. As such, we let CRSs do the same
+            #if they so "choose".
+            return
+
+        self.write(cmd)
+
+    def validdel(self):
+        if len(self.nspace) == 0:
+            self.validnew()
+        name,vtype,arg1,arg2 = choice(self.nspace.values())
+        del self.nspace[name]
+        if vtype == "arr":
+            del self.arrs[name]
 
     def end(self):
-        s = self.generate_stmt()
-        self.state['programs'].append(('END', s))
-        self.write('\nEND { %s }' % s)
+        self.expected.append("Done.")
+        self.write("\x00")
+        for line in self.expected:
+            self.read(delim="\n",expect=line)
 
-    def send_data(self):
-        self.write(self.state['data'] + '\n')
-        for line in self.state['data'].split('\n'):
-            line = line.strip('\n')
-            self.state['fields'] = {
-                0: line
-            }
-            for x in self.state['programs']:
-                if x[0] == 'BEGIN':
-                    s = self.execute(self.state['results'][x[1]])
-                    self.read(length=len(s), expect=s)
-            for x in self.state['programs']:
-                line = get_f(self.state['vars'], self.state['fields'], 0)
-                if x[0] in line and x[0] not in ('BEGIN', 'END'):
-                    s = self.execute(self.state['results'][x[1]])
-                    self.read(length=len(s), expect=s)
-            for x in self.state['programs']:
-                if x[0] == 'END':
-                    s = self.execute(self.state['results'][x[1]])
-                    self.read(length=len(s), expect=s)
+
+

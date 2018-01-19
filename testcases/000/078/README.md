@@ -1,32 +1,35 @@
-# CROMU-00039: The super fantastic, totally secure, cloud-based string and integer storage system (SFTSCBSISS for short)
+# CROMU-00010: Street map service
 
 ## Author Information
 
-“Joe Rogers” <joe@cromulence.co>
+“James Connor” <jymbo@cromulence.co>
 
 ### DARPA performer group
 Cromulence (CROMU)
 
 ## Description
-
-This CB implements a basic service for setting and querying named variables.  It allows for string and 32-bit integer variables to be created, updated and queried by the client.  Communications between the client and service is accomplished over a custom network protocol that defines packet formats for read, write, response, and error types.
+This service performs routing across the map information provided. A user shell is
+provided to allow input of map data, and route requests   
 
 ### Feature List
+The map supports roads, addresses, and intersections.  Intersections are constucted 
+by selecting two roads to join.  Addresses are numbers on road, between two 
+intersections. The map can be printed and routes from address to address can be 
+resolved.
 
-The service allows for the creation, update, and querying of named variables.  Names can be things like "system.name".  The contents of these variables can be strings or 32-bit integer values.
 
 ## Vulnerability
-
-An error in the read request handler allows for an incorrect variable name length to be specified in the packet which causes a buffer overflow in the local name variable used in that function. 
+Routing is performed by traversing intersections on a discovered road to discover 
+additional connected roads.  As unique roads(nodes) are discovered, they are pushed
+to a list stored in a the data[4080] element of a linked list node.  The size limit 
+for the number of traversals which can be stored in the data element is checked 
+against sizeof(pointer), rather than sizeof(element), resulting in a heap overwrite.
 
 ### Generic class of vulnerability
-
-Buffer overflow
-
+Heap overflow
 ### CWE classification
-
-CWE-120: Buffer Copy without Checking Size of Input
-
+CWE-467
 ## Challenges
-
-Even though the CB fails to check the supplied length of the name variable, the rest of the packet must still be properly formatted.  It must have the correct version, must be a 'read' request, and must have an overall packet length that is properly calculated.  
+Different elements are stored in common data containers, creating a challenge for
+inferring data types.  Also, a CRS must created a valid, sufficiently deep graph to 
+reach the vulnerable route function.

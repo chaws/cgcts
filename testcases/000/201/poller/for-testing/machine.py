@@ -25,314 +25,193 @@
 
 from generator.actions import Actions, Variable
 from random import choice, randint
-import imp
-import os
-import random
 import string
+import struct
 
 
-def random_alpha(a, b):
-    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
+def random_string(a, b):
+    """
+    'Safe' is qualified as strings that don't contain:
+    1) "()" - Avoid potentially-SEGFAULTing canonicalization.
+    2) "\x06" - Avoid STRING_TERMINATOR
+    3) "$SRC$" & "$!SRC$" - Avoid accidentially introducing links.
+
+    "(" and ")" are only problems if it appears adjacent to each other, 
+    triggering buggy canonicalization.  Therefore, we allow "(" and ")" in the 
+    general case, but make a pass to eliminate any "()" instances.
+    """
+    safe_printable = string.printable.replace("\x06", "")
+    return ''.join(choice(safe_printable) for _ in \
+        range(randint(a, b))).replace("()", ")_").replace("$SRC$", "$CRS$").replace("$!SRC$", "$!CRS$")
+
+def canonicalize_path(path):
+    """
+    Provided a non-canonicalized path, returns a canonicalized one.  Used to 
+    verify CB canonicalization behavior.
+
+    Canonicalization rules:
+    1) "()" are stripped.
+    """
+    cp = path.replace("()", "")
+    return cp
 
 
-def random_hex(a, b):
-    return ''.join(choice(string.hexdigits) for _ in range(randint(a, b))) 
+class GreyMatter(Actions):
+
+    DEBUG = 0
+    SZ_MAX_DOC = 0x2000
+    SZ_MAX_PATH = 0x100
+    STRING_TERMINATOR = "\x06"
+
+    def _respond(self, doc_path):
+        """
+        Provided a path, produce a file that possibly contains links to other 
+        files and send that file to the CB.  Keep track of the outstanding 
+        referenced files.
+
+        The CB will recurse depth-first through links.  We need to mirror this 
+        behavior here if we want an opportunity to verify canonicalization.
+
+        As such, it is easiest if this function recurses as well, following 
+        sequential, depth-first order.
+        """
+        doc = ""
+        sz_doc = 0
+        parens_path = False
+
+        if self.DEBUG:
+            if type(doc_path) == Variable:
+                str_doc_path = "<INDEX VARIABLE>"
+            else:
+                str_doc_path = doc_path
+            print "Currently serving '%s'" % str_doc_path
+
+        # If we're not in the index document special case, we need to do a 
+        # read() and verify the requested document against the correctly 
+        # canonicalized path.
+        if type(doc_path) != Variable:
+            self.read(
+                delim=self.STRING_TERMINATOR, 
+                expect=doc_path,
+            )
 
 
-class Fastlane(Actions):
-    RECV_BUF_LEN = 1024
+        # We choose a random number of paths to include in our document.
+        if self.chance(0.25): # Keep path explosion (relatively) under control.
+            num_links = randint(1, 4)
+            if self.chance(0.25):
+                # In some small percentage of paths, we generate a path that 
+                # contains "()", triggering faulty canonicalization.
+                parens_path = True
+        else:
+            num_links = 0
 
-    conf = imp.load_source(
-        'conf', 
-        os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 
-            '..',
-            '..',
-            'support',
-            'config.py'))
+        if self.DEBUG:
+            print "\t%d links in this doc" % num_links
 
-    FIXUP_CYCLIC_GROUP_KEY = conf.conf['FIXUP_CYCLIC_GROUP_KEY']
+        # We generate our paths, keeping track of the amount of space consumed.
+        # Do this before the fluff loop below because we need to guarantee that 
+        # the links make it into the document.
+        paths = [] # These are links without the bookends.
+        links = [] 
+        for _ in range(num_links):
+            # Why do we sometimes go slightly over on patch length?  
+            # Subtracting 10 is empirically suffcient.
+            new_path = random_string(1, self.SZ_MAX_PATH-10)
+            sz_new_path = len(new_path)
 
+            # If we've decided that we're including "()"s ...
+            if parens_path:
+                num_parens = randint(1, 8)
+                for _ in range(num_parens):
+                    idx_bisect = randint(0, sz_new_path)
+                    new_path = new_path[:idx_bisect] + "()" + new_path[idx_bisect:]
 
-    #### HELPER FUNCTIONS ####
+                # We truncate the path so that we don't accidentally overflow 
+                # the vulnerable buffer.
+
+                # While we might assume that we could code this to allow paths 
+                # longer than the vulnerable buffer length (because parens 
+                # shouldn't count against the total), this is actually 
+                # substantially more work because the CB will immediately 
+                # reject any path thats overly long (its first length check 
+                # is correct), resulting in desynchronization between CB and 
+                # poller.
+                new_path = new_path[:self.SZ_MAX_PATH-10]
+
+            paths.append(new_path)
+            link = "$SRC$" + new_path + "$!SRC$"
+            if self.DEBUG:
+                print "Responding to '%s'; generated a link: '%s'" % (str_doc_path, link)
+            links.append(link)
+            sz_doc += len(link)
+
+        # We populate the document with a random amount of random characters 
+        # separating our paths.  We make sure to not exceed MAX_USHORT.
+        for i in range(num_links):
+            fluff = random_string(0, self.SZ_MAX_DOC-sz_doc)
+            doc += fluff
+            sz_doc += len(fluff)
+
+            doc += links[i] # We're already counting the length of links.
+
+            fluff = random_string(0, self.SZ_MAX_DOC-sz_doc)
+            doc += fluff
+            sz_doc += len(fluff)
+
+        # This will happen if the document has no links.
+        if 0 == sz_doc:
+            fluff = random_string(1, self.SZ_MAX_DOC-sz_doc)
+            doc += fluff
+            sz_doc += len(fluff)
+
+        # 2B: size of document (sz_doc)
+        # XB: path + STRING_TERMINATOR
+        # (sz_doc)B: the document
+        self.write(
+            struct.pack("<H", sz_doc),
+            doc_path, 
+            self.STRING_TERMINATOR, 
+            doc
+        )
+
+        # OK, we've sent a document to the CB that contains anywhere between 0 
+        # and 4 links to further documents.  We must recurse and handle each 
+        # link in order.
+        # We need this to be in sequential order, so we can't iterate over 
+        # paths directly (as this is backed by a hash table).
+        for i in range(len(paths)):
+            path = paths[i]
+            cp = canonicalize_path(path)
+            if self.DEBUG:
+                print "Recursing to serve '%s', canon'ed to '%s'" % (path, cp)
+            self._respond(cp)
 
     def start(self):
         """
         Intialize state.
         """
-        self.state['credits'] = 0
-
-        # get a legal filename (for use in other functions)
-        self.write("SUP\n")
+        # The CB will first request a randomly-named index file.  This is a 
+        # unique case because this filename will be a Variable and its value, 
+        # therefore, is inacccessible during poll generation.
+        idx_path = Variable("idxpath")
+        idx_path.set_slice(begin=0, end=-1)
         self.read(
-            delim='\n',
-            expect="here're your files, plebian:")
-        self.read(
-            delim='\n',
-            expect="----------------------------")
+            delim=self.STRING_TERMINATOR, 
+            assign=idx_path)
+        self.state['idx_path'] = idx_path
 
-        token = Variable('legalfilename')
-        token.set_re(r'([a-z]{16})')
-        self.read(delim='\r', assign=token)
-        self.state['filename'] = token
-
-    def auth(self):
+    def respond(self):
         """
-        The main loop, in a sense.
-        All other nodes edge to here and this node edges to all other nodes.
+        If there are any outstanding requests, we randomly choose one and 
+        respond to it.
 
-        (Possibly) adds credits.
+        If there are no remaining requests, we must have responded to all the 
+        requests and we're done.
         """
-        # we don't have credits...
-        # with some likelihood, we attempt to add credits
-        if 0 == self.state['credits'] and self.chance(0.01):
-            req = "AUTH "
-
-            # with some likelihood, we send a bogus value
-            if self.chance(0.5):
-                self.write("AUTH BOGUS" + random_alpha(1, self.RECV_BUF_LEN-100) + "\n")
-                self.read(
-                    delim='\r',
-                    expect="Adding FASTLANE credits...\n"
-                           "--------------------------\n"
-                           "invalid hex\n"
-                           "Sorry, failed to add credits.\n")
-
-            # with some likelihood, we send the right answer
-            elif self.chance(0.5):
-                req += self.FIXUP_CYCLIC_GROUP_KEY
-                self.write(req + "\n")
-                self.read(
-                    delim='\r',
-                    expect="Adding FASTLANE credits...\n"
-                           "--------------------------\n"
-                           "Authentication successful!\n")
-                self.state['credits'] += 3  
-
-            # and with some likelihood, we send the wrong answer
-            else:
-                # assumes key does not start with "42"
-                req += "42"
-                req += random_hex(0, 4)
-                self.write(req + "\n")
-                self.read(
-                    delim='\r',
-                    expect="Adding FASTLANE credits...\n"
-                           "--------------------------\n"
-                           "Sorry, failed to add credits.\n")
-
-    def quit(self):
-        """
-        Quit the session / instance.
-
-        Return -1 to indicate the session is dead.
-        """
-        self.write("QUIT\n")
-        return -1
+        idx_path = self.state['idx_path']
+        self._respond(idx_path)
 
 
-    #### ERROR STATES ####
-
-    def invalid_verb(self):
-        """
-        Invalid verb specified.
-        """
-        self.write("BOGUS" + random_alpha(1, self.RECV_BUF_LEN-100) + "\n")
-        self.read(delim='\r', expect="invalid verb\n")
-
-    def invalid_request(self):
-        """
-        Legal verb specified, URI parameter absent.
-        """
-        self.write("SMORE\n")
-        self.read(delim='\r', expect="invalid request\n")
-
-    def file_not_found(self):
-        """
-        Request a file that doesn't exist.
-        """
-        self.write("MOOCH BOGUS" + random_alpha(1, self.RECV_BUF_LEN-100) + "\n")
-        self.read(delim='\r', expect="the tubes are \"clogged\" right now...\n"
-                                     "------------------------------------\n"
-                                     "requested file not found\n")
 
 
-    #### SLOWLANE VERBS ####
-    
-    def smore(self):
-        """
-        <write>
-            <data>SMORE </data>
-            <var>last_filename</var>
-            <data>\n</data>
-        </write>
-        <read>
-            <delim>\r</delim>
-            <match>
-                <data format="asciic">here's a lil' bit\n</data>
-                <data format="asciic">-----------------\n</data>
-                <pcre>^[0-9]{4}\r$</pcre>
-            </match>
-        </read>
-        """
-        # We overflow into the credits with the same number of credits.
-        # This way patched and unpatched works the same.
-        # This won't be in the for-release branch because in a sense, this 
-        # leaks the vulnerability.
-        import struct
-        self.write('SMORE ', self.state['filename'], struct.pack("B", self.state['credits'] % 256), '\n')
-        self.read(
-            delim='\n',
-            expect="here's a lil' bit")
-        self.read(
-            delim='\n',
-            expect="-----------------")
-        self.read(
-            delim='\r',
-            expect=r'^[0-9]{4}\r$',
-            expect_format='pcre')
-
-    def youup(self):
-        self.write("YOUUP\n")
-        self.read(delim="\r",
-                  expect="Yep, i'm up, but all our basic lines are \"clogged\"\n"
-                         "Upgrade to FASTLANE today!\n")
-
-    def mooch(self):
-        """
-        <write>
-            <data>MOOCH </data>
-            <var>last_filename</var>
-            <data>\n</data>
-        </write>
-        <read>
-            <delim>\r</delim>
-            <match>
-                <data format="asciic">the tubes are "clogged" right now...\n</data>
-                <data format="asciic">------------------------------------\n</data>
-                <pcre>^[0-9]{16}\r$</pcre>
-            </match>
-        </read>
-        """
-        self.write('MOOCH ', self.state['filename'], '\n')
-        self.read(
-            delim='\n',
-            expect="the tubes are \"clogged\" right now...")
-        self.read(
-            delim='\n',
-            expect="------------------------------------")
-        self.read(
-            delim='\r',
-            expect=r'^[0-9]{16}\r$',
-            expect_format='pcre')
-
-    def sup(self):
-        self.write("SUP\n")
-        self.read(
-            delim='\n',
-            expect="here're your files, plebian:")
-        self.read(
-            delim='\n',
-            expect="----------------------------")
-        self.read(
-            delim='\r',
-            expect=r'([a-z]{16}\n)+',
-            expect_format='pcre')
-
-    #### FASTLANE VERBS ####
-
-    def check_credits(self, verb):
-        if 0 == self.state['credits']:
-            self.write(verb + "\n")
-            self.read(delim='\r', expect="you're too poor to use this verb :(\n")
-            return -1
-
-        self.state['credits'] -= 1
-        return 0
-
-    def tip(self):
-        """
-        <write>
-            <data>TIP </data>
-            <var>last_filename</var>
-            <data>\n</data>
-        </write>
-        <read>
-            <delim>\r</delim>
-            <match>
-                <data format="asciic">Just the Tip!\n</data>
-                <data format="asciic">-------------\n</data>
-                <pcre>^[0-9]{4}\r$</pcre>
-            </match>
-        </read>
-        """
-        if -1 == self.check_credits("TIP"):
-            return
-
-        self.write('TIP ', self.state['filename'], '\n')
-        self.read(
-            delim='\n',
-            expect="Just the Tip!")
-        self.read(
-            delim='\n',
-            expect="-------------")
-        self.read(
-            delim='\r',
-            expect=r'^[0-9]{4}\r$',
-            expect_format='pcre')
-
-    def status(self):
-        if -1 == self.check_credits("STATUS"):
-            return
-
-        self.write("STATUS" + "\n")
-        self.read(delim="\r",
-                  expect="FASTLANE fully operational!\n"
-                         "Thank you for asking kind sir/madam!\n")
-
-    def gimme(self):
-        """
-        <write>
-            <data>GIMME </data>
-            <var>last_filename</var>
-            <data>\n</data>
-        </write>
-        <read>
-            <delim>\r</delim>
-            <match>
-                <data format="asciic">Your FASTLANE file contents; we appreciate your business!\n</data>
-                <data format="asciic">---------------------------------------------------------\n</data>
-                <pcre>^[0-9]{16}\r$</pcre>
-            </match>
-        </read>
-        """
-        if -1 == self.check_credits("GIMME"):
-            return
-
-        self.write('GIMME ', self.state['filename'], '\n')
-        self.read(
-            delim='\n',
-            expect="Your FASTLANE file contents; we appreciate your business!")
-        self.read(
-            delim='\n',
-            expect="---------------------------------------------------------")
-        self.read(
-            delim='\r',
-            expect=r'^[0-9]{16}\r$',
-            expect_format='pcre')
-
-    def list(self):
-        if -1 == self.check_credits("LIST"):
-            return
-
-        self.write("LIST" + "\n")
-        self.read(
-            delim='\n',
-            expect="Your files, kind sir/madam!")
-        self.read(
-            delim='\n',
-            expect="---------------------------")
-        self.read(
-            delim='\r',
-            expect=r'([a-z]{16}\n)+',
-            expect_format='pcre')

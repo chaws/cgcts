@@ -1,4 +1,4 @@
-CHAL=INSULATR
+CHAL=RAM_based_filesystem
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,21 +20,31 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o INSULATR_patched lib/libc.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/cmd.c.o -c src/cmd.c
+	$(CXX) $(FLAGS) -o RAM_based_filesystem_patched lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/fs.c.o src/service.c.o src/cmd.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o INSULATR lib/libc.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/cmd.c.o -c src/cmd.c
+	$(CXX) $(FLAGS) -o RAM_based_filesystem lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/fs.c.o src/service.c.o src/cmd.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -O0 -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o INSULATR_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o RAM_based_filesystem_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o RAM_based_filesystem_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/libc.c.o src/service.c.o lib/libc.c.o src/service.c.o INSULATR_pov_1 INSULATR_patched INSULATR
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/fs.c.o src/service.c.o src/cmd.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/fs.c.o src/service.c.o src/cmd.c.o RAM_based_filesystem_pov_2 RAM_based_filesystem_pov_1 RAM_based_filesystem_patched RAM_based_filesystem

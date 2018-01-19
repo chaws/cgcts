@@ -78,37 +78,6 @@ void cgc_int_to_str( int val, char *buf )
     *buf = '\0';
 }
 
-void cgc_int_to_hex( unsigned int val, char *buf )
-{
-    char temp_buf[32];
-    char *c = temp_buf;
-    int count = 0;
-
-    if ( buf == NULL )
-        return;
-
-    do
-    {
-        *c = (val % 16) + '0';
-	if (*c > '9') {
-		*c += 7;
-	}
-        val /= 16;
-
-        c++;
-        count++;
-    } while ( val != 0 );
-
-    while ( count-- > 0 )
-    {
-        c--;
-        *buf = *c;
-        buf++;
-    }
-
-    *buf = '\0';
-}
-
 void cgc_float_to_str( double val, char *buf )
 {
     if ( buf == NULL )
@@ -130,7 +99,6 @@ void cgc_float_to_str( double val, char *buf )
     {
         int digit;
         int m;
-        int m1;
         int fraction_digit;
         int in_fraction;
         int neg = 0;
@@ -149,6 +117,27 @@ void cgc_float_to_str( double val, char *buf )
             val = -val;
         }
 
+        if ( cgc_isnan( val ) )
+        {
+            cgc_strcpy( buf, "nan" );
+            return;
+        }
+        else if ( cgc_isinf( val ) )
+        {
+            cgc_strcpy( buf, "inf" );
+            return;
+        }
+        else if ( cgc_fabs(val) < F32_PRECISION )
+        {
+            cgc_strcpy( buf, "0.00000" );
+            return;
+        }
+        else if ( val > 10e9 )
+        {
+            cgc_strcpy( buf, "fmax" );
+            return;
+        }
+
         // Calculate magnitude
         m = cgc_log10( val );
 
@@ -157,7 +146,8 @@ void cgc_float_to_str( double val, char *buf )
 
         fraction_digit = 0;
         in_fraction = 0;
-        while ( val > F32_PRECISION || m >= 0 )
+
+        while( m >= -5 )
         {
             double weight = cgc_pow( 10.0, m );
             if ( weight > 0 && !cgc_isinf(weight) )
@@ -179,12 +169,6 @@ void cgc_float_to_str( double val, char *buf )
             }
 
             m--;
-        }
-
-        while ( in_fraction && fraction_digit < 5 )
-        {
-            *(c++) = '0';
-            fraction_digit++;
         }
 
         *c = '\0';
@@ -212,15 +196,6 @@ int cgc_vprintf( const char *fmt, va_list arg )
                 cgc_putc( '@' );
                 break;
 
-            case 'c':
-                // Character
-                {
-                    char c = va_arg(arg, int);
-                    cgc_putc( c );
-                    character_count++;
-                }
-                break;
-                
             case 'd':
                 // Integer
                 {
@@ -228,24 +203,6 @@ int cgc_vprintf( const char *fmt, va_list arg )
                     char *c;
 
                     cgc_int_to_str( int_arg, temp_buf );
-
-                    c = temp_buf;
-                    while ( *c )
-                    {
-                        cgc_putc( *c );
-                        character_count++;
-                        c++;
-                    }
-                }
-                break;
-
-            case 'x':
-                // hex
-                {
-                    unsigned int int_arg = va_arg( arg, unsigned int );
-                    char *c;
-
-                    cgc_int_to_hex( int_arg, temp_buf );
 
                     c = temp_buf;
                     while ( *c )
@@ -272,21 +229,6 @@ int cgc_vprintf( const char *fmt, va_list arg )
                         character_count++;
                         c++;
                     }
-                }
-                break;
-
-            case 's':
-                // String
-                {
-                    char *string_arg = va_arg( arg, char * );
-
-                    while ( *string_arg )
-                    {
-                        cgc_putc( *string_arg );
-                        character_count++;
-                        string_arg++;
-                    }
-
                 }
                 break;
 

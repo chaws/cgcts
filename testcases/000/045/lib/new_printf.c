@@ -78,36 +78,6 @@ void cgc_int_to_str( int val, char *buf )
     *buf = '\0';
 }
 
-
-void cgc_uint_to_str( unsigned int val, char *buf )
-{
-    char temp_buf[32];
-    char *c = temp_buf;
-    int count = 0;
-
-    if ( buf == NULL )
-        return;
-
-    do
-    {
-        *c = (val % 10) + '0';
-        val /= 10;
-
-        c++;
-        count++;
-    } while ( val != 0 );
-
-    while ( count-- > 0 )
-    {
-        c--;
-        *buf = *c;
-        buf++;
-    }
-
-    *buf = '\0';
-}
-
-
 void cgc_int_to_hex( unsigned int val, char *buf )
 {
     char temp_buf[32];
@@ -292,12 +262,12 @@ int cgc_vprintf( const char *fmt, va_list arg )
 
                 // single char
             if (*fmt == 'c') {
-                
+
                 char c = (char )va_arg(arg, int);
 
                 pad_len = width - 1;
 
-                // justify right 
+                // justify right
                 if (!left_justification) {
                     for (i=0; i< pad_len; ++i) {
 
@@ -328,7 +298,7 @@ int cgc_vprintf( const char *fmt, va_list arg )
                 continue;
             }
 
-                 // Integer 
+                 // Integer
             if (*fmt == 'd')  {
 
                 int int_arg = va_arg( arg, int );
@@ -376,61 +346,9 @@ int cgc_vprintf( const char *fmt, va_list arg )
 
             }
 
-
-                 // Integer 
-            if (*fmt == 'u')  {
-
-                unsigned int int_arg = va_arg( arg, int );
-                char *c;
-
-                cgc_uint_to_str( int_arg, temp_buf );
-
-                // is the output string shorter than the desired width?
-                pad_len = width - cgc_strlen(temp_buf);
-
-                // right justification
-                if (!left_justification) {
-                    for (i=0; i< pad_len; ++i) {
-
-                        if (zero_padding)
-                            cgc_putc('0');
-                        else
-                            cgc_putc(' ');
-
-                        character_count++;
-                    }
-                }
-
-                // now output the integer value
-                c = temp_buf;
-                while ( *c )
-                {
-                    cgc_putc( *c );
-                    character_count++;
-                    c++;
-                }
-
-                // left justification
-                if (left_justification) {
-                    for (i=0; i< pad_len; ++i) {
-
-                        // the option to pad with 0 is ignored when left justified
-                        cgc_putc(' ');
-                        character_count++;
-                    }
-                }
-
-                fmt++;
-                continue;
-
-            }
-
-
-
-
                 // hex
             if ( *fmt == 'x')  {
-            
+
                 unsigned int int_arg = va_arg( arg, unsigned int );
                 char *c;
 
@@ -542,22 +460,13 @@ int cgc_vprintf( const char *fmt, va_list arg )
                     }
                 }
 
-#if 1
-                cgc_size_t tmp_out = 0;
-                int tmp_ret = cgc_transmit(STDOUT, string_arg, cgc_strlen(string_arg), &tmp_out);
-                if (tmp_ret != 0)
-                    cgc__terminate(1);
-
-                character_count += tmp_out;
-#else
                 while ( *string_arg && output_strlen > 0 )
                 {
-                    putc( *string_arg );
+                    cgc_putc( *string_arg );
                     character_count++;
                     string_arg++;
                     --output_strlen;
                 }
-#endif
 
                 // left justification
                 if (left_justification) {
@@ -613,7 +522,7 @@ int cgc_vsprintf( char *str, const char *fmt, va_list arg )
             left_justification=0;
             pad_len=0;
 
-            
+
             if (*fmt == '@') {
 
                 str[character_count]='@';
@@ -660,12 +569,12 @@ int cgc_vsprintf( char *str, const char *fmt, va_list arg )
 
                 // single char
             if (*fmt == 'c') {
-                
+
                 char c = (char )va_arg(arg, int);
 
                 pad_len = width - 1;
 
-                // justify right 
+                // justify right
                 if (!left_justification) {
                     for (i=0; i< pad_len; ++i) {
 
@@ -695,7 +604,7 @@ int cgc_vsprintf( char *str, const char *fmt, va_list arg )
                 continue;
             }
 
-                 // Integer 
+                 // Integer
             if (*fmt == 'd')  {
 
                 int int_arg = va_arg( arg, int );
@@ -745,7 +654,7 @@ int cgc_vsprintf( char *str, const char *fmt, va_list arg )
 
                 // hex
             if ( *fmt == 'x')  {
-            
+
                 unsigned int int_arg = va_arg( arg, unsigned int );
                 char *c;
 
@@ -901,7 +810,7 @@ int cgc_printf( const char *fmt, ... )
 
    // done = vsprintf(large_buff, fmt, arg);
    // transmit( STDOUT, large_buff, done, &tx_count );
-    
+
     done = cgc_vprintf( fmt, arg );
     va_end( arg );
 
@@ -916,6 +825,8 @@ int cgc_sprintf( char *str, const char *fmt, ... )
     va_start( arg, fmt );
     done = cgc_vsprintf( str, fmt, arg );
     va_end( arg );
+
+    str[done] = '\0';
 
     return done;
 }

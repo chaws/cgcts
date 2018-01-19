@@ -1,26 +1,44 @@
-# KPRCA-00008
-
-## Author Information
-
-"Andrew Wesie" <andrew.wesie@kapricasecurity.com>
+# Space_Attackers
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
-## Description:
-This service implements a storage device over a USB-like network protocol. Basic functionality is implemented including read, write, and query size. The protocol implements functionality to eventually support hosting multiple devices on one server.
+## Description
+
+This service creates an interface in which someone can play an awesome game where the player avoids lasers coming downwards, 
+while shooting lasers themself back up at the enemy. Sending a newline steps the game forward. If no key has been pressed when
+the newline is sent, the ship will fire. Otherwise, w = move up, d = move right, a = move left, s = move down. 
 
 ### Feature List
-Protocol based on proven technology used everyday by millions of people. Storage device emulates a 128 blocks with a 512-byte block size. This gives the user an impressive 64KB (!) of disk space. Large enough to hold one picture (maybe?). Privacy guaranteed because your data will never be stored on disk, and is lost as soon as you disconnect.
+
+When the game starts, the user inputs their name and is greeted into the game as the General they will become. The game then proceeds
+until either the enemies reach the bottom (lose), the player is hit by an enemy laser (lose) or all the enemies are eliminated (win). 
+If the player wins, they are then entered into a "Dance Mode" for celebration.  
 
 ## Vulnerability
-Buffer overflow in the _WRITE_ command allows an attacker to overflow the _memory_ buffer and overwrite the function pointers in the __usb_t__ structure. The _memcpy_fast_ function, used by the _WRITE_ command, assumes that the length of a data packet will be greater than zero, which leads to a 16-byte overflow. If the length is set to zero, then the block address can be set to _NUM_BLOCKS_, which is the end of the _memory_ buffer. This gives 16-byte overwrite of the data after the _memory_ buffer, which is the __usb_t__ structure.
 
-### Generic class of vulnerability
-Buffer Overflow
+### Vulnerability 1
 
-### CWE classification
-CWE-787: Out-of-bounds Write
+If the player inputs their name as "magic", then a special cheat mode is enabled which forces the enemies to move in a simple
+pattern and to not fire. This allows the player to easily win the game and enter "Dance Mode". 
 
-## Challenges
-The commands are wrapped in two structures, which increases the depth needed to get to the exploitable function. Additionally, the instructions that result in the overflow use _SSE_ registers, which must be supported by the analysis platform. In order to get to the point where commands can be sent, the _devlist_ command must be sent, the _devid_ extracted, and then sent as part of the _import_ command. Lastly, the use of function pointers may make control flow more difficult to analyze.
+Once in "Dance Mode", the player can send "w\n" to increment a counter and "s\n" to save the counter as a byte in a buffer. When
+the buffer is in the desired state, the player can send "d\n" to strcpy the buffer being created into a 256 byte buffer residing 
+on the stack (service.c:708). 
+
+#### Generic class of vulnerability
+Stack-based buffer overflow
+
+#### CWE classification
+CWE-121: Stack-based Buffer Overflow
+
+#### Challenges
+
+ - Discovery via fuzzing is difficult because it is hard to win the game without using the cheat mode. Symbolic execution or static analysis may work better to find the vulnerable code.
+ - Proving requires using the cheat mode and also generating the correct input which is difficult because there is not data flow from the input to the vulnerable buffer.
+
+#### Difficulty
+
+ - **Discovery**: Medium
+ - **Proving**: Medium
+ - **Patching**: Easy

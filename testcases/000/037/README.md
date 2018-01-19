@@ -1,46 +1,44 @@
-# REMATCH_1--Hat_Trick--Morris_Worm
+# CGC Challenge Binary 00014 - SCUBA Dive Logging program
 
 ## Author Information
 
-debbie@cromulence.com
+Steve Wood <swood@cromulence.co>
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Cromulence
 
 ## Description
 
-This challenge set contains 3 binaries that closely mimic the behavior of three services: fingerd, sendmail, and rsh and an additional 'front door' binary that provides access to the others. These services were involved in the propagation of the original Internet Worm written by Robert Morris. The fingerd service was vulnerable to a simple stack buffer overflow, originally caused by use of the gets() function. The sendmail service was vulnerable to a logic bug that existed in debug mode which allowed the shell interpreter to be the recipient of the message. The rsh service was inherently vulnerable by using a naive trust model and is vulnerable to password brute force attacks.  
-
-The services in this challenge set are lookupd, inspired by fingerd, mailsender, inspired by sendmail, and ish, inspired by rsh. Each contains similar functionality to the original services and the same original bugs. 
+This challenge binary implements an application for logging a single SCUBA diver's dive activity.  
 
 ### Feature List
 
-This is a multi binary challenge set. The first binary acts as the front door, handling the initial connection and directing input to one of three services (lookupd, mailsender, and ish). 
+Dives can be manually entered, edited, removed, and displayed.  In addition, the application also has the ability to download log data from a simulated dive computer.  Statistics are also calculated over the entire log of dives and displayed.
 
-Lookupd is a lookup service that provides name and contact info for users. This service is randomly populated with fake user data on startup. It allows querying for a particular user or listing all users on the system. 
-
-ISH is an internet shell service. It requires a login and password and implements a dummy shell with a limited command set. It contains one set of static credentials and then generates random additional credentials on startup. 
-
-Mailsender is a mail server. It allows listing known addresses, dumping mail queues, reading messages, and posting new messages. 
 
 ## Vulnerability
+Two programming errors have intentionally been inserted into the application.
 
-The vulnerability in lookupd is equivalent to a gets() call. This function reads input from the user onto the stack with no bounds checking. This allows a very straightforward buffer overflow. It should be easy to find, easy to prove, and easy to patch. 
+The first vulnerability is a string buffer overwrite in the edit_dive() function.  All inputs are first read into a temp buffer before being copied to the final buffer in the log data structure.  When dives are initially entered, all inputs are limited to the size of the final destination buffer.  However, in the edit_dive function, the input for dive site is mistakenly limited to the size of the overly large temp buffer, not the final buffer.  A sufficiently large string will overwrite several other members of the data structure.  The final member of this structure is the pointer to the next dive in the linked list.  The next time the dive log list is accessed (by adding a new dive, editing an existing dive, removing a dive, or simply displaying the log), a dereference of this corrrupted pointer will cause a segfault.   
 
-The vulnerability in ISH contains two elements. One is the existence of static credentials that would allow the CRS to login and execute commands. The second is that one of the shell commands allows arbitrary reads from memory, thus enabling a memory leak (type 2 POV). The CRS could eliminate this vulnerability by either deactivating the compromised account credentials or preventing the shell command from accessing the sensitive memory region. This bug should be easy to find, easy to prove, and easy to patch.  
+The vulnerability is in update_dive() at edit_dives.c:121.  
 
-The vulnerability in mailsender is patterned after CVE-1999-0095 which allowed a remote user to access the root shell through a debug command. In this case if the CRS connects to mailsender using the -d flag and submits a message with the correct recipient, it can access a command shell that allows arbitrary read of memory. This vulnerability can be patched by either deactivating the -d debug mode or by restricting the shell from accessing the sensitive memory region. It should be easy to find, easy to prove, and easy to patch. 
+The second vulnerability is in the download_dive() function at download_dive.c:185.  When dive computer data is downloaded, the samples, consisting of a timestamp and depth, are collected into a linked list.  The first and last samples are used to calculate the overall duration of the dive.  This duration is used to dynamically allocate an array of 1 minute bins.  Another pass through the linked list ensues, and the timestamp for each sample is used to calculate which bin it belongs to.  The vulnerability is that the timestamp values are not sanity checked and a corrupt one can result in an array offset that is outside the allocated memory.  
 
 ### Generic class of vulnerability
-The lookupd vulnerability is a stack buffer overflow. 
-The ISH vulnerability is a logic bug leading to an arbitrary memory read. 
-The mailsender vulnerability is also a logic bug leading to an arbitrary memory read. 
+Vuln #1: Heap Buffer Overflow
+Vuln #2: Out of Bounds Array Pointer
 
 ### CWE classification
-
-CWE-120 Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
-CWE-798 Hard Coded Credentials
-CWE-215 Information Exposure Through Debug Information
+CWE-122 Heap Buffer Overflow
+CWE-129 Improper Validation of Array Index
 
 ## Challenges
-These vulnerabilities are patterned after very basic and outdated vulnerabilities so they should be straightforward to find, prove, and patch. One potential complicating matter is that there are four binaries in this system and some communication travels between them rather than directly to/from the user. Since most challenge sets are not designed in this manner it may prove difficult for some analysis systems. 
+
+It takes two steps to reach the first vulnerability.  First, a dive has to be entered either by downloading it or manually entering it.  Then, the dive must be edited.  While editing, the Dive Location input can be overflowed to overwrite the pointer to the next entry in the linked list.  One more step is required to actually demonstrate the vulnerability.  Any additional function that requires the dive list to be enumerated will walk the linked list and will attempt to dereference the bad pointer.
+
+The second vulnerability has a much shorter code path to reach it.  User data is directly used to calculate an offset into an array making this a fairly straightforward bug to find and reach.
+
+
+
+

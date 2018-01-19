@@ -19,55 +19,10 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
+ 
 #ifndef LIBC_H
 #define LIBC_H
 
-#include "libcgc.h"
-
-#define SUCCESS 0
-#define ERRNO_RECV -7
-#define ERRNO_TRANSMIT -8
-#define ERRNO_INVALID_STATE -13
-#define ERRNO_BOF -14
-#define ERRNO_EXHAUSTED_RX -15 // This isn't technically an "error".
-#define ERRNO_EXCEEDED_MAX_DEPTH -16
-
-unsigned char * cgc_memset(unsigned char *b, unsigned char c, cgc_size_t len);
-int cgc_memcmp(const char *s1, const char *s2, cgc_size_t n);
-void cgc_memcpy(unsigned char *dst, const unsigned char *src, cgc_size_t n);
-
-// Fragmentation related
-int cgc_receive_all(int fd, void *buf, cgc_size_t count, cgc_size_t *rx_bytes);
-int cgc_transmit_all(int fd, const void *buf, cgc_size_t count, cgc_size_t *tx_bytes);
-
-
-////
-// The following is verbatim from EAGLE_00004, but isn't included in the 
-// released binary (DEBUG is not defined), so this reuse shouldn't be a concern.
-////
-#ifdef DEBUG
-
-#define _FILE_STATE_OPEN  1
-#define _FILE_STATE_ERROR 2
-#define _FILE_STATE_EOF   4
-#define _FILE_HAVE_LAST   8
-
-typedef struct _FILE {
-   int fd;
-   int state;
-   int last;
-} FILE;
-
-extern FILE *cgc_stdin;
-extern FILE *cgc_stdout;
-extern FILE *cgc_stderr;
-
-int fprintf(FILE * stream, const char *format, ...);
-
+extern int cgc_transmit_all(int fd, const char *buf, const cgc_size_t size); // NRFIN_00002
+extern void * cgc_memset(void *dst, char c, cgc_size_t n); 
 #endif
-// ^ DEBUG
-
-#endif
-// ^ LIBC_H
-

@@ -41,7 +41,7 @@ patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/main.c.o -c src/main.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/dft.c.o -c src/dft.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/uwfc.c.o -c src/uwfc.c
-	$(CC) $(FLAGS) -o Audio_Visualizer_patched lib/printf.c.o lib/strchr.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o src/dft.c.o src/uwfc.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Audio_Visualizer_patched lib/printf.c.o lib/strchr.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o src/dft.c.o src/uwfc.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
@@ -65,11 +65,11 @@ vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/main.c.o -c src/main.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/dft.c.o -c src/dft.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/uwfc.c.o -c src/uwfc.c
-	$(CC) $(FLAGS) -o Audio_Visualizer lib/printf.c.o lib/strchr.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o src/dft.c.o src/uwfc.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Audio_Visualizer lib/printf.c.o lib/strchr.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o src/dft.c.o src/uwfc.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Audio_Visualizer_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Audio_Visualizer_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)

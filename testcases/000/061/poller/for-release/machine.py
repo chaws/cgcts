@@ -1,411 +1,285 @@
 #!/usr/bin/env python
-#
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 
-from generator.actions import Actions, Variable
-from random import choice, randint
-from os.path import dirname, abspath, join
-import sys
+from generator.actions import Actions
+import random, string, struct
 
-sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-import support as sp
-from common import DEBUG, CONFIG
-from onsale import OnSale
+def random_string_n(size=20):
+    return ''.join([random.choice(string.ascii_letters) for x in xrange(size)])
+def random_string(size=20):
+    return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
+def random_bytes_n(size=20):
+    return ''.join([chr(random.randint(0,255)) for x in xrange(size)])
+def strlen(s):
+    return s.index('\x00')
 
-class OnSalePoller(Actions):
+class BIO(object):
 
-    CMD_BUY            = '\xBE\x0E\xBE\x0E'
-    CMD_CHECK          = '\xC4\xEC\x4E\xEE'
-    CMD_ADD            = '\xAD\xDD\xAD\xDD'
-    CMD_RM             = '\xDE\xAD\xDE\xAD'
-    CMD_UPDATE         = '\x04\xD4\x7E\x00'
-    CMD_ONSALE         = '\x54\x13\x54\x13'
-    CMD_NOSALE         = '\x0F\x0F\x0F\x0F'
-    CMD_LIST           = '\x11\x44\x11\x44'
-    CMD_QUIT           = '\xFF\xFF\xFF\xFF'
+    def __init__(self, data):
+        self.data = data
+        self.didx = 0
+        self.bidx = 0
+
+    def read(self, n):
+        b = ord(self.data[self.didx])
+        r = 0
+        for i in xrange(n):
+            if self.bidx == 8:
+                self.didx += 1
+                b = ord(self.data[self.didx])
+                self.bidx = 0
+            c = (b & (1 << (8 - self.bidx - 1))) >> (8 - self.bidx - 1)
+            r |= (c << (n - i - 1))
+            self.bidx += 1
+        return r & 0xFF
+
+    def write(self, data, n):
+        b = ord(self.data[self.didx])
+        for i in xrange(n):
+            if self.bidx == 8:
+                self.data = self.data[:self.didx] + chr(b) + self.data[self.didx+1:]
+                self.didx += 1
+                b = ord(self.data[self.didx])
+                self.bidx = 0
+            c = (ord(data) & (1 << (8 - i - 1))) >> (8 - i - 1)
+            b |= (c << (8 - self.bidx - 1))
+            self.bidx += 1
+        self.data = self.data[:self.didx] + chr(b) + self.data[self.didx+1:]
+
+key = None
+def _cmp(s1, s2):
+    global key
+    for i in xrange(len(s1)):
+        if s1[i] != s2[i]:
+            i1 = key.find(s1[i])
+            i2 = key.find(s2[i])
+            if i1 == -1 or i2 == -1:
+                return s1[i] - s2[i]
+            return i1 - i2
+    return 0
 
 
-    STATUS_OK                   = ''
-    STATUS_ERR                  = ''
-    STATUS_QUIT                 = ''
+class SC(object):
 
-    def compute_status_codes(self):
-        ok = [0, 0]
-        err = [0, 0]
-        quit = [0, 0]
+    def __init__(self, key):
+        self.key = key
 
-        idx = 0
-        while idx < 4094:
-            ok[idx % 2]         ^= ord(self.magic_page[idx])
-            err[(idx + 1) % 2]  ^= ord(self.magic_page[idx + 1])
-            quit[(idx + 2) % 2] ^= ord(self.magic_page[idx + 2])
-            idx += 3
-
-        self.STATUS_OK      = ''.join([chr(c) for c in ok])
-        self.STATUS_ERR     = ''.join([chr(c) for c in err])
-        self.STATUS_QUIT    = ''.join([chr(c) for c in quit])
-
-    def send_cmd(self, cmd):
-        self.write(cmd)
-
-    def recv_status(self, status):
-        self.read(length=2, expect=sp.pack_single_string(status))
-
-    def recv_uint16(self, val, match=True):
-        if True == match:
-            self.read(length=2, expect=sp.pack_single_uint16(val))
+    def _bwt(self, comp, d):
+        if comp:
+            out = ''
+            size = 0
+            while True:
+                if size >= len(d):
+                    break
+                data = d[size:size+512]
+                table = [data[i:] + data[:i] for i in xrange(len(data))]
+                global key
+                key = self.key
+                table.sort(cmp=_cmp)
+                last = ''.join([r[-1] for r in table])
+                oidx = table.index(data)
+                out += struct.pack('<H', oidx)
+                out += last
+                size += len(data)
+                #print 'original oidx: %d' % oidx
+                #import sys
+                #for c in out:
+                #    sys.cgc_stdout.write('%02X ' % ord(c))
+                #print ''
+            return out, len(out)
         else:
-            self.read(length=2)
+            out = ''
+            size = 0
+            #import sys
+            #for c in d:
+            #    sys.cgc_stdout.write('%02X ' % ord(c))
+            #print ''
+            while True:
+                if size >= len(d):
+                    break
+                oidx = struct.unpack('<H', d[size:size+2])[0]
+                size += 2
+                data = d[size:size+512]
+                table = [''] * len(data)
+                for i in xrange(len(data)):
+                    table = [data[j] + table[j] for j in xrange(len(data))]
+                    table.sort(cmp=_cmp)
+                #print 'later oidx: %d' % oidx
+                out += table[oidx]
+                size += len(data)
+            return out, len(out)
 
-    def recv_uint32(self, val, match=True):
-        if True == match:
-            self.read(length=4, expect=sp.pack_single_uint32(val))
+    def _mtf(self, comp, data):
+        if comp:
+            l = [chr(x) for x in xrange(32)]
+            l += list(self.key)
+            l += [chr(x) for x in xrange(127, 256)]
+            code = list()
+            for i in xrange(len(data)):
+                c = l.index(data[i])
+                code.append(chr(c))
+                l.pop(c)
+                l.insert(0, data[i])
+            out = ''.join(code)
+            out_c = '\0' * len(data) * 2
+            bio = BIO(out_c)
+            for i in xrange(len(data)):
+                if ord(out[i]) > 0x0F:
+                    bio.write('\x00', 1)
+                    bio.write(out[i], 8)
+                else:
+                    bio.write('\x80', 1)
+                    bio.write(chr(ord(out[i]) << 4), 4)
+            outlen = bio.didx + 4 + (1 if bio.bidx > 0 else 0)
+            out_c = struct.pack('<I', len(data)) + bio.data[:outlen-4]
+            #import sys
+            #for c in out_c:
+            #    sys.cgc_stdout.write('%02X ' % ord(c))
+            #print ''
+            return out_c, outlen
         else:
-            self.read(length=4)
+            sz = struct.unpack('<I', data[0:4])[0]
+            if sz > 4096:
+                return None, 0
+            out = ''
+            bio = BIO(data[4:])
+            for i in xrange(sz):
+                if bio.read(1) == 0:
+                    out += chr(bio.read(8))
+                else:
+                    out += chr(bio.read(4))
+            l = [chr(x) for x in xrange(32)]
+            l += list(self.key)
+            l += [chr(x) for x in xrange(127, 256)]
+            out_d = list()
+            for c in out:
+                n = l[ord(c)]
+                out_d.append(n)
+                l.pop(ord(c))
+                l.insert(0, n)
+            out_d = ''.join(out_d)
+            return out_d, sz
 
-    def recv_float(self, val, match=True):
-        if True == match:
-            self.read(length=4, expect=sp.pack_single_float(val))
-        else:
-            self.read(length=4)
+    def compress(self, data):
+        #print 'Before Length: %d, data: %s' % (len(data), data)
+        bout, boutlen = self._bwt(True, data)
+        #print 'BWT Length: %d, data: %s' % (boutlen, bout)
+        mout, moutlen = self._mtf(True, bout)
+        #print 'MTF Length: %d, data: %s' % (moutlen, mout)
+        return mout, moutlen
 
-    def recv_double(self, val, match=True):
-        if True == match:
-            self.read(length=8, expect=sp.pack_single_double(val))
-        else:
-            self.read(length=8)
+    def decompress(self, data):
+        #print 'Before Length: %d, data: %s' % (len(data), data)
+        mout, moutlen = self._mtf(False, data)
+        #print 'iMTF Length: %d, data: %s' % (moutlen, mout)
+        bout, boutlen = self._bwt(False, mout)
+        #print 'iBWT Length: %d, data: %s' % (boutlen, bout)
+        return bout, boutlen
 
-    def recv_hash(self, hash_val, match=True):
-        if True == match:
-            self.read(length=8, expect=hash_val)
-        else:
-            self.read(length=8)
+class ASECOMP(Actions):
+
+    def _shuffle_key(self):
+        self.key = [chr(x) for x in xrange(32, 127)]
+        random.shuffle(self.key)
+        self.key = ''.join(self.key)
+
+    def _generate_data(self):
+        alph = [chr(x) for x in xrange(32, 127)]
+        n = random.randint(1, 100)
+        return ''.join([random.choice(alph) * 3 for x in xrange(n/3 + 1)])
 
     def start(self):
         #self.delay(100)
-        self.state['e'] = OnSale()
-        self.compute_status_codes()
-        if DEBUG:
-            print "------- start -----------"
+        #print '---START'
+        self.key = None
+        self.data = None
+        self.original = None
+        s = ''
+        for i in xrange(0, 8, 2):
+            s += '%02X' % ord(self.magic_page[i])
+        s += '\n'
+        self.read(length=len(s), expect=s)
 
-    def buy_products(self):
-        '''
-        Purchase one or more products
-        '''
-        self.send_cmd(self.CMD_BUY)
-        if DEBUG:
-            print "cmd: buy products"
+    def menu(self):
+        #print ' >>> MENU'
+        s = '1. Compress\n2. Decompress\n3. Quit\n'
+        self.read(length=len(s), expect=s)
 
-        # get list of products from inventory (duplicates are ok)
-        products = self.state['e'].get_rand_products_to_buy(count=randint(1,50))
+    def compress(self):
+        #print '   +++ compress'
+        self.write('1\n')
+        s = 'Key?\n'
+        self.read(length=len(s), expect=s)
+        self._shuffle_key()
+        #print 'Compress key (%d): %s' % (len(self.key), self.key)
+        self.write(self.key)
+        s = 'Data?\n'
+        self.read(length=len(s), expect=s)
+        self.data = self._generate_data()
+        #print 'Compress data (%d): %s' % (len(self.data), self.data)
+        self.write(self.data + '\0')
+        sc = SC(self.key)
+        out, outlen = sc.compress(self.data)
+        if out is None:
+            s = 'error.\n'
+            self.read(length=len(s), expect=s)
+            return
+        s = 'Original Size: %d\n' % len(self.data)
+        s += 'Compressed Size: %d (%d%%)\n' % (outlen, int((1.0 * outlen / len(self.data) * 100)))
+        s += 'Compressed Data: '
+        for i in xrange(outlen):
+            if i >= 32:
+                break
+            s += '%02X' % ord(out[i])
+        s += '\n'
+        self.read(length=len(s), expect=s)
+        self.original = self.data
+        self.data = out
 
-        # for each product
-        write_str = ''
-        total_cost = 0.0
-        for p in products:
-            # send BUY_MORE
-            write_str += CONFIG['BUY_MORE']
-            # send barcode
-            write_str += (str(p.barcode))
+    def decompress(self):
+        #print '   +++ decompress'
+        if self.data is None:
+            self.compress()
+            self.menu()
+        self.write('2\n')
+        s = 'Key?\n'
+        self.read(length=len(s), expect=s)
+        if self.key is None:
+            self._shuffle_key()
+        #print 'Decompress key: %s' % self.key
+        self.write(self.key)
+        s = 'Length?\n'
+        self.read(length=len(s), expect=s)
+        n = random.randint(1, 512)
+        data = self.data
+        if self.data is None:
+            data = random_bytes_n(n)
+        s = '%d\n' % len(data)
+        self.write(s)
+        s = 'Data?\n'
+        self.read(length=len(s), expect=s)
+        self.write(data)
+        sc = SC(self.key)
+        out, outlen = self.original, len(self.original)
+        #out, outlen = sc.decompress(data)
+        if out is None:
+            s = 'error.\n'
+            self.read(length=len(s), expect=s)
+            return
+        s = 'Compressed Size: %d\n' % len(data)
+        s += 'Original Size: %d\n' % outlen
+        s += 'Original Data: %s\n' % out[:outlen]
+        self.read(length=len(s), expect=s)
 
-            if DEBUG:
-                print "\t buy: {0}".format(p.barcode)
-
-            total_cost += p.get_sale_price()
-
-        # when finished send BUY_TERM
-        write_str += CONFIG['BUY_TERM']
-        self.write(write_str)
-
-        # recv total cost; do NOT try matching floats/doubles
-        self.recv_double(total_cost, match=False) 
-
-        if DEBUG:
-            print "\t total cost: {0}".format(total_cost)
-
-        #     self.recv_status(self.STATUS_ERR)
-        self.recv_status(self.STATUS_OK)
-
-        return 0
-
-    def check_product(self):
-        '''
-        Check info about product.
-        '''
-        self.send_cmd(self.CMD_CHECK)
-        if DEBUG:
-            print "cmd: check product"
-
-        # select a product from existing inventory
-        invalid = False
-        if self.chance(0.1):
-            invalid=True
-
-        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
-
-        # send barcode
-        self.write(product.barcode)
-
-        if True == invalid:   # if not found/invalid, recv err status
-            self.recv_status(self.STATUS_ERR)
-
-        else:  # if found
-            match_str = ''
-        # recv model num
-            self.recv_uint32(product.model_num, match=True)
-        # recv price
-            self.recv_float(product.get_sale_price(), match=False)
-        # recv desc
-            desc_packed = sp.pack_single_string(product.description)
-            match_str += desc_packed
-        # recv desc term char
-            match_str += sp.pack_single_char(CONFIG['DESC_TERM'])
-
-            self.read(length=len(match_str), expect=match_str)
-            self.recv_status(self.STATUS_OK)
-        return 0
-
-    def add_product(self):
-        '''
-        Add a new product.
-        '''
-        self.send_cmd(self.CMD_ADD)
-        if DEBUG:
-            print "cmd: add product"
-
-        # gen new product
-        p = self.state['e'].get_new_rand_product()
-        #send bc
-        self.write(p.barcode)
-        # if bc is not unique -> STATUS_ERR
-        if False == self.state['e'].is_barcode_unique(p.barcode):
-            self.recv_status(self.STATUS_ERR)
-            return -1
-
-        write_str = ''
-        #send model_num
-        write_str += sp.pack_single_uint32(p.model_num)
-
-        #send cost
-        write_str += sp.pack_single_float(p.cost)
-
-        #send desc + CONFIG['DESC_TERM']
-        write_str += sp.pack_single_string(p.description + CONFIG['DESC_TERM'])
-        self.write(write_str)
-
-        # add new product to inventory
-        self.state['e'].add_prod_to_inventory(p)
-
-        self.recv_status(self.STATUS_OK)
-
-        return 0
-
-    def rm_product(self):
-        '''
-        Remove a product.
-        '''
-        self.send_cmd(self.CMD_RM)
-        if DEBUG:
-            print "cmd: rm product"
-
-        # select a product from existing inventory
-        invalid = False
-        if self.chance(0.1):
-            invalid=True
-
-        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
-
-        # send barcode
-        self.write(product.barcode)
-
-        if True == invalid:   # if not found/invalid, recv err status
-            self.recv_status(self.STATUS_ERR)
-
-        else:  # if found
-            self.state['e'].rm_prod_from_inventory(product)
-            del product
-            self.recv_status(self.STATUS_OK)
-    
-        return 0
-
-    def update_product(self):
-        '''
-        Update the info about a product.
-        '''
-        self.send_cmd(self.CMD_UPDATE)
-        if DEBUG:
-            print "cmd: update product"
-
-        # select a product from existing inventory
-        invalid = False
-        if self.chance(0.1):
-            invalid=True
-
-        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
-
-        # send barcode
-        self.write(product.barcode)
-
-        if True == invalid:   # if not found/invalid, recv err status
-            self.recv_status(self.STATUS_ERR)
-
-        else:  # if found
-
-            # gen new product
-            p = self.state['e'].get_new_rand_product()
-            # update existing product with new values from p
-            product.model_num = p.model_num
-            product.cost = p.cost
-            product.description = p.description
-    
-            write_str = ''
-            #send model_num
-            write_str += sp.pack_single_uint32(p.model_num)
-            #send cost
-            write_str += sp.pack_single_float(p.cost)
-            #send desc + CONFIG['DESC_TERM']
-            write_str += sp.pack_single_string(p.description + CONFIG['DESC_TERM'])
-            self.write(write_str)
-
-            self.recv_status(self.STATUS_OK)
-
-        return 0
-
-    def set_onsale(self):
-        '''
-        Set a product as on sale.
-        '''
-        self.send_cmd(self.CMD_ONSALE)
-        if DEBUG:
-            print "cmd: set onsale"
-
-        # select a product from existing inventory
-        invalid = False
-        if self.chance(0.1):
-            invalid=True
-        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
-
-        # send barcode
-        self.write(product.barcode)
-
-        if True == invalid:   # if not found/invalid, recv err status
-            self.recv_status(self.STATUS_ERR)
-
-        else:  # if found
-        # send sale percent
-            sale_percent = randint(1, 150)
-            self.write(sp.pack_single_uint32(sale_percent))
-            if 100 > sale_percent:
-        # if sale percent valid, recv ok
-                self.recv_status(self.STATUS_OK)
-                product.set_on_sale(sale_percent)
-            else:
-        # if sale percent invalid, recv err
-                self.recv_status(self.STATUS_ERR)
-
-        return 0
-
-    def set_nosale(self):
-        '''
-        Set a product as not on sale.
-        '''
-        self.send_cmd(self.CMD_NOSALE)
-        if DEBUG:
-            print "cmd: set no sale"
-
-        # select a product from existing inventory
-        invalid = False
-        if self.chance(0.1):
-            invalid=True
-        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
-
-        # send barcode
-        self.write(product.barcode)
-
-        if True == invalid:   # if not found/invalid, recv err status
-            self.recv_status(self.STATUS_ERR)
-
-        else:  # if found
-            self.recv_status(self.STATUS_OK)
-
-        return 0
-
-    def list_products(self):
-        '''
-        Get a listing of all products. Get additional info depending on options selected.
-        '''
-        self.send_cmd(self.CMD_LIST)
-        if DEBUG:
-            print "cmd: list products"
-
-        opt_model_num = chr(randint(1, 200))
-        opt_cost = chr(2) # don't want this option on; can't match float reliably
-        opt_sale_cost = chr(3) # don't want this option on; can't match float reliably
-        opt_description = chr(randint(1, 200))
-        options = "{0}{1}{2}{3}".format(opt_model_num, opt_cost, opt_sale_cost, opt_description)
-
-        self.write(sp.pack_single_string(options))
-
-        inventory = self.state['e'].inventory
-        if (0 == len(inventory)):
-            self.recv_status(self.STATUS_ERR)
-        else:
-            match_str = ''
-            for p in inventory:
-                match_str += sp.pack_single_string(p.barcode)
-
-                if 0 == ord(opt_model_num) % 2:
-                    match_str += sp.pack_single_uint32(p.model_num)
-
-                # skip cost and sale_cost
-
-                if 0 != ord(opt_description) % 2:
-                    if 0 < len(p.description):
-                        desc_packed = sp.pack_single_string(p.description)
-                        match_str += desc_packed
-                    # recv desc term char
-                    match_str += sp.pack_single_char(CONFIG['DESC_TERM'])
-
-            if '' != match_str:
-                self.read(length=len(match_str), expect=match_str)
-            self.recv_status(self.STATUS_OK)
-
-        return 0
+    def invalid(self):
+        while True:
+            r = random_string()
+            if r[0] not in '123':
+                break
+        self.write(r[:6] + '\n')
+        s = 'Invalid menu.\n'
+        self.read(length=len(s), expect=s)
 
     def quit(self):
-        '''
-        Quit cleanly
-        '''
-        self.send_cmd(self.CMD_QUIT)
-        if DEBUG:
-            print "cmd: quit -----------"
-
-        self.recv_status(self.STATUS_QUIT)
-        return -1
-
-    def broker(self):
-        '''
-        Branching node for all nodes
-        '''
-        return 0
-
-
+        #print '---END'
+        self.write('3\n')
+        self.read(length=len('Bye.\n'), expect='Bye.\n')

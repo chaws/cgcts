@@ -1,4 +1,4 @@
-CHAL=Virtual_Machine
+CHAL=Rejistar
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,49 +20,49 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o lib/cutil_string.cc.o -c lib/cutil_string.cc
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/peripheral.cc.o -c src/peripheral.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/common.cc.o -c src/common.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/clf.cc.o -c src/clf.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/mmu.cc.o -c src/mmu.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/vm.cc.o -c src/vm.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/cpu.cc.o -c src/cpu.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/dma.cc.o -c src/dma.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/service.cc.o -c src/service.cc
-	$(CC) $(FLAGS) -o Virtual_Machine_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/cutil_string.cc.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/peripheral.cc.o src/common.cc.o src/clf.cc.o src/mmu.cc.o src/vm.cc.o src/cpu.cc.o src/dma.cc.o src/service.cc.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/bzero.c.o -c lib/bzero.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/atoi.c.o -c lib/atoi.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/sprintf.c.o -c lib/sprintf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/atox.c.o -c lib/atox.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/comms.c.o -c lib/comms.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strtok.c.o -c lib/strtok.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/token.c.o -c src/token.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/certificate.c.o -c src/certificate.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/util.c.o -c src/util.c
+	$(CXX) $(FLAGS) -o Rejistar_patched lib/malloc.c.o lib/bzero.c.o lib/memcpy.c.o lib/atoi.c.o lib/sprintf.c.o lib/atox.c.o lib/strncmp.c.o lib/comms.c.o lib/strtok.c.o lib/strlen.c.o src/token.c.o src/service.c.o src/certificate.c.o src/util.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o lib/cutil_string.cc.o -c lib/cutil_string.cc
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/peripheral.cc.o -c src/peripheral.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/common.cc.o -c src/common.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/clf.cc.o -c src/clf.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/mmu.cc.o -c src/mmu.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/vm.cc.o -c src/vm.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/cpu.cc.o -c src/cpu.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/dma.cc.o -c src/dma.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/service.cc.o -c src/service.cc
-	$(CC) $(FLAGS) -o Virtual_Machine lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/cutil_string.cc.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/peripheral.cc.o src/common.cc.o src/clf.cc.o src/mmu.cc.o src/vm.cc.o src/cpu.cc.o src/dma.cc.o src/service.cc.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/bzero.c.o -c lib/bzero.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/atoi.c.o -c lib/atoi.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/sprintf.c.o -c lib/sprintf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/atox.c.o -c lib/atox.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/comms.c.o -c lib/comms.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strtok.c.o -c lib/strtok.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/token.c.o -c src/token.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/certificate.c.o -c src/certificate.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/util.c.o -c src/util.c
+	$(CXX) $(FLAGS) -o Rejistar lib/malloc.c.o lib/bzero.c.o lib/memcpy.c.o lib/atoi.c.o lib/sprintf.c.o lib/atox.c.o lib/strncmp.c.o lib/comms.c.o lib/strtok.c.o lib/strlen.c.o src/token.c.o src/service.c.o src/certificate.c.o src/util.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -fno-exceptions -fno-rtti -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Virtual_Machine_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -pedantic -O0 -o pov_2/atox.c.o -c pov_2/atox.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -pedantic -O0 -o pov_2/pov_2.c.o -c pov_2/pov_2.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -pedantic -O0 -o pov_1/service.c.o -c pov_1/service.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -pedantic -O0 -o pov_1/comms.c.o -c pov_1/comms.c
+	$(CXX) $(FLAGS) -o Rejistar_pov_1 pov_1/service.c.o pov_1/comms.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Rejistar_pov_2 pov_2/atox.c.o pov_2/pov_2.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/cutil_string.cc.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/peripheral.cc.o src/common.cc.o src/clf.cc.o src/mmu.cc.o src/vm.cc.o src/cpu.cc.o src/dma.cc.o src/service.cc.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/cutil_string.cc.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/peripheral.cc.o src/common.cc.o src/clf.cc.o src/mmu.cc.o src/vm.cc.o src/cpu.cc.o src/dma.cc.o src/service.cc.o Virtual_Machine_pov_1 Virtual_Machine_patched Virtual_Machine
+	rm -f pov_2/atox.c.o pov_2/pov_2.c.o pov_1/service.c.o pov_1/comms.c.o lib/malloc.c.o lib/bzero.c.o lib/memcpy.c.o lib/atoi.c.o lib/sprintf.c.o lib/atox.c.o lib/strncmp.c.o lib/comms.c.o lib/strtok.c.o lib/strlen.c.o src/token.c.o src/service.c.o src/certificate.c.o src/util.c.o lib/malloc.c.o lib/bzero.c.o lib/memcpy.c.o lib/atoi.c.o lib/sprintf.c.o lib/atox.c.o lib/strncmp.c.o lib/comms.c.o lib/strtok.c.o lib/strlen.c.o src/token.c.o src/service.c.o src/certificate.c.o src/util.c.o Rejistar_pov_2 Rejistar_pov_1 Rejistar_patched Rejistar

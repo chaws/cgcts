@@ -1,251 +1,288 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (C) 2014 Dustin Fraze <df@cromulence.co>
 #
 
 from generator.actions import Actions
-from random import choice, randint
-from os.path import dirname, abspath, join
-import imp
 import random
-import string
-import sys
 
-CNMP_DIR = dirname(dirname(dirname(abspath(__file__))))
-sys.path.append(join(CNMP_DIR, "support"))
-from jokes import Jokes
+class Contact():
+	first = ""
 
-
-def random_alpha(a, b):
-    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
-
-def random_string(a, b):
-    chars = string.letters + string.digits
-    return ''.join(choice(chars) for _ in range(randint(a, b)))
-
-def random_digits(a, b):
-    chars = string.digits
-    return ''.join(choice(chars) for _ in range(randint(a, b)))
+	def genderToStr(self):
+		return {"M":"Male","F":"Female","T":"Trans-Gender"}.setdefault(self.gender, "Other")
 
 
-class CNMP(Actions):
+	def __init__(self, first=None, last=None, phone=None, office=None, gender=None, hacker=None):
+		if first != None:
+			self.first = first
+			self.last = last
+			self.phone = phone
+			self.office = office
+			self.gender = gender
+			self.hacker = hacker
+			return
 
-	MAX_JOKES=256
-	MAX_JOKE_STRING_LEN=512
-	JOKE_ID_CHAR_LEN=11
-	CMD_CHAR_LEN=20
 
-	def _load_jokes(self):
-		self.state['jokes'] = Jokes().get_jokes()
+		men = 'Tom Chris Charles Bryce Dustin Joe Jim James Steve John Dan Tyler Jordan Jason Mitch Thomas Eric Mitt Jeff Rick Richard Frank Franklin Will William Steven Jeb Bill Charlie Jeffrey Terry Albert Bernard Randall Troy Ricky Eddie Jesus Bradley Kyle Alfred Ralph Douglas Henry Andrew Juan Jack Keith Nicholas Victor Phillip Todd Alan Shawn Sean'.split()
+		women = 'Lilly Molly Tegan Deb Alex Samantha Stephanie Aria Ashley Amanda Tara Faye Lina Kathline Kim Jane Suzie Brianne Valerie Cindy Lacey Mary Jill Chelsea Mable Ernestine Muriel Marcella Elena Krystal Angelina Nadine Kari Estelle Dianna Paulette Lora Mona Doreen Rosemarie Angel Desiree Antonia Hope Ginger Janis Betsy Sophia Jessica Shirley Cynthia Angela Melissa Brenda Amy Anna Rebecca Virginia Carolyn Ann Alice Heather Rose Martha'.split()
+		last = 'Clinton Bush Obama Smith Johnson Jones Brown Davis Miller Wilson Moore Taylor Anderson Ford McAvoy Gates Jobs Moss Snowden Flores Washington Butler Simmons Foster Gonzales Bryant Alexander Russell Griffen Diaz Hayes Myers Hamilton Perry Cook Peterson Gray Ramirez Price Morris Rogers Reed Morgan Bell Murphy Bailey Rivera Cooper Richardson Cox Howard Ward Torres Peterson Barnett Jennings Miles Lucas Gergory Sutton Castro Obrien Frazier Welch Larson Romero Lynch Dean Gilbert Burke Hanson Day Cowman Medina Fowler Brewer Hoffman Carlson Silva Underwood Phelps Luna Wilkins Roberson Barton Tran Casey Boone Bowers Morton'.split()
+
+		self.gender = random.choice(["M", "F", "T", "?"])
+		if self.gender == 'M':
+			self.first = random.choice(men)
+		elif self.gender == 'F':
+			self.first = random.choice(women)
+		else:
+			self.first = random.choice(random.choice([men, women]))
+		self.last = random.choice(last)
+		self.phone = "(%0.3d)%0.3d-%0.4d" % (random.randrange(0, 999), random.randrange(0, 999), random.randrange(0, 9999))
+		self.office = random.randrange(0,9999)
+		self.hacker = random.choice("yn")
+
+class Yolodex(Actions):
+	addState = 0
+
+	def genInitialContacts(self):
+		self.contacts = []
+		self.contacts.append(Contact(first="Robert", last="Morris", phone="(617)253-5982", office=32972, gender='M', hacker='y'))
+		self.contacts.append(Contact("Chareth", "Cutestory", "(123)456-7890", 4242, 'M', 'n'))
+		self.contacts.append(Contact("Tim", "Berners-Lee", "(638)844-2074", 404, 'M','y'))
+		self.contacts.append(Contact("Pwnies", "McPwn", "(222)223-1337", 31337, 'F','y'))
+		self.contacts.append(Contact("Jenny", "Fakename", "(555)867-5309", 31337, 'F','n'))
+
 
 	def start(self):
-		self._load_jokes()
-		self.read(delim="\n", 
-			expect="This is the Chuck Norris (joke) Management Protocol (CNMP).\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="We know you need a break, so take some time and amuse yourself. " \
-  			      "If you have a good Chuck Norris joke, you can add it to our listing.\n", 
-			expect_format='asciic')
+		self.read(delim='\n', expect='Welcome to the yolodex.')
+		self.genInitialContacts()
 
-	def menu(self):
-		self.read(delim="\n", 
-			expect="Enter one of these commands:\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="  LIST  - list all jokes\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="  ADD   - upload your own joke\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="  COUNT - find out how many jokes we have to offer you\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="  SHOW  - show a joke\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="  MENU  - display this menu\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="  HELP  - you gotta be kididin' me!\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="  QUIT  - take off eh?\n", 
-			expect_format='asciic')
+	def add(self):
+		self.write("@\n")
 
-	def root_prompt(self):
-		self.read(delim='> ', expect='> ', expect_format='asciic')
+	def addBadHacker(self):
+		self.newContact = Contact()
+		self.read(delim=": ", expect="First")
+		self.write(self.newContact.first + "\n")
+		self.read(delim=": ", expect="Last")
+		self.write(self.newContact.last + "\n")
+		self.read(delim=": ", expect="Phone Number")
+		self.write(self.newContact.phone + "\n")
+		self.read(delim=": ", expect="Office Number")
+		self.write(str(self.newContact.office) + "\n")
+		self.read(delim=": ", expect="Gender")
+		self.write(self.newContact.gender + "\n")
+		self.read(delim=": ", expect="Hacker")
+		hacker = random.choice("abcdefghijklmopqrstuvwxz01234567890-!@#$%^&*()")
+		self.write(hacker + "\n")
+		self.read(delim="\n", expect="Please enter y or n for hacker.")
+		self.read(delim=": ", expect="Hacker")
+		self.write(self.newContact.hacker + "\n")
 
-	def empty(self):
-		self.write("\x07")
+	def addBadName(self):
+		self.newContact = Contact()
+		bad = random.choice(["first", "last"])
+		self.read(delim=": ", expect="First: ")
+		self.write((self.newContact.first if bad == "last" else self.newContact.first.lower()) + "\n")
+		self.read(delim=": ", expect="Last: ")
+		self.write((self.newContact.last.lower() if bad == "last" else self.newContact.last) + "\n")
+		self.addState = 3
+		self.finishAdd()
+		self.read(delim="\n", expect="Invalid %s name.  Must begin with a capital letter." % bad)
+		self.addState = 1
+		self.finishAdd()
 
-	def quit(self):
-		self.write("QUIT\x07")
-		expect_str = "Thanks for the laughs. Come back soon!\n"
-		self.read(delim='\n', expect=expect_str, expect_format='asciic')
-		return -1
+	def addBadPhone(self):
+		self.newContact = Contact()
+		self.read(delim=": ", expect="First")
+		self.write(self.newContact.first + "\n")
+		self.read(delim=": ", expect="Last")
+		self.write(self.newContact.last + "\n")
+		self.read(delim=": ", expect="Phone Number")
+		self.write(''.join(random.choice('abcdefghiklmnopqrstuvwxyz0123456789-)') for _ in range(12)))
+		self.write("\n")
+		self.addState = 4
+		self.finishAdd()
 
-	def help(self):
-		self.write("HELP\x07")
-		expect_str = "Is our menu so extensive that you cannot remember all of the commands? " \
-        			 "Here, let me jog all 6 of your neurons:\n"
-		self.read(delim='\n', expect=expect_str, expect_format='asciic')
+	def mainmenu(self):
+		pass
 
-	def list_jokes(self):
-		self.write("LIST\x07")
-		# joke is list of lines with format "joke_id: joke\n"
-		for idx, joke in enumerate(self.state['jokes'], 0):
-			self.read(delim='\n', 
-				expect="{0}: {1}\n".format(idx, joke), 
-				expect_format='asciic')
+	def showinvalid(self):
+		self.write(random.choice('abcdfghijklmorstuvwxyz0123456789-)') + "\n")
+		self.showGoodUser()
 
-	def count(self):
-		self.write("COUNT\x07")
-		# read count string
-		expect_str = "Current CNMP joke count is {0}. Enjoy!\n".format(len(self.state['jokes']))
-		self.read(delim='\n', expect=expect_str, expect_format='asciic')
 
-	def menu_cmd(self):
-		self.write("MENU\x07")
+	def finishAdd(self):
+		if self.addState <= 1:
+			self.read(delim=": ", expect="First")
+			self.write(self.newContact.first + "\n")
+		if self.addState <= 2:
+			self.read(delim=": ", expect="Last")
+			self.write(self.newContact.last + "\n")
+		if self.addState <= 3:
+			self.read(delim=": ", expect="Phone Number")
+			self.write(self.newContact.phone + "\n")			
+		if self.addState <= 4:
+			self.read(delim=": ", expect="Office Number")
+			self.write(str(self.newContact.office) + "\n")
+		if self.addState <= 5:
+			self.read(delim=": ", expect="Gender")
+			self.write(self.newContact.gender + "\n")
+		if self.addState <= 6:
+			self.read(delim=": ", expect="Hacker")
+			self.write(self.newContact.hacker + "\n")
 
-	def bad_cmd_die(self):
-		# submit a bad command; will exit connection
-		# bad command: (self.CMD_CHAR_LEN chars w/o trailing '\x07')
-		# have to stay w/in CMD_CHAR_LEN else poller will fail attempting to
-		# write the extra bytes that the CB will never read
-		cmd = random_string(self.CMD_CHAR_LEN, self.CMD_CHAR_LEN)
-		expect_str = "\nAre you kidding me? What is that garbage? " \
-			"I thought my instructions were pretty straight forward. " \
-			"Try again.\n"
-		self.write('{0}'.format(cmd))
-		self.read(delim='.\n', expect=expect_str, expect_format='asciic')
-		return -1
 
-	def add_msg(self):
-		expect_str = ""
-		self.write("ADD\x07")
-		self.read(delim="\n", expect="So, you think you have a good Chuck Norris joke? "\
-        "Give me the joke string already....\n", expect_format='asciic')
-		self.read(delim='> ', expect='ADD> ', expect_format='asciic')
+	def addGood(self):
+		self.newContact = Contact()
+		self.addState = 1
+		self.finishAdd()
+		self.contacts.append(self.newContact)
 
-		# submit a bad message; will exit connection
-		# bad message: (> MAX_JOKE_STRING_LEN chars, i.e. MAX_JOKE_STRING_LEN*'A' w/o '\x07')
-		if self.chance(0.0001):
-			joke = random_string(self.MAX_JOKE_STRING_LEN, self.MAX_JOKE_STRING_LEN)
-			expect_str = "\nAre you kidding me? What is that garbage? " \
-    				"I thought my instructions were pretty straight forward. " \
-    				"Try again.\n"
-			self.write('{0}'.format(joke))
-			self.read(delim='.\n', expect=expect_str, expect_format='asciic')
-			return -1
-		# submit a bad joke
-		# bad joke (MAX_JOKE_STRING_LEN-1 chars, i.e (MAX_JOKE_STRING_LEN-1)*'A' + \x07)
-		elif self.chance(0.001):
-			joke = random_string(self.MAX_JOKE_STRING_LEN - 1, self.MAX_JOKE_STRING_LEN - 1)
-			expect_str = "\nThat joke you gave me is crap! " \
-				        "For that, you get to start over!\n"
-			self.write('{0}\x07'.format(joke))
-			self.read(delim='!\n', expect=expect_str, expect_format='asciic')
+	def userLookup(self, first, last):
+		self.read(delim=": ", expect="First")
+		self.write(first + "\n")
+		self.read(delim=": ", expect="Last")
+		self.write(last + "\n")
+
+
+	def delete(self):
+		try:
+			picked = random.choice(self.contacts)
+		except IndexError:
+			return
+		self.write("A\n")
+		self.userLookup(picked.first, picked.last)
+		self.read(delim="\n", expect="Contact removed.")
+		self.contacts.remove(picked)
+
+	def edit(self):
+		try:
+			picked = random.choice(self.contacts)
+		except IndexError:
+			return
+		new = Contact()
+		self.write("B\n")
+		self.userLookup(picked.first, picked.last)
+		self.read(delim="\n", expect="Updating fields.  Send just a newline to keep old data.")
+		self.read(delim=": ", expect="New first name")
+		self.write(new.first + "\n")
+		self.read(delim=": ", expect="New last name")
+		self.write(new.last + "\n")
+		self.read(delim=": ", expect="New phone number")
+		self.write(new.phone + "\n")
+		self.read(delim=": ", expect="New office number")
+		self.write(str(new.office) + "\n")
+		self.read(delim=": ", expect="New gender")
+		self.write(new.gender + "\n")
+		self.read(delim="? ", expect="Is the user a hacker")
+		self.write(new.hacker + "\n")
+		self.contacts[self.contacts.index(picked)] = new
+
+	def badcommand(self):
+		self.write(random.choice("qwertyuiopasdfghjklzxcvbnm,.[];'/1234567890!#$%^&*()-=_+") + "\n")
+		self.read(delim="\n", expect="Unrecognized Command.")
+
+	def showmenu(self):
+		try:
+			self.picked = random.choice(self.contacts)
+		except IndexError:
+			self.picked = None
+			return
+		self.write("C\n")
+
+	def showprev(self):
+		if not getattr(self, "picked", None):
+			return
+		self.write("p\n")
+		if self.contacts.index(self.picked) == 0:
+			self.read(delim="\n", expect="No previous contact.")
 		else:
-			joke = random_string(1, self.MAX_JOKE_STRING_LEN - 2)
-			self.write('{0}\x07'.format(joke))
-			joke_count = len(self.state['jokes'])
+			self.picked = self.contacts[self.contacts.index(self.picked)-1]
+			self.showGoodUser()
 
-			if joke_count < self.MAX_JOKES:
-				# add a joke
-				expect_str = "Joke added. Thanks for sharing! Your joke is ID: {0}\n".format(joke_count)
-				self.state['jokes'].append(joke)
-
-			else:
-				# joke db is full
-				expect_str = "Lordy, lordy, I've had enough Chuck Norris jokes. Go away.\n"
-
-			self.read(delim='\n', expect=expect_str, expect_format='asciic')
-
-	def show(self):
-		expect_str = "Give me the ID of the joke you want to read. Or better yet, " \
-			        "enter RANDOM and I'll choose one for you.\n"
-		self.write("SHOW\x07")
-		self.read(delim="\n", expect=expect_str, expect_format="asciic")
-
-	def show_prompt(self):
-		expect_str = 'SHOW> '
-		self.read(delim='> ', expect=expect_str, expect_format='asciic')
-
-	def show_msg_good(self):
-		expect_str = ""
-		expect_format='asciic'
-		joke_id = ""
-		# find the easteregg joke
-		if self.chance(0.001):
-			joke_id = "1337"
-			expect_str = "Congratulations, you are the only person in the past, present " \
-        					"or future to beat Chuck Norris.\n"
+	def shownext(self):
+		if not getattr(self, "picked", None):
+			return
+		self.write("n\n")
+		if self.contacts.index(self.picked) == len(self.contacts)-1:
+			self.read(delim="\n", expect="No next contact.")
 		else:
-			# choose a RANDOM joke
-			if self.chance(0.2):
-				joke_id = "RANDOM"
-				expect_str = "[0-9]+: (.*)\n"
-				expect_format='pcre'
-			else:
-				# id form 0 to joke_count - 1
-				joke_count = len(self.state['jokes'])
-				joke_id = str(randint(0, joke_count - 1))
-				expect_str = "{0}: {1}\n".format(joke_id, self.state['jokes'][int(joke_id)])
+			self.picked = self.contacts[self.contacts.index(self.picked)+1]
+			self.showGoodUser()
 
-		self.write("{0}\x07".format(joke_id))
-		self.read(delim='\n', expect=expect_str, expect_format=expect_format)
+	def showexit(self):
+		if len(self.contacts) == 0:
+			return
+		self.write("q\n")
 
-	def show_msg_bad(self):
-		# submit a bad joke id, w/ len < self.JOKE_ID_CHAR_LEN
-		joke_id = ""
-		if self.chance(0.33):
-			# numeric < 0
-			joke_id = "-1{0}".format(random_digits(1,self.JOKE_ID_CHAR_LEN - 5))
+	def showBadUser(self):
+		if not getattr(self, "picked", None):
+			return
+		baduser = Contact()
+		self.userLookup(baduser.first, baduser.last)
+		self.read(delim="\n", expect="No such contact.")
 
-		elif self.chance(0.33):
-			#not numeric that is not "RANDOM", w/ len < self.JOKE_ID_CHAR_LEN
-			joke_id = random_alpha(1, self.JOKE_ID_CHAR_LEN - 1)
-			if joke_id == "RANDOM":
-				joke_id  = random_alpha(1, self.JOKE_ID_CHAR_LEN - 1)
+	def showGoodUser(self):
+		if not getattr(self, "picked", None):
+			return
+		picked = self.picked
+		self.picked = None
+		self.userLookup(picked.first, picked.last)
+		self.read(delim="\n", expect="*"*40)
+		self.read(delim="\t", expect="First name:")
+		self.read(delim="\n", expect=picked.first)
+		self.read(delim="\t", expect="Last name:")
+		self.read(delim="\n", expect=picked.last)
+		self.read(delim="\t", expect="Phone num:")
+		self.read(delim="\n", expect=picked.phone)
+		self.read(delim="\t", expect="Office Number:")
+		self.read(delim="\n", expect=str(picked.office))
+		self.read(delim="\t\t", expect="Gender:")
+		self.read(delim="\n", expect=picked.genderToStr())
+		if picked.hacker == 'y':
+			self.read(delim="\n", expect="[\x1b[31m!\x1b[0m]This user known to be a hacker[\x1b[31m!\x1b[0m]")
+		self.read(delim="\n", expect="*"*40)
 
-		# submit a bad joke id w/ len = self.JOKE_ID_CHAR_LEN w/o '\x07'
-		# will exit connection
-		elif self.chance(0.0001):
-			joke_id = "1{0}".format(random_digits(self.JOKE_ID_CHAR_LEN-1, self.JOKE_ID_CHAR_LEN-1))
-			self.write("{0}".format(joke_id))
-			expect_str = "\nAre you kidding me? What is that garbage? " \
-				        "I thought my instructions were pretty straight forward. Try again.\n"
-			self.read(delim='.\n', expect=expect_str, expect_format='asciic')
-			return -1
+	def showdelete(self):
+		if not getattr(self, "picked", None):
+			return
 
+		index = self.contacts.index(self.picked)
+
+		if index == 0 and len(self.contacts) == 0:
+			self.picked = None
+			return
+
+		self.write("d\n")
+
+		if index == len(self.contacts)-1:
+			self.picked = self.contacts[index-2]
 		else:
-			# number >= len(jokedb), not 1337, w/ len < self.JOKE_ID_CHAR_LEN
-			joke_id = len(self.state['jokes']) + 1338
-
-		self.write("{0}\x07".format(joke_id))
-		expect_str = "\nWhat do you take me for? That ID is bogus! Try again.\n"
-		self.read(delim='.\n', expect=expect_str, expect_format='asciic')
+			self.picked = self.contacts[index]
+		self.showGoodUser()
 
 
+	def showlist(self):
+		self.write("D\n")
+		for c in self.contacts:
+			self.read(delim="\n", expect="="*40)
+			self.read(delim="\t", expect="First Name:")
+			self.read(delim="\n", expect=c.first)
+			self.read(delim="\t", expect="Last Name:")
+			self.read(delim="\n", expect=c.last)
+			self.read(delim="\t", expect="Phone Number:")
+			self.read(delim="\n", expect=c.phone)
+		if len(self.contacts) == 0:
+			self.read(delim="\n", expect="Empty yolodex.")
+		self.read(delim="\n", expect="="*40)
 
+	def sortContacts(self, a, b):
+		return cmp(a.last, b.last)
 
+	def sort(self):
+		self.contacts = sorted(self.contacts, self.sortContacts)
+		self.write("E\n")
+
+	def exit(self):
+		self.write("F\n")
+		self.read(delim="\n", expect="Thank you for using the yolodex.")

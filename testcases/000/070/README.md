@@ -1,50 +1,37 @@
-# CGC Challenge Binary Template
-
-## Author Information
-
-Narf Industries <info@narfindustries.com>
+# KPRCA-00044 (FUN)
 
 ### DARPA performer group
+Kaprica Security (KPRCA)
 
-Narf Industries (NRFIN)
+## Description:
 
-## Description
-
-Multipass is a new, magical, way to pay for all of life's necessities. Simply swipe and go for gas, food, vending machines, and at conbinis! 
+This service implements a simple text generator based on a Markov process. The initial states are built using static text from the great essayist Jonathan Swift. Additional states can be introduced by training, during which the service will generate text using the current states and an included dictionary, and if the user approves, the text will be added to the states.
 
 ### Feature List
 
-The following transactions are available:
-- Make purchase (use multi-pass card to make a purchase from a vendor)
-- Refund purchase (use multi-pass card to refund a previous purchase)
-- Balance inquiry (use multi-pass card to query its balance)
-- List transaction history (use multi-pass card to query the list of recent transactions)
-- Issue new Multi-Pass (request a new multi-pass card)
-- Add funds to Multi-Pass (use multi-pass card to add funds to the balance)
+As an ultra-secure service, attempts to exploit this service will fail because of its novel function pointer protection (FUNpro). Additionally, the text generation uses an advanced RNG that makes use of the latest in processor technologies (SSE2).
+
+The available commands are:
+
+ * Reprotect - FUNpro!
+ * Add word - add a word to the internal dictionary
+ * Sort words - sort the internal dictionary
+ * Search words - search through the dictionary for a word or partial word
+ * Generate text - generates text randomly using the current states
+ * Training - add new states via a machine learning procedure
 
 ## Vulnerability
 
-This multipass daemon has a few internal structures to track if a transaction is open/closed. Upon finalizing a transaction its open flag should be set to zero.
-The vulnerable version, however, decrements the is_open flag (account.c:205) such that it rolls over to +128 (char var). This offset is used directly as an cgc_ERRNO.
-The NULL dereference is not triggered immediately, the system waits until it has to generate an error message packet (multipass.c:generate_error). 
-In the error generation process, the cgc_ERRNO is used as an offset into a table of char * pointers (multipass.h:104). The index is out of bounds in this array of char pointers and causes a null dereference.
-
-Another simpler NULL dereference involves invoking refund operation against a non-refundable transaction. Specifically, all AUTH requests are logged to the MULTIPASS history. AUTH transaction histories do not contain a data section. One of the first steps in the refund operation is to lookup a transaction by ID and dereference the data section. Dereferencing the null data section of an AUTH transaction leads to another NULL pointer dereference. 
+The vulnerability is a buffer overflow of an array of strings in the *.data* section (*words*). The binary fails to check the length of the array when adding new strings to the end of the array (*main.c:421*). By overflowing the array, the attack is able to overwrite data used by *malloc* and eventually the *secret_key* which is used to unobfuscate function pointers.
 
 ### Generic class of vulnerability
-
-Integer underflow followed by NULL dereference.
-
-Plain null dereference.
+Buffer overflow
 
 ### CWE classification
-
-NULL Pointer Dereference
-CWE-476
+CWE-788: Access of Memory Location After End of Buffer
 
 ## Challenges
-* The release poller does not include any information about how to generate error messages.
-* The CRS requires taint tracking across a static variable which is touched in a fair amount of the program, this might be optimized away by some competitors.
-* The release poller is not indicative of the protocol allowing *multiple* FINS.
 
+This challenge set implements a service with a minimum of direct function calls. Instead, almost all of the function calls from *main.c* are indirect calls through an array of obfuscated function pointers. These function pointers are obfuscated at compile time by adding a constant value to the pointers, and can be reobfuscated at run-time by the user. This will pose a challenge from static analysis of the challenge binary.
 
+Additionally, in order to trigger the buffer overflow the attack must be able to add many valid words to the dictionary. When adding a new word, the service checks that the word does not already exist in the dictionary and that the word partially matches another word in the dictionary. This will post a challenge for trivial fuzzing attempts, but should be easy for symbolic execution. However, if incorrect paths are taken, the solver will need to handle SSE and SSE2 instructions.

@@ -1,7 +1,5 @@
 /*
- * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
- *
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,34 +20,9 @@
  * THE SOFTWARE.
  *
  */
+#include "cgc_malloc_private.h"
 
-#include "libcgc.h"
-#include "cgc_malloc.h"
-#include "cgc_stdlib.h"
-#include "cgc_stdint.h"
-#include "cgc_string.h"
-
-void *cgc_realloc(void *ptr, cgc_size_t size)
+void *cgc_realloc(void *ptr, cgc_size_t n)
 {
-  if (ptr == NULL)
-    return cgc_malloc(size);
-
-  if (size == 0) {
-    cgc_free(ptr);
-    return NULL;
-  }
-
-  void *new = cgc_malloc(size);
-  if (new == NULL)
-    return NULL;
-
-  struct blk_t *blk = (struct blk_t *)((intptr_t)ptr - HEADER_PADDING);
-
-  if (size < blk->size - HEADER_PADDING)
-    cgc_memcpy(new, ptr, size);
-  else
-    cgc_memcpy(new, ptr, blk->size - HEADER_PADDING);
-
-  cgc_free(ptr);
-  return new;
+    return cgc_malloc_realloc(&g_heap, ptr, n);
 }

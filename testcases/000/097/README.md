@@ -1,52 +1,52 @@
-# KPRCA-00035
+# ShoutCTF
 
-## DARPA performer group
+### DARPA performer group
 Kaprica Security (KPRCA)
 
-## Description:
+## Description
 
-This service implements a basic virtual machine that receives one instruction
-at a time and sends back the VM's current register state.
+ShoutCTF is a CTF platform where a user can register to either start a new team or join an existing team to play CTF. When creating a team, the leader (the first user who creates the team) can specify a shoutout that shows up when the team profile is looked up. Just like any other CTFs, the system goes down at random and new challenges are added/opened randomly. ShoutCTF provides a universal flag submission, where you can just submit the flag for any challenge in main CTF menu instead of submitting for a specific challenge.
 
-The protocol starts with a header that has a magic check and fields to allow
-initialization of the VM's registers and memory. Each instruction is 32-bits
-and is generally in the format: 8-bit opcode, 4-bit destination register, 4-bit
-source register, 16-bit literal.
 
 ### Feature List
 
-The virtual machine implements basic arithmetic such as addition, subtraction,
-division, and multiplication, as well as integer comparisons and basic IO. The
-machine state consists of 15 general purpose registers and 64KB of memory. For
-performance, the interpreter utilizes computed gotos instead of the more common
-if statements or switch statement.
+
+```
+- Register User
+  - Register Team
+  - Join Team
+- Login User
+- Scoreboard
+  - View challenges list
+  - View challenge detail
+  - View ranking
+    - “Scroll” through the teams (Max of 5 teams per page)
+  - Ticker with most recent solves and team info for the logged-in user.
+  - View team profile
+  - Submit flags
+- Quit
+```
 
 ## Vulnerability
 
-The VM supports a syscall that allows the user to frobnicate a region of
-memory.  The fronicate function does not check the arguments that it is called
-with to ensure they will only result in the frobnication of memory within the
-bounds of the VM's memory array (main.c:113). Therefore, it is possible to
-frobnicate a region  of memory outside bounds of the array, which in this case
-is heap memory since the VM's state is allocated on the heap.
+### Vuln 1
 
-### CWE classification
-CWE-129: Improper Validation of Array Index
-CWE-665: Improper Initialization
-CWE-787: Out-of-bounds Write
+In `handle_register_user` function, there is a trivial stack-based buffer overflow in team creation mode. The `shoutout` section of the team information is read into a buffer (`shout`) with a larger size (`sizeof(buf)`) than the buffer's size.
 
-## Challenges
+#### Generic class of vulnerability
 
-The primary challenge for this service is to get the VM to call the `frob`
-syscall function. The syscall function is accessed through a function pointer
-on the stack. This function pointer is set appropriately according to the
-syscall arguments. Part of the challenge is that there is no code path that
-explicitly sets this function pointer to the frobnicate function. However, it
-is also that case that unless the arguments are specific values, the function
-pointer is not initialized. Therefore, if the address of memory where this
-function pointer lies is set to the address of the frobnicate function via some
-other code path in the program then the vulnerable frobnicate function is
-accessible. Since the `process_xor` function's `new_val` stack variable lies at
-the same address as the `process_sys` function's `fp` variable, this task is
-achievable. Executing this vulnerability will require symbolic execution or
-some other way of reasoning about a way of accessing the frobnicate function.
+Stack-based Buffer Overflow
+
+#### CWE classification
+
+CWE-121: Stack-based Buffer Overflow
+
+#### Challenges
+
+ - Randomness (service outage) needs to be handled to consistently exploit the bug.
+
+#### Difficulty
+
+ - **Discovery**: easy
+ - **Proving**: easy
+ - **Patching**: easy

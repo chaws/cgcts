@@ -1,43 +1,63 @@
-# vFilter
+# CGC Challenge Binary (KPRCA_00057): Glue
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
 ## Description
-
-A constant-time VM interpreter and validator written in C for fast data filtering. The user provides a filter program and a set of data, which is processed and the results returned.
+Glue is a custom file format meant to be used as an archiving mechanism for
+system administrators who desire to store large collections of files as
+a single file. This service is command line parser for glue files desired to
+allow system administrators to easily examine and validate the contents of
+their glue files.
 
 ### Feature List
 
-Separate validation and execution stages increases the performance of the interpreter as the amount of data increases. There is a one-time cost to make sure the program is correct, and then the interpreter can make assumptions that increase performance.
+ * Print the follow attributes about each object contained within the archive
 
-Support for many instructions: 13 arthimetic instructions, 4 conditional jumps, byte/half-word/word loads and stores, and read/write system calls. Loops are forbidden to guarantee that the execution is time-bound. During execution, the filter has access to a 1KB stack and the input data. Loads and stores are bounds-checked to prevent undefined behavior.
+ * Name
+ * Mode
+ * UID
+ * GID
+ * User Code
+ * Size
+ * Modification Time
+ * Type
+ * Link Name
+ * Magic Value
+ * Version
+ * Owner Name
+ * Group Name
+ * Device Major Number
+ * Device Minor Number
+ * Prefix
 
 ## Vulnerability
-### Vuln 1
+The vulnerability for this service exists within the fetching of the user's
+user_code for a object in the glue file. user_codes are contained within
+a global string in the binary that is indexed into using the product of the
+user ID and group ID on the current object being processed. If this computed
+index is specially crafted it can be used to cause the service to print out
+contents of values in the secret page thus resulting in a type 2 vulnerability.
 
-The VM interpreter keeps track of the value stored in each VM register and what memory space the VM register references. Normally, a VM register that holds a number will have a NULL memory space pointer. The interpreter takes advantage of this and ORs the memory space pointers together when performing an ADD or SUB instruction. This works because the validator enforces that the operands are either NUMBER-NUMBER, POINTER-NUMBER, or NUMBER-POINTER. So, the result of the OR is either NULL or a valid memory space pointer.
+### Generic class of vulnerability
 
-The interpreter fails to set the memory space pointer to NULL in some cases, which causes the aforementioned assumptions to break. This allows an attacker to construct a payload that results in the two memory space pointers being OR'd together, resulting in a memory space pointer that references attacker supplied memory, namely the VM registers. The attacker can set the length of this fake memory space structure to a large value and use a load instruction to read from any memory address or a store instruction to write to any address.
+Invalid Array Index
 
-#### Generic class of vulnerability
+### CWE classification
 
-Logic error
-
-#### CWE classification
-
-CWE-123: Write-what-where Condition
 CWE-125: Out-of-bounds Read
-CWE-465: Pointer Issues
+CWE-129: Improper Validation of Array Index
 
-#### Challenges
+## Challenges
+This is a relatively simple vulnerability to prove. By realizing that the
+index into the global user_codes array could result into a type
+2 vulnerability, the CRS will then need to identify that the index is based off
+of the GID and UID which taken from input provided to the service. Difficulty
+does however lie in accurately encoding the desired GID and UID as character
+encoded octal numbers which is the format in which the challenge binary expects
+them to be encoded.
 
-- The bug is in a virtual machine interpreter, which makes symbolic execution difficult
-- The bug is dependent on the arrangement of heap allocations
-- Patching is difficult because the bug is specific to this program and the memory access is inside of a loop that will affect performance if it is naively instrumented
-
-#### Difficulty
-
- - **Discovery**: hard
- - **Proving**: medium
- - **Patching**: hard
+## Subjective Quantification
+Discovering: Easy
+Proving: Easy
+Fixing: Easy

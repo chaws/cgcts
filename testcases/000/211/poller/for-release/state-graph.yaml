@@ -1,44 +1,33 @@
+#
+# Copyright (C) 2015 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
 ---
 nodes:
 - name: start
-- name: main_menu
-- name: input_order
-#- name: update
-- name: view_one_order
-- name: view_all_orders
-- name: order_option_menu
-- name: add_topping
-- name: remove_topping
-- name: add_sauce
-- name: remove_sauce
-- name: finished_adding_pizza
-- name: add_another_pizza
-- name: quit_to_main_menu
-- name: logout
+- name: catchCriminalInCar
+- name: catchCriminalInBoat
 - name: quit
 
 edges:
-- start: main_menu
-- main_menu: input_order
-#- main_menu: update_order
-- main_menu: view_one_order
-- main_menu: view_all_orders
-- main_menu: logout
-- input_order: order_option_menu
-- order_option_menu: add_topping
-- order_option_menu: remove_topping
-- order_option_menu: add_sauce
-- order_option_menu: remove_sauce
-- order_option_menu: finished_adding_pizza
-- add_topping: order_option_menu
-- remove_topping: order_option_menu
-- add_sauce: order_option_menu
-- remove_sauce: order_option_menu
-- finished_adding_pizza: add_another_pizza
-- finished_adding_pizza: quit_to_main_menu
-- add_another_pizza: order_option_menu
-- quit_to_main_menu: main_menu
-- view_one_order: main_menu
-- view_all_orders: main_menu
-- logout: quit
+- start: catchCriminalInCar
+- catchCriminalInCar: catchCriminalInBoat
+- catchCriminalInBoat: quit
 

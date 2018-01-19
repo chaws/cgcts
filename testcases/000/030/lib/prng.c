@@ -1,8 +1,8 @@
 /*
 
-Copyright (c) 2015 Cromulence LLC
+Author: Debbie Nuttall <debbie@cromulence.co>
 
-Authors: Cromulence <cgc@cromulence.com>
+Copyright (c) 2014 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,97 +23,58 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
-// This is an implementation of the WELL RNG 1024a random number generator
-#include "cgc_prng.h"
+
+// This is an xorshift1024* Pseudo Random Number Generator
+
 #include "cgc_stdint.h"
-#include "cgc_string.h"
+#include "cgc_prng.h"
 
-#define R	32
-#define M1	3
-#define M2	24
-#define M3	10
+uint64_t state[16];
+int position;
 
-uint32_t state[R];
-uint32_t state_n;
-
-void cgc_seed_prng_array( uint32_t *pSeedArray, uint32_t arrayLen )
+// Seeds the RNG state by passing the 64-bit input seed through xorshift64* algorithm
+void cgc_sprng(uint64_t seed)
 {
-	uint32_t i;
-
-	// CLear initial state
-	cgc_bzero( (void *)state, R*sizeof(uint32_t) );
-
-	state_n = 0;
-
-	// Only use a maximum of 32 uint32_t's to seed state
-	if ( arrayLen > 32 )
-		arrayLen = 32;
-
-	for ( i = 0; i < arrayLen; i++ )
-		state[i] = pSeedArray[i];
-
-	for ( i = arrayLen; i < R; i++ )
+	uint64_t state_64 = seed;
+	for (int i = 0; i < 16; i++)
 	{
-		uint32_t state_value = state[(i-1)&0x1f];
-
-		// Mix in some of the previous state, the current iteration, and multiply by a mersenne prime		
-		state[i] = (uint32_t)((state_value ^ (state_value >> 30) + i) * 524287);
+		state_64 ^= state_64 >> COEFFICIENT_A_64;
+		state_64 ^= state_64 << COEFFICIENT_B_64;
+		state_64 ^= state_64 >> COEFFICIENT_C_64;
+		state[i] = state_64 * MULTIPLIER_64;
 	}
+	position = 0;
 }
 
-void cgc_seed_prng( uint32_t seedValue )
+// Generates a random 64-bit number using the xorshift1024* algorithm
+uint64_t cgc_prng()
 {
-	cgc_seed_prng_array( &seedValue, 1 );
+	uint64_t state0 = state[position];
+	position = (position + 1) % 16;
+	uint64_t state1 = state[position];
+
+	state1 ^= state1 << COEFFICIENT_A_1024;
+	state1 ^= state1 >> COEFFICIENT_B_1024;
+	state0 ^= state0 >> COEFFICIENT_C_1024;
+	state[position] = state0 ^ state1;
+	return state[position] * MULTIPLIER_1024;
 }
 
-uint32_t cgc_prng( void )
+// Generate an unsigned integer in the range min to max, inclusive. 
+uint32_t cgc_random_in_range(uint32_t min, uint32_t max)
 {
-	// Get new random
-	uint32_t v0 = state[ state_n ];
-	uint32_t vM1 = state[ (state_n + M1) & 0x1f ];
-	uint32_t vM2 = state[ (state_n + M2) & 0x1f ];
-	uint32_t vM3 = state[ (state_n + M3) & 0x1f ];
-		
-	uint32_t z0 = state[ (state_n+31) & 0x1f ];
-	uint32_t z1 = v0 ^ (vM1 ^ (vM1 >> 8));
-	uint32_t z2 = (vM2 ^ (vM2 << 19)) ^ (vM3 ^ (vM3 << 14));
-	
-	uint32_t newV1 = z1 ^ z2;
-	uint32_t newV0 = (z0 ^ (z0 << 11)) ^ (z1 ^ (z1 << 7)) ^ (z2 ^ (z2 << 13));
-
-	state[ state_n ] = newV1;
-	state[ (state_n+31) & 0x1f ] = newV0;
-
-	state_n = (state_n + 31) & 0x1f;
-
-	return newV0;	
-}
-
-// Random [min,max] (note that is inclusive)
-uint32_t cgc_random_in_range( uint32_t min, uint32_t max )
-{
-	if ( min > max )
+	if (max <= min)
+	{
 		return 0;
-
-	if ( min == max )
-		return min;
-
-	uint32_t random_value;
-	uint32_t delta = max - min + 1;
-
-	// Check for [0, 0xffffffff]
-	if ( delta == 0 )
-		return cgc_prng();
-
-	uint32_t scale_divider = (0xffffffff) / delta;
-	
+	}
+	unsigned int range = max - min + 1;
+	unsigned int scale_factor = 0xffffffff / range;
+	unsigned int rand_uint;
 	do
 	{
-		random_value = cgc_prng();
-
-		// Pick values until they fall into one of the buckets
-	} while ( random_value >= scale_divider * delta);
-
-	// Scale value back down add min and return	
-	return min + (random_value / scale_divider);
+		rand_uint = cgc_prng();
+	} while (rand_uint >= scale_factor * range); // Discard numbers that would cause bias
+		
+	return (rand_uint / scale_factor + min);
 }
+	

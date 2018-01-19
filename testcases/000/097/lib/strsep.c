@@ -1,7 +1,5 @@
 /*
- * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
- *
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,26 +20,34 @@
  * THE SOFTWARE.
  *
  */
-
-#include "libcgc.h"
+#include "cgc_stdlib.h"
 #include "cgc_string.h"
 
-char *cgc_strsep(char **stringp, const char *delim)
+char * cgc_strsep(char **stringp, const char *delim)
 {
-  if (*stringp == NULL)
-    return NULL;
+    unsigned int i;
+    char *buf = *stringp;
 
-  char *i;
-  for (i = *stringp; *i && !cgc_strchr(delim, *i); i++);
+    /* return NULL if already empty */
+    if (buf == NULL)
+        return NULL;
 
-  delim = *stringp;
+    /* find a deliminator */
+    for (i = 0; buf[i] != 0; i++)
+    {
+        if (cgc_strchr(delim, buf[i]) != NULL)
+            break;
+    }
 
-  if (*i) {
-    *i = '\0';
-    *stringp = i + 1;
-  } else {
-    *stringp = NULL;
-  }
+    /* set stringp to point to after the deliminator, or NULL if empty */
+    if (buf[i] == 0)
+        *stringp = NULL;
+    else
+        *stringp = &buf[i + 1];
 
-  return (char *) delim;
+    /* replace the deliminator with a NULL byte */
+    buf[i] = 0;
+
+    /* return truncated buffer */
+    return buf;
 }

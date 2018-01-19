@@ -22,80 +22,50 @@
 
 #include "libcgc.h"
 #include "cgc_libc.h"
-#include "cgc_strinfo.h"
-#ifdef DEBUG
- // this is the libc from EAGLE_00005/pov_1/
- // the only change I've made is to define fprintf() in e_libc.c
- // this is only used when debugging.
-#include "cgc_e_libc.h"
-#endif
-
-#define GIMME "Give me your sentences.\x03"
-#define DONE "Here are your results...\x03"
-#define TERM '\x03'
-
-#define INBUFSZ 1024
+#include "cgc_libdupe.h"
+#include "cgc_cablegrind.h"
 
 int main(int cgc_argc, char *cgc_argv[]) {
+    int i;
+    uint32_t filesize;
+    uint8_t *data;
+    uint8_t *warmup;
+    dupefile_t *f;
 
-    char input[INBUFSZ] = {0};
-    int bytes_recv = 0;
-
-    #ifdef DEBUG
-        char *s_ptr = (char *)FLAG_PAGE;
-        fprintf(cgc_stderr, "FLAG: ");
-        for (unsigned int i = 0; i < 10; i++) {
-            fprintf(cgc_stderr, "%02x", (unsigned char) *s_ptr++);
-        }
-        fprintf(cgc_stderr, "\n");
-    #endif
-
-    while(1) {
-        struct results r;
-        // ask for input.
-        if (24 != cgc_send_bytes(STDOUT, GIMME, 24)) {
-            cgc__terminate(10);
-        }
-        #ifdef DEBUG
-        fprintf(cgc_stderr, "sent GIMME\n");
-        #endif
-
-        cgc_memset(input, 0, INBUFSZ);
-        cgc_memset(&r, 0, sizeof(r));
-
-        // get input
-        // bug: 1048 > INBUFSZ
-        //  Allows overwrite of VA of _start and cgc_write OOB beyond input buf to cause SEGFAULT.
-        //  The bytes are cgc_read by the input parsing code, but not written to registers.
-        //  Not a CFE POV.
-        if (0 > (bytes_recv = cgc_recv_until_delim_n(STDIN, TERM, input, 1048))) {
-            cgc__terminate(20);
-        }
-        #ifdef DEBUG
-        fprintf(cgc_stderr, "recvd input bytes\n");
-        #endif
-
-        // process input
-        if (SUCCESS != cgc_process(input, TERM, &r)) {
-            cgc__terminate(15);
-        }
-        #ifdef DEBUG
-        fprintf(cgc_stderr, "processed input\n");
-        #endif
-
-        // send results
-        if (25 != cgc_send_bytes(STDOUT, DONE, 25)) {
-            cgc__terminate(10);
-        }
-        #ifdef DEBUG
-        fprintf(cgc_stderr, "sent TERM\n");
-        #endif
-        if (sizeof(r) != cgc_send_bytes(STDOUT, (const char *)&r, sizeof(r))) {
-            cgc__terminate(10);
-        }
-
+    //we want to warmup the heap for performance or something
+    //actually just to ensure heap corruption is a bit easier
+    for(i = 1024; i > 0; i--) {
+        warmup = cgc_malloc((i+1)*2);
+        cgc_free(warmup);
     }
+
+
+    cgc___stack_cookie_init();
+
+    RECV(sizeof(uint32_t),(char *)&filesize);
+
+    if (filesize > MAX_DUPE_SIZE)
+        return 1;
+
+    cgc_setheap(0);
+    data = cgc_malloc(filesize);
+
+    if (!data)
+        return 2;
+
+    RECV(filesize,(char *)data);
+
+    f = cgc_dupe_open(data);
+
+    if (!f || f->caplen != filesize-sizeof(dupefile_t)) {
+        LOG("Bad file.")
+        return 3;
+    }
+
+    cgc_process_dupe(f);
+
+    cgc_setheap(0);
+    cgc_dupe_close(f);
+
     return 0;
 }
-
-

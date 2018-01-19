@@ -1,4 +1,4 @@
-CHAL=Multipass
+CHAL=Lazybox
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,57 +20,45 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/strchr.c.o -c lib/strchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/strcpy.c.o -c lib/strcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/strcmp.c.o -c lib/strcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/readuntil.c.o -c lib/readuntil.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/strsep.c.o -c lib/strsep.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/memchr.c.o -c lib/memchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/free.c.o -c lib/free.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/malloc_init.c.o -c lib/malloc_init.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/malloc_size.c.o -c lib/malloc_size.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/calloc.c.o -c lib/calloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/strtol.c.o -c lib/strtol.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/realloc.c.o -c lib/realloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -Os -g -o src/main.c.o -c src/main.c
-	$(CC) $(FLAGS) -o Multipass_patched lib/printf.c.o lib/strchr.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/readuntil.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/malloc_init.c.o lib/strncpy.c.o lib/malloc_size.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/shell.c.o -c src/shell.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/screen.c.o -c src/screen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Lazybox_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/shell.c.o src/screen.c.o src/io.c.o src/user.c.o src/fs.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/strchr.c.o -c lib/strchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/strcpy.c.o -c lib/strcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/strcmp.c.o -c lib/strcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/readuntil.c.o -c lib/readuntil.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/strsep.c.o -c lib/strsep.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/memchr.c.o -c lib/memchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/free.c.o -c lib/free.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/malloc_init.c.o -c lib/malloc_init.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/malloc_size.c.o -c lib/malloc_size.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/calloc.c.o -c lib/calloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/strtol.c.o -c lib/strtol.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/realloc.c.o -c lib/realloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -Os -g -o src/main.c.o -c src/main.c
-	$(CC) $(FLAGS) -o Multipass lib/printf.c.o lib/strchr.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/readuntil.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/malloc_init.c.o lib/strncpy.c.o lib/malloc_size.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/shell.c.o -c src/shell.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/screen.c.o -c src/screen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Lazybox lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/shell.c.o src/screen.c.o src/io.c.o src/user.c.o src/fs.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -Os -g -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Multipass_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/service.c.o -c pov_2/service.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/service.c.o -c pov_1/service.c
+	$(CXX) $(FLAGS) -o Lazybox_pov_2 pov_2/service.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Lazybox_pov_1 pov_1/service.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/printf.c.o lib/strchr.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/readuntil.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/malloc_init.c.o lib/strncpy.c.o lib/malloc_size.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o lib/printf.c.o lib/strchr.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/readuntil.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/malloc_init.c.o lib/strncpy.c.o lib/malloc_size.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o Multipass_pov_1 Multipass_patched Multipass
+	rm -f pov_2/service.c.o pov_1/service.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/shell.c.o src/screen.c.o src/io.c.o src/user.c.o src/fs.c.o src/service.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/shell.c.o src/screen.c.o src/io.c.o src/user.c.o src/fs.c.o src/service.c.o Lazybox_pov_2 Lazybox_pov_1 Lazybox_patched Lazybox

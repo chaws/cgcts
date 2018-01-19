@@ -1,4 +1,4 @@
-CHAL=PRU
+CHAL=Facilities_Access_Control_System
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -27,10 +27,12 @@ patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/alu.c.o -c src/alu.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/fmt2.c.o -c src/fmt2.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/pru.c.o -c src/pru.c
-	$(CC) $(FLAGS) -o PRU_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/alu.c.o src/fmt2.c.o src/pru.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/alarm.c.o -c src/alarm.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/device.c.o -c src/device.c
+	$(CXX) $(FLAGS) -o Facilities_Access_Control_System_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/io.c.o src/alarm.c.o src/user.c.o src/service.c.o src/device.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
@@ -40,17 +42,19 @@ vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/alu.c.o -c src/alu.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/fmt2.c.o -c src/fmt2.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/pru.c.o -c src/pru.c
-	$(CC) $(FLAGS) -o PRU lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/alu.c.o src/fmt2.c.o src/pru.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/alarm.c.o -c src/alarm.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/device.c.o -c src/device.c
+	$(CXX) $(FLAGS) -o Facilities_Access_Control_System lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/io.c.o src/alarm.c.o src/user.c.o src/service.c.o src/device.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/service.c.o -c pov_1/service.c
-	$(CC) $(FLAGS) -o PRU_pov_1 pov_1/service.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o Facilities_Access_Control_System_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/service.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/alu.c.o src/fmt2.c.o src/pru.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/alu.c.o src/fmt2.c.o src/pru.c.o PRU_pov_1 PRU_patched PRU
+	rm -f pov_1/pov.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/io.c.o src/alarm.c.o src/user.c.o src/service.c.o src/device.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/io.c.o src/alarm.c.o src/user.c.o src/service.c.o src/device.c.o Facilities_Access_Control_System_pov_1 Facilities_Access_Control_System_patched Facilities_Access_Control_System

@@ -1,155 +1,187 @@
-#!/usr/bin/env python
+# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from generator.actions import Actions
+from os.path import dirname, abspath, join
 import random
 import string
+import struct
+import sys
 
+sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), 'support'))
+from support import Support, Command, random_string, random_regex
 
-def random_string(size=20):
-    return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
-
-class ARentMovie(Actions):
-    def _init_movies(self):
-        self.MOVIES = [
-          ["The Shawshank Redemption", "Two imprisoned men bond over a number of years, finding solace and eventual\n     redemption through acts of common decency.", 1994, 93, "Other", "R", 0],
-          ["The Godfather", "The aging patriarch of an organized crime dynasty transfers control of his clandestine\n     empire to his reluctant son.", 1972, 92, "Other", "R", 0],
-          ["The Dark Knight", "When Batman, Gordon have Harvey Dent launch an assault on the mob, they let the clown\n     out of the box, the Joker, bent on turning Gotham on itself and bringing any heroes\n     down to his level.", 2008, 90, "Action", "PG13", 0],
-          ["Inception", "A thief who steals corporate secrets through use of dream-sharing technology is given the\n     inverse task of planting an idea into the mind of a CEO.", 2010, 88, "Action", "PG13", 0],
-          ["The Matrix", "A computer hacker learns from mysterious rebels about the true nature of his reality and\n     his role in the war against its controllers.", 1999, 87, "Action", "R", 0],
-          ["Modern Times", "The Tramp struggles to live in modern industrial society with the help of a young\n     homeless woman.", 1936, 86, "Comedy", "G", 0],
-          ["About Time", "At the age of 21, Tim discovers he can travel in time and change what happens and has\n     happened in his own life. His decision to make his world a better place by getting\n     a girlfriend turns out not to be as easy as you might think.", 2013, 78, "Romance", "R", 0],
-          ["Yes Man", "A guy challenges himself to say \"yes\" to everything for an entire year.", 2008, 69, "Comedy", "PG13", 0],
-          ["The Conjuring", "Paranormal investigators Ed and Lorraine Warren work to help a family terrorized\n     by a dark presence in their farmhouse.", 2013, 75, "Horror", "R", 0],
-          ["The Lion King", "Lion cub and future king Simba searches for his identity. His eagerness to please others\n     and penchant for testing his boundaries sometimes gets him into trouble.", 1994, 85, "Other", "G", 0]
-        ]
-
-    def _is_rented(self, idx):
-        return self.MOVIES[idx][6]
-
-    def _rent_movie(self, idx):
-        self.MOVIES[idx][6] = 1
-
-    def _return_movie(self, idx):
-        i = 0
-        for x in xrange(len(self.MOVIES)):
-            if self.MOVIES[x][6]:
-                i += 1
-                if i == idx:
-                    self.MOVIES[x][6] = 0
-                    return self.MOVIES[x]
-
-    def _num_rented_movies(self):
-        return len([movie for movie in self.MOVIES if movie[6]])
-
+class Eddy(Actions):
     def start(self):
-        self.MOVIES = []
-        self._init_movies()
-        self.read(delim='\n', expect='========= Movie Rental Service v0.1 =========\n')
-        self.read(delim='\n', expect='   . . . Initializing the inventory . . .\n')
-        self.read(delim='\n', expect='         (movie info from IMDb.com)\n')
-        self.read_string('=============================================')
+        ##self.delay(100)
+        self.state['model'] = Support(self.magic_page)
 
-    def read_string(self, s):
-        self.read(length=len(s), expect=s)
+    def command(self):
+        self.comment(repr(self.state['model'].lines_list))
 
-    def read_movie(self, movies, idx):
-        title, desc, year, score, genre, rating, is_checked_out = movies[idx]
-        self.read_string('[%d] %s (%d, %s) - %s [%d/100]\n  => %s\n'
-            % (idx+1, title, year, rating, genre, score, desc))
+    def invalid(self):
+        r = self.state['model'].random_range()
+        if not r:
+            r = (0, 0)
 
-    def read_movie2(self, movie, idx):
-        title, desc, year, score, genre, rating, is_checked_out = movie
-        self.read_string('[%d] %s (%d, %s) - %s [%d/100]\n  => %s\n'
-            % (idx+1, title, year, rating, genre, score, desc))
+        cmds = [c for c in string.lowercase + string.punctuation if c not in 'acdgijlmnqtv=']
 
-    def read_movies(self):
-        self.read_string('\nMovies (Full)\n--------------\n')
-        for x in xrange(len(self.MOVIES)):
-            self.read_movie(self.MOVIES, x)
-        self.read_string('--------------\n%d movie(s)\n' % len(self.MOVIES))
+        invalid_command = Command(random.choice(cmds), r[0], r[1], random_string(4, 40))
+        self.write(invalid_command.pack())
+        res = self.state['model'].do_invalid(invalid_command)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
 
-    def read_movies_rented(self):
-        i = 0
-        self.read_string('\nMovies (Rented)\n--------------\n')
-        for x in xrange(len(self.MOVIES)):
-            if self._is_rented(x):
-                self.read_movie2(self.MOVIES[x], i)
-                i += 1
-        self.read_string('--------------\n%d movie(s)\n' % self._num_rented_movies())
+    def append(self):
+        r = self.state['model'].random_range()
+        if not r:
+            r = (0, 0)
 
-    def menu(self):
-        self.read_string('\n1. List movies\n2. Rent movie\n3. Return movie\n4. Admin mode\n5. Exit\n\nChoice: ')
+        append_command = Command('a', r[0], r[1], random_string(4, 40))
+        self.write(append_command.pack())
+        res = self.state['model'].do_insert(append_command, True)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
 
-    def list_movie(self):
-        self.write('1 list\n')
-        self.read_movies()
-        self.read_movies_rented()
+    def insert(self):
+        r = self.state['model'].random_range()
+        if not r:
+            r = (0, 0)
 
+        insert_command = Command('i', r[0], r[1], random_string(4, 40))
+        self.write(insert_command.pack())
+        res = self.state['model'].do_insert(insert_command, False)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
 
-    def rent_movie(self):
-        self.write('2 rent\n')
-        self.read_movies()
-
-        self.read_string('Enter movie id: ')
-        if random.randint(1, 100) <= 15:
-            self.write('%d\n' % random.randint(11, 200))
-            self.read_string('[ERROR] Invalid movie id. Try again.\n')
-            self.read_string('Enter movie id: ')
-
-        idx = random.randint(0, 9)
-        if random.randint(1, 100) <= 75:
-            for i in xrange(0, 10):
-                if not self._is_rented(i):
-                    idx = i
-                    break
-
-        self.write('%d\n' % (idx+1))
-        if self._is_rented(idx):
-            self.read(delim='\n', expect='Sorry, [%s] is already rented at this time. Please try again later.\n' % self.MOVIES[idx][0])
-        else:
-            self.read(delim='\n', expect='Successfully rented [%s]! Enjoy!\n' % self.MOVIES[idx][0])
-            self._rent_movie(idx)
-
-    def return_movie(self):
-        self.write('3 return\n')
-        self.read_movies_rented()
-        num_rented = self._num_rented_movies()
-        if not num_rented:
-            self.read(delim='\n', expect='[ERROR] All the movies are in our inventory.\n')
+    def change(self):
+        r = self.state['model'].random_range()
+        if not r:
             return
-        while True:
-            self.read_string('Enter movie id: ')
-            if random.randint(1, 100) <= 15:
-                idx = random.randint(11, 200)
-            elif random.randint(1, 100) <= 80:
-                idx = random.randint(1, num_rented)
-            else:
-                idx = random.randint(1, 10)
-            self.write('%d\n' % idx)
-            if idx <= num_rented:
-                break
-            self.read(delim='\n', expect='[ERROR] Invalid movie id. Try again.\n')
-        movie = self._return_movie(idx)
-        self.read(delim='\n', expect='Successfully returned [%s]! Thank you!\n' % movie[0])
 
-    def try_login(self):
-        self.write('4 login\n')
-        self.read_string('username: ')
-        if random.randint(1, 100) <= 80:
-            self.write('root\n')
-            self.read_string('password: ')
-            self.write('%s\n' % random_string(20))
-        else:
-            self.write('%s\n' % random_string(15))
-        self.read(delim='\n', expect='[ERROR] Permission Denied: Wrong credentials\n')
+        change_command = Command('c', r[0], r[1], random_string(4, 40))
+        self.write(change_command.pack())
+        res = self.state['model'].do_change(change_command)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
 
-    def invalid_menu(self):
-        if random.randint(0, 1) == 0:
-            self.write('%d invalid\n' % random.randint(6, 9))
-        else:
-            self.write('%s invalid\n' % random_string(10))
-        self.read(delim='\n', expect='[ERROR] Invalid menu. Please select again.\n')
+    def delete(self):
+        r = self.state['model'].random_range()
+        if not r:
+            return
 
-    def quit(self):
-        self.write('5 quit\n')
-        self.read(delim='\n', expect='Bye!\n')
+        delete_command = Command('d', r[0], r[1], '')
+        self.write(delete_command.pack())
+        res = self.state['model'].do_delete(delete_command)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
+
+    def join(self):
+        r = self.state['model'].random_range()
+        if not r:
+            return
+
+        join_command = Command('j', r[0], r[1], '')
+        self.write(join_command.pack())
+        res = self.state['model'].do_join(join_command)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
+
+    def list(self):
+        r = self.state['model'].random_range()
+        if not r:
+            return
+
+        list_command = Command('l', r[0], r[1], '')
+        self.write(list_command.pack())
+        res = self.state['model'].do_list(list_command)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
+
+    def num(self):
+        if len(self.state['model'].lines_list) > 99:
+            return
+
+        r = self.state['model'].random_range()
+        if not r:
+            return
+
+        num_command = Command('n', r[0], r[1], '')
+        self.write(num_command.pack())
+        res = self.state['model'].do_num(num_command)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
+
+    def mark(self):
+        if self.state['model'].just_marked is not None:
+            return
+
+        r = self.state['model'].random_range()
+        if not r:
+            return
+
+        mark_command = Command('m', r[0], r[1], struct.pack('<I', random.randint(0, 25)))
+        self.write(mark_command.pack())
+        res = self.state['model'].do_mark(mark_command)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
+
+    def global_cmd(self):
+        r = self.state['model'].random_range()
+        if not r:
+            return
+
+        global_command = Command('g', r[0], r[1], random_regex(2, 8))
+        self.write(global_command.pack())
+        self.comment("%s, %s", global_command.buf, self.state['model'].lines_list)
+        res = self.state['model'].do_global(global_command, False)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
+
+    def inverse_global_cmd(self):
+        r = self.state['model'].random_range()
+        if not r:
+            return
+
+        inverse_global_command = Command('v', r[0], r[1], random_regex(2, 8))
+        self.write(inverse_global_command.pack())
+        self.comment("%s, %s", inverse_global_command.buf, self.state['model'].lines_list)
+        res = self.state['model'].do_global(inverse_global_command, True)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
+
+    def transform(self):
+        r = self.state['model'].random_range()
+        if not r:
+            return
+
+        op = random.choice(string.lowercase)
+
+        transform_command = Command('t', r[0], r[1], struct.pack('<I', ord(op)))
+        self.write(transform_command.pack())
+        res = self.state['model'].do_transform(transform_command)
+        expect = res.pack()
+        self.read(length=len(expect), expect=expect)
+
+    def finish(self):
+        quit_command = Command('q', 0, 0, '')
+        self.write(quit_command.pack())
+        ##self.delay(100)
+

@@ -18,187 +18,47 @@
  * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-/**
- * @file libc.h
- *
- * Reusable standard C functions.
- */
+*/
 
-#ifndef LIBC_H_
-#define LIBC_H_
+#ifndef LIBC_H
+#define LIBC_H
 
 #include "libcgc.h"
+#include "cgc_fixups.h"
 
-#define EXIT_SUCCESS 0
-#define EXIT_FAILURE -1
+#if DEBUG_ENABLE
+#define DEBUG(msg) cgc_transmit(STDERR, msg, sizeof(msg), 0)
+#else
+#define DEBUG(msg) do {} while (0)
+#endif
 
-#define INT_MIN ((int)(0x80000000))
+typedef unsigned int UINT32;
+typedef unsigned char UINT8;
 
-#define PAGE_SIZE (1 << 12)
+#define SUCCESS 0
+#define BASE_ID 3
+#define ERRNO_SEND BASE_ID+1
+#define ERRNO_RECV BASE_ID+2
+#define ERRNO_ALLOC BASE_ID+3
 
-/**
- * Return the lesser of a and b
- * 
- * @param a The first value
- * @param b The second value
- * @return a if a < b else b
- */
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
+void cgc_memcpy(unsigned char *dst, const unsigned char *src, cgc_size_t n);
+int cgc_memcmp(const char *s1, const char *s2, cgc_size_t n);
+unsigned char * cgc_memset(unsigned char *b, unsigned char c, cgc_size_t len);
+cgc_size_t cgc_findchar(char *haystack, char needle);
+void cgc_pause(cgc_size_t usec);
+int cgc_sendallnulltrunc(int fd, const char *buf, cgc_size_t size);
+UINT32 cgc_my_pow(UINT32 x, UINT32 y);
+UINT32 cgc_hex2UINT32(char *hex);
+int cgc_sendall(int fd, const char *buf, cgc_size_t size);
+int cgc_recvline(int fd, char *buf, cgc_size_t size);
 
-/**
- * Return the greater of a and b
- *
- * @param a The first value
- * @param b The second value
- * @return a if a > b else b
- */
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define SEND(b,s,o) o=cgc_sendall(STDOUT,b,s); if (o<=0) cgc__terminate(ERRNO_SEND);
+#define SENDNULLTRUNC(b,s,o) o=cgc_sendallnulltrunc(STDOUT,b,s); if (o<=0) cgc__terminate(ERRNO_SEND);
+#define RECV(b,s,o) o=cgc_recvline(STDIN,b,s); if(o<0) cgc__terminate(ERRNO_RECV);
+#define ALLOC(s,x,a,o) o=cgc_allocate(s,x,a); if(o!=0) cgc__terminate(ERRNO_ALLOC);
+#define QUIT() cgc__terminate(SUCCESS);
 
-/**
- * Find the offset of a struct member
- *
- * @param type The struct type to examine
- * @param member The member to calculate the offset of
- * @return The offset of member in type
- */
-#define OFFSETOF(type, member) ((cgc_size_t)(&((type *)NULL)->member))
+UINT8 *ptr_credits;
 
-/**
- * Find the container structure from a pointer to a member.
- *
- * @param type The struct type to examine
- * @param member The member ptr points to
- * @param ptr A pointer to a member
- * @return A pointer to the containing structure
- */
-#define CONTAINEROF(type, member, ptr) ({                               \
-    char *__ptr = (char *)(ptr);                                        \
-    __ptr ? ((type *)(__ptr - OFFSETOF(type, member))) : NULL;          \
-})
-
-/**
- * Read exactly n bytes from fd to a buffer.
- *
- * @param fd A file descriptor
- * @param buf The destination buffer
- * @param n The number of bytes to cgc_read
- * @return The number of bytes cgc_read, or negative on failure
- */
-cgc_ssize_t cgc_read_all(int fd, void *buf, cgc_size_t n);
-
-/**
- * Write exactly n bytes to an fd from a buffer.
- *
- * @param fd A file descriptor
- * @param buf The source buffer
- * @param n The number of bytes to cgc_write
- * @return The number of bytes written, or negative on failure
- */
-cgc_ssize_t cgc_write_all(int fd, void *buf, cgc_size_t n);
-
-/**
- * Allocate a chunk of memory on the heap.
- *
- * @param size The size of the chunk to allocate
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_malloc(cgc_size_t size);
-
-/**
- * Free a chunk of memory allocated with malloc().
- *
- * @param ptr The chunk to free
- */
-void cgc_free(void *ptr);
-
-/**
- * Allocate a zeroed chunk of memory on the heap.
- *
- * Note: This differs from standard libc malloc by taking the full size of the
- *      chunk to allocate as its only parameter.
- *
- * @param size The size of the chunk to allocate
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_calloc(cgc_size_t size);
-
-/**
- * Resize a chunk of memory allocated with malloc().
- *
- * @param ptr The chunk to resize
- * @param size The new size of the chunk
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_realloc(void *ptr, cgc_size_t size);
-
-/**
- * Set the first n bytes of a block of memory to a value.
- *
- * @param ptr_ A pointer to a block of memory
- * @param val The value to set each byte to, interpretted as an unsigned char
- * @param n The number of bytes to set
- * @return ptr
- */
-void *cgc_memset(void *ptr_, int val, cgc_size_t n);
-
-/**
- * Copy n bytes from src to dst.
- *
- * @param dst_ The destination buffer
- * @param src_ The source buffer
- * @param n The number of bytes to copy
- * @return dst
- */
-void *cgc_memcpy(void *dst_, const void *src_, cgc_size_t n);
-
-/**
- * Return the length of a null-terminated string.
- * 
- * @param s The string
- * @return The length of s
- */
-cgc_size_t cgc_strlen(const char *s);
-
-/* The following is verbatim from EAGLE_00004, but isn't included in the 
- * released binary (DEBUG is not defined), so this reuse shouldn't be a concern.
- */
-#ifdef DEBUG
-
-#define _FILE_STATE_OPEN  1
-#define _FILE_STATE_ERROR 2
-#define _FILE_STATE_EOF   4
-#define _FILE_HAVE_LAST   8
-
-typedef struct _FILE {
-   int fd;
-   int state;
-   int last;
-} FILE;
-
-extern FILE *cgc_stdin;
-extern FILE *cgc_stdout;
-extern FILE *cgc_stderr;
-
-/**
- * Formatted output to a stream.
- *
- * @param stream The stream to cgc_write to
- * @param format The format specifier
- * @return number of bytes written
- */
-int fprintf(FILE * stream, const char *format, ...);
-
-/**
- * Formatted output to cgc_stdout.
- *
- * @param stream The stream to cgc_write to
- * @param format The format specifier
- * @return number of bytes written
- */
-int cgc_printf(const char *format, ...);
-
-#endif /* DEBUG */
-
-#endif /* LIBC_H_ */
+#endif
 

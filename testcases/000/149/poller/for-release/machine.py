@@ -1,62 +1,81 @@
 #!/usr/bin/env python
-
-import math
-import random
+#
+# Copyright (C) 2014 
+#   Brian Caswell <bmc@lungetech.com>
+#   Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
 import string
 import sys
+import os
 
+from xml.sax.saxutils import escape
 from generator.actions import Actions
+from random import randint,random
+from numpy.random import randint as nprandint
+from struct import *
 
-class Machine(Actions):
-    WELCOME = (
-        "\nWelcome to the Enslavednode chat server!\n"
-        "The bots here love to talk, but they are shy...\n"
-        "You need to get the ball rolling.\n"
-    )
 
-    PROMPT = "you > "
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
-    def random_sentence(self):
-        s = ''
-        for i in xrange(random.randint(0, 16)):
-            for k in xrange(random.randint(0, 256)):
-                s += random.choice(string.letters)
-            s += ' '
-        return s
+from packet import *
 
+def random_alpha(a, b):
+    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
+
+def random_string(a, b):
+    chars = string.letters + string.digits
+    return ''.join(choice(chars) for _ in range(randint(a, b)))
+
+def urand(size):
+    return ''.join(chr(randint(0,255)) for _ in range(size)) 
+
+class LMS(Actions):
     def start(self):
-        self.read(expect=self.WELCOME, length=len(self.WELCOME))
-
-    def read_until_prompt(self):
-        self.read(expect='.*', expect_format='pcre', delim=self.PROMPT)
-
-    def dosomething(self):
         pass
+    def valid(self):
+        valid_tnum = pack("<II",0x73317331,1<<28|3<<24)
+        valid_fnum = pack("<II",randint(0,2**32-1),randint(0,2**32-1))
 
-    def call_reverse(self):
-        to_rev = self.random_sentence()
-        inp = ' '.join(['/rev', to_rev])
-        self.write(inp + '\n')
-        self.read(expect='case > ' + to_rev[::-1], delim='\n')
+        num_sessions = 1
+        
+        #dat list comprehension
+        sessions = [LMSSession(urand(randint(1,256*100)),valid_tnum,valid_fnum,i) 
+                   for i in set([randint(0,2**16-1) for i in xrange(0,num_sessions)])]
 
-    def call_hello(self):
-        inp = ' '.join(['/hello', self.random_sentence()])
-        self.write(inp + '\n')
-        self.read(expect='case > Hello, you.', delim='\n')
+        for sess in sessions:
+            for msg in sorted(sess.msgs, key=lambda k: random()):
+                self.write(str(msg))
+            self.read(length=len(sess.data),expect=sess.data)
 
-    def call_howsmart(self):
-        inp = ' '.join(['/howsmart', self.random_sentence()])
-        self.write(inp + '\n')
-        self.read(expect='case > I have an intelligence rating of:.*',
-                  expect_format='pcre', delim='\n')
+    def valid_randlen(self):
+        valid_tnum = pack("<II",0x73317331,1<<28|3<<24)
+        valid_fnum = pack("<II",randint(0,2**32-1),randint(0,2**32-1))
+        num_sessions = 1
+        
+        #dat list comprehension
+        sessions = [LMSSession(urand(randint(1,256*100)),valid_tnum,
+                    valid_fnum,i,randsize=True) for i in
+                    set([randint(0,2**16-1) for i in xrange(0,num_sessions)])]
 
-    def call_pont(self):
-        inp = ' '.join(['/pont', self.random_sentence()])
-        self.write(inp + '\n')
-
-    def jabber(self):
-        self.write(self.random_sentence() + '\n')
-
-    def part(self):
-        self.write('/part\n')
-        self.read(expect='BYE!', delim='\n')
+        for sess in sessions:
+            for msg in sorted(sess.msgs, key=lambda k: random()):
+                self.write(str(msg))
+            self.read(length=len(sess.data),expect=sess.data)

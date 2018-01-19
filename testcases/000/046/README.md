@@ -1,36 +1,35 @@
-# CROMU-00002: Particle Simulator
+# Filesystem_Command_Shell
 
 ## Author Information
 
-"Jason Williams" <jdw@cromulence.com>
+"Steve Wood" <swood@cromulence.com>
 
 ### DARPA performer group
 Cromulence LLC (CROMU)
 
 ## Description
 
-This service implements a simple particle physics simulator. The service utilizes double precision floating point arithmetic and attempts to simulate collisions within a simulation grid. The simulation runs over 10 seconds and calculates the resultant final locations of the particles and attempts to render them to the screen in an ASCII render grid. Output information also consists of the number of collisions that occurred during the simulation and the number of frames that the simulation ran.
+This service implements a command line shell-like interface to an underlying filesystem--providing highlevel commands that encapsulate the lower level API calls of the filesystem.
 
 ### Feature List
+The filesystem supports "regular" files, and files mapped to a malloc'ed memory region.  Commands are provided to create these files, read and write to them, copy them, and finally to erase them.  In addition, the filesystem supports file ownership and "others" permissions so that access to individual files can be restricted or shared as the file owner desires.  When started, the shell presents with a login prompt that uses data from the magic page for authentication information.  However, the shell does allow for "guest" access using a built-in account with hardcoded credentials.
 
-A particle physics simulator that utilizes double precision floating point math and runs for 10 seconds with a simulation grid.
 
 ## Vulnerability
-
-The render grid is a 2-D array that contains the number of particles centered within that grid location. It is possible with appropriate simulation data to make a scenario whereby the outcome of the simulation causes particles to clip outside of the walls of the simulation. If this event occurs at the last frame of the simulation the rendering will attempt to calculate the location of the particle and it will lie outside of the render grid resulting in a buffer overflow.
-
-In order to trigger this vulnerability the resultant collisions must cause a particle to be translated outside of one of the clipping walls. This doesn't always result in a buffer overflow in the event a particle clips outside of the bounds of the simulation grid due to the manner in which 2-D array offsets are calculated. An assumption made in the clipping code makes this vulnerability possible. It is assumed during the collision detection when iterating through the particles in the simulation that wall collisions can also be calculated in this pass. The manner in which this is done yields an interesting scenario where a collision can occur between 1 of 2 particles after the wall collision detection is performed thereby allowing the particle to translate outside of the collision grid. If this is at a sufficiently large enough 2-D offset this will cause a buffer overflow when the render grid attempts to update the particles in that location.
+The filesystem allocates one "block" of space to a file directory.  As the block size is decided when the filesystem is initialized, the maximum number of directory entries is variable and is calculated during the initialization.  In one calculation used to calculate the maximum number of files, the programmer forgets to subtract static overhead data from the total before dividing by the size of a directory entry, resulting in an off-by-one error on the maximum count.  If this maximum number of files is created, the last one will overflow into the next block of storage space--overwriting up to 8 bytes of data there.  
 
 ### Generic class of vulnerability
-
-Buffer Overflow
+Off By One
 
 ### CWE classification
-
-CWE-787: Out-of-bounds Write
+CWE-193 Off By One
 
 ## Challenges
+For the initial startup condition of this service, the block that can be overwritten is already allocated to a file created during initialization of the system.  The block overwritten is essentially its "i-node" block, which has a list of the blocks containing the files data.  Overwriting this data will most likely result in a crash and the read of some other service memory area, but not the magic page.  Any attempt to write to this file will cause the file to be truncated to zero length first, clearing and releasing this corrupt block.  
 
-This CB presents numerous challenges to automated analysis tools. For one this CB heavily utilizes floating point arithmetic and relies upon the accurate calculation of floating point arithmetic for the vulnerability to be reasoned over. Second the challenge binary has a nearly unbounded initial state for the automated analysis frameworks to reason over. Systems that employ unintelligent analysis schemes will have a statistically small chance of discovering the input conditions necessary to trigger the vulnerability.
+To successfully exploit this vulnerability, the exiting file using that block must be deleted and a file of the memory mapped type must be created first.  For this file type, these overwritten block does not contain pointers to other blocks containing data, but instead holds the pointer and length of the memory malloc'ed for this file.  By manipulating the filename used in the final file creation that overflows the directory, the pointer in this block can be overwritten to point to the magic page.  The amount of program understanding required to successfully exploit this vulnerability makes this one difficult.
 
-The expected solver is a symbolic analysis tool with excellent performance characteristics, accurate floating point analysis and the ability to limit depth first searches and breadth first searching due to the likelihood of state explosion. Tools that employ hybrid modes of searching the solution space will most likely yield the highest chances of success.
+	Finding Vulnerability 1: easy
+	Proving Vulnerability 1: hard
+	Fixing Vulnerability 1: easy 
+

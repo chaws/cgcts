@@ -19,15 +19,15 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
 #include "cgc_int2str.h"
+
 
 // takes an int32 and converts it to a string saved in str_buf
 // str_buf must be large enough to fit the sign, number(s), and '\0'
 // returns 0 on success, -1 if error due to buf_size
-int cgc_int2str(char* str_buf, cgc_size_t buf_size, int32_t i) {
+int cgc_int2str(char* str_buf, unsigned int buf_size, int i) {
 
-    cgc_size_t idx = 0;
+    int idx = 0;
     int tmp;
     int digit;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,359 +21,257 @@
  *
  */
 #include "cgc_stdlib.h"
-#include "cgc_ctype.h"
 #include "cgc_string.h"
-#include "cgc_common.h"
-#include "cgc_ht.h"
-#include "cgc_silk.h"
+#include "cgc_filaments.h"
+#include "cgc_ctype.h"
+#include "cgc_readuntil.h"
+#include "cgc_memo.h"
+#include "cgc_ac.h"
 
-#define MAX_LINE 65536
+typedef struct entry {
+  memo_t *memo;
+  struct entry *next;
+} entry_t;
 
-enum {
-    RESP_SUCCESS        = 0x1000,
-    RESP_UPDATED        = 0x1001,
-    RESP_CONTINUE       = 0x1002,
-    RESP_ERROR          = 0x2000,
-    RESP_NAME_IN_USE    = 0x2001,
-    RESP_NOT_FOUND      = 0x2002,
-    RESP_BAD_REQUEST    = 0x2003,
-    RESP_INTERNAL_ERROR = 0xA000
-};
+entry_t *cgc_memos = NULL;
+int cgc_g_num_memos = 0;
+char cgc_g_memo_ids[MAX_MEMO_ID] = { 0 };
 
-typedef struct {
-    ht_t handlers;
-    silk_t silk;
-    ht_t products;
-} priv_t;
-
-typedef struct {
-    char *name;
-    char *seller;
-    unsigned int price;
-    unsigned int quantity;
-} product_t;
-
-typedef int (*handler_t)(priv_t *priv, char *resource);
-
-char *cgc_read_line(silk_t *silk)
+int cgc__find_memo_id()
 {
-    cgc_size_t cnt = 0, idx = 0;
-    char *result = NULL;
-    
-    do {
-        if (cnt == idx)
-        {
-            if (cnt >= MAX_LINE)
-                goto fail;
-            char *tmp;
-            cnt += 1024;
-            tmp = cgc_realloc(result, cnt);
-            if (tmp == NULL)
-                goto fail;
-            result = tmp;
-        }
-
-        if (cgc_silk_recv(silk, (unsigned char *)&result[idx], 1) != SUCCESS)
-            goto fail;
-    } while (result[idx++] != '\b');
-
-    if (cnt == idx)
-    {
-        char *tmp;
-        cnt++;
-        tmp = cgc_realloc(result, cnt);
-        if (tmp == NULL)
-            goto fail;
-        result = tmp;
-    }
-    result[idx] = 0; 
-    return result;
-
-fail:
-    cgc_free(result);
-    return NULL;
+  int i;
+  for (i = 0; i < MAX_MEMO_ID; ++i)
+  {
+    if (cgc_g_memo_ids[i] == 0)
+      return i;
+  }
+  return -1;
 }
 
-static int parse_request(char *line, char **method, char **resource)
+void cgc_add_memo()
 {
-    char *tmp;
-    tmp = cgc_strchr(line, '\t');
-    if (tmp == NULL)
+  int num;
+  int ret = 0;
+  char buf[MAX_MEMO_BODY];
+  int bytes;
+  entry_t *node, *temp;
+  memo_t *memo;
+  if ((memo = cgc_new_memo(cgc_default_view_memo, cgc_default_update_memo, cgc_default_delete_memo)) != NULL &&
+      (node = (entry_t *)cgc_malloc(sizeof(entry_t))) != NULL)
+  {
+    printf("subject? ");
+    if ((bytes = cgc_read_until(STDIN, buf, MAX_MEMO_BODY, '\n')) < 0)
+      goto fail;
+    if (cgc_strlen(buf) >= MAX_MEMO_SUBJECT)
+      goto fail;
+    cgc_strcpy(memo->subject, buf);
+    printf("year? ");
+    if ((bytes = cgc_read_until(STDIN, buf, MAX_MEMO_BODY, '\n')) < 0)
+      goto fail;
+    num = cgc_strtol(buf, NULL, 10);
+    memo->date.year = num;
+    printf("month? ");
+    if ((bytes = cgc_read_until(STDIN, buf, MAX_MEMO_BODY, '\n')) < 0)
+      goto fail;
+    num = cgc_strtol(buf, NULL, 10);
+    memo->date.month = num;
+    printf("date? ");
+    if ((bytes = cgc_read_until(STDIN, buf, MAX_MEMO_BODY, '\n')) < 0)
+      goto fail;
+    num = cgc_strtol(buf, NULL, 10);
+    memo->date.date = num;
+    printf("priority? ");
+    if ((bytes = cgc_read_until(STDIN, buf, MAX_MEMO_BODY, '\n')) < 0)
+      goto fail;
+    num = cgc_strtol(buf, NULL, 10);
+    memo->priority = num;
+    printf("body? ");
+    memo->body = cgc_ac_read(STDIN, '\n');
+    if (memo->body == NULL)
+      goto fail;
+
+    if (cgc_g_num_memos >= MAX_MEMO_ID)
+      goto fail;
+    memo->id = cgc__find_memo_id();
+
+    if ((ret = cgc_validate_memo(memo)) != MRES_OK)
+      goto fail;
+
+    cgc_g_memo_ids[memo->id] = 1;
+    cgc_g_num_memos++;
+    node->memo = memo;
+    if (cgc_memos == NULL)
     {
-        tmp = cgc_strchr(line, '\b');
-        if (tmp == NULL)
-            return FAILURE;
-        *tmp = 0;
-        *method = line;
-        *resource = NULL;
-        return SUCCESS;
-    }
-
-    *tmp = 0;
-    *method = line;
-    line = tmp+1;
-
-    tmp = cgc_strchr(line, '\b');
-    if (tmp != NULL)
-        *tmp = 0;
-    *resource = line;
-    return SUCCESS;
-}
-
-static void free_product(product_t *p)
-{
-    cgc_free(p->seller);
-    cgc_free(p->name);
-    cgc_free(p);
-}
-
-static int cgc_send_response(priv_t *priv, unsigned int code, char *text)
-{
-    char tmp[1024];
-    if (cgc_strlen(text) + 64 < sizeof(tmp))
-    {
-        cgc_sprintf(tmp, "%d\t%s\b", code, text);
-        return cgc_silk_send(&priv->silk, (unsigned char *)tmp, cgc_strlen(tmp));
+      cgc_memos = node;
+      cgc_memos->next = NULL;
     }
     else
     {
-        char *tmp2 = cgc_malloc(cgc_strlen(text) + 64);
-        int result;
-
-#ifndef PATCHED
-        cgc_fdprintf(STDERR, "WARNING text is too long: ");
-        cgc_fdprintf(STDERR, text);
-        cgc_fdprintf(STDERR, "\n");
-#else
-        cgc_fdprintf(STDERR, "WARNING text is too long: %s\n", text);
-#endif
-
-        if (tmp2 == NULL)
-            return FAILURE;
-
-        cgc_sprintf(tmp2, "%d\t%s\b", code, text);
-        result = cgc_silk_send(&priv->silk, (unsigned char *)tmp2, cgc_strlen(tmp2));
-        cgc_free(tmp2);
-        return result;
+      temp = cgc_memos;
+      while (temp->next != NULL)
+      {
+        temp = temp->next;
+      }
+      node->next = NULL;
+      temp->next = node;
     }
+    printf("id: %d created.\n", memo->id);
+    return;
+  }
+fail:
+  if (memo)
+    memo->mfuns[MOP_DELETE](memo);
+  if (node)
+    cgc_free(node);
+  cgc_fdprintf(STDERR, "created failed.\n");
+  return;
 }
 
-/* convert %XX to \xXX */
-static void cgc_unescape(char *s)
+void cgc_update_memo(int id)
 {
-    unsigned int i, j, len = cgc_strlen(s);
-    for (i = 0, j = 0; i < len; i++, j++)
+  entry_t *temp;
+  temp = cgc_memos;
+  while (temp != NULL)
+  {
+    if (temp->memo && temp->memo->id == id)
     {
-        if (s[i] == '%' && i + 2 < len && cgc_isxdigit(s[i+1]) && cgc_isxdigit(s[i+2]))
-        {
-            int s1 = cgc_isdigit(s[i+1]) ? s[i+1] - '0' : cgc_tolower(s[i+1]) - 'a' + 10;
-            int s2 = cgc_isdigit(s[i+2]) ? s[i+2] - '0' : cgc_tolower(s[i+2]) - 'a' + 10;
-            s[j] = (s1 << 4) | s2;
-            i += 2;
-        }
-        else
-            s[j] = s[i];
+      temp->memo->mfuns[MOP_UPDATE](temp->memo);
+      break;
     }
-    s[j] = 0;
+    temp = temp->next;
+  }
 }
 
-int cgc_do_buy(priv_t *priv, char *resource)
+void cgc_remove_memo(int id)
 {
-    product_t *p;
-    ht_node_t *node;
-
-    cgc_unescape(resource);
-
-    if (cgc_ht_lookup(&priv->products, resource, &node) != SUCCESS)
+  entry_t *node, *temp;
+  temp = cgc_memos;
+  while (temp != NULL)
+  {
+    if (temp->memo && temp->memo->id == id)
     {
-        return cgc_send_response(priv, RESP_NOT_FOUND, "Name not found");
+      cgc_g_memo_ids[id] = 0;
+      cgc_g_num_memos--;
+      if (temp == cgc_memos)
+      {
+        cgc_memos = temp->next;
+        temp->memo->mfuns[MOP_DELETE](temp->memo);
+        cgc_free(temp);
+        break;
+      }
+      else
+      {
+        node->next = temp->next;
+        temp->memo->mfuns[MOP_DELETE](temp->memo);
+        cgc_free(temp);
+        break;
+      }
     }
-    p = ht_node_value(node);
-    if (p->quantity < 1)
+    else
     {
-        return cgc_send_response(priv, RESP_NOT_FOUND, "Name not found");
+      node = temp;
+      temp = temp->next;
     }
-    p->quantity--;
-    if (p->quantity == 0)
-    {
-        cgc_ht_delete(&priv->products, resource, (void **)&p);
-        free_product(p);
-    }
-    return cgc_send_response(priv, RESP_SUCCESS, "Success");
+  }
 }
 
-int cgc_do_sell(priv_t *priv, char *resource)
+void cgc_view_memo(int id)
 {
-    char *name, *seller, *s_price, *s_quantity;
-    unsigned int price, quantity;
-    ht_node_t *node;
-    product_t *p;
-
-    name = resource;
-    
-    seller = cgc_strchr(name, ';');
-    if (seller == NULL)
-        goto bad_request;
-    *seller++ = 0;
-
-    s_price = cgc_strchr(seller, ';');
-    if (s_price == NULL)
-        goto bad_request;
-    *s_price++ = 0;
-    price = cgc_strtoul(s_price, NULL, 10);
-
-    s_quantity = cgc_strchr(s_price, ';');
-    if (s_quantity == NULL)
-        goto bad_request;
-    *s_quantity++ = 0;
-    quantity = cgc_strtoul(s_quantity, NULL, 10);
-
-    cgc_unescape(seller);
-    cgc_unescape(name);
-
-    if (cgc_ht_lookup(&priv->products, name, &node) == SUCCESS)
+  entry_t *temp;
+  temp = cgc_memos;
+  while (temp != NULL)
+  {
+    if (temp->memo && temp->memo->id == id)
     {
-        p = ht_node_value(node);
-        if (cgc_strcasecmp(p->seller, seller) != 0)
-        {
-            return cgc_send_response(priv, RESP_NAME_IN_USE, "Name already in-use");
-        }
-
-        p->price = price;
-        p->quantity += quantity;
-        return cgc_send_response(priv, RESP_UPDATED, "Record updated");
+      temp->memo->mfuns[MOP_VIEW](temp->memo);
+      break;
     }
-    
-    p = cgc_malloc(sizeof(product_t));
-    if (p == NULL)
-        goto internal_error;
-
-    p->price = price;
-    p->quantity = quantity;
-    p->name = cgc_strdup(name);
-    p->seller = cgc_strdup(seller);
-
-    if (p->name == NULL || p->seller == NULL)
-    {
-        free_product(p);
-        goto internal_error;
-    }
-
-    if (cgc_ht_insert(&priv->products, p->name, p) != SUCCESS)
-    {
-        free_product(p);
-        goto internal_error;
-    }
-
-    return cgc_send_response(priv, RESP_SUCCESS, "Success");
-
-bad_request:
-    return cgc_send_response(priv, RESP_BAD_REQUEST, "Invalid request");
-
-internal_error:
-    return cgc_send_response(priv, RESP_INTERNAL_ERROR, "Internal error");
+    temp = temp->next;
+  }
 }
 
-int cgc_do_list(priv_t *priv, char *resource)
+void cgc_quit()
 {
-    char tmp[64], *buf = NULL;
-    unsigned int buf_size = 0;
-    ht_node_t *iter;
-
-    cgc_sprintf(tmp, "%d", priv->products.tbl_count);
-    if (cgc_send_response(priv, RESP_SUCCESS, tmp) != SUCCESS)
-        return FAILURE;
-    for (iter = cgc_ht_first(&priv->products); iter != NULL; iter = cgc_ht_next(&priv->products, iter))
-    {
-        product_t *p = ht_node_value(iter);
-        unsigned int new_buf_size = cgc_strlen(p->name) + cgc_strlen(p->seller) + 128;
-        if (new_buf_size > buf_size)
-        {
-            char *new_buf = cgc_realloc(buf, new_buf_size);
-            if (new_buf == NULL)
-                break;
-            buf = new_buf;
-            buf_size = new_buf_size;
-        }
-        cgc_sprintf(buf, "%s;%s;%d;%d", p->name, p->seller, p->price, p->quantity);
-        if (cgc_send_response(priv, RESP_CONTINUE, buf) != SUCCESS)
-            break;
-        //if (silk_send(&priv->silk, (unsigned char *)buf, cgc_strlen(buf)) != SUCCESS)
-        //    break;
-    }
-    cgc_free(buf);
-
-    if (iter != NULL)
-        return cgc_send_response(priv, RESP_INTERNAL_ERROR, "Internal error");
-
-    return SUCCESS;
+  printf("bye!\n");
+  cgc_exit(0);
 }
 
-int cgc_do_quit(priv_t *priv, char *resource)
+void cgc_menu()
 {
-    cgc_send_response(priv, RESP_SUCCESS, "Success");
-    return FAILURE;
+  printf("======================\n");
+  printf(" 1. New memo\n");
+  printf(" 2. View memo\n");
+  printf(" 3. Update memo\n");
+  printf(" 4. Delete memo\n");
+  printf(" 5. Add custom AC word\n");
+  printf(" 6. Quit\n");
+  printf("======================\n");
 }
 
 int main(int cgc_argc, char *cgc_argv[])
 {
-    ht_node_t *node;
-    priv_t priv;
+  char input[4];
+  char typo[MAX_AC_LEN], correct[MAX_AC_LEN];
+  cgc_filaments_init();
+  cgc_filaments_new(cgc_ac_process, NULL);
+  printf("====== 3M v0.2 ======\n");
 
-    if (cgc_ht_init(&priv.products) != SUCCESS)
-        return 1;
+  cgc_menu();
+  cgc_ac_init();
+  while (1)
+  {
+    int menu_n, memo_id = -1;
+    int bytes;
+    if ((bytes = cgc_read_until(STDIN, input, sizeof(input), '\n')) < 0)
+      return 0;
+    menu_n = cgc_strtol(input, NULL, 10);
 
-    if (cgc_ht_init(&priv.handlers) != SUCCESS)
-        return 1;
-
-    if (cgc_ht_insert(&priv.handlers, "BUY", cgc_do_buy) != SUCCESS)
-        return 1;
-
-    if (cgc_ht_insert(&priv.handlers, "SELL", cgc_do_sell) != SUCCESS)
-        return 1;
-
-    if (cgc_ht_insert(&priv.handlers, "LIST", cgc_do_list) != SUCCESS)
-        return 1;
-
-    if (cgc_ht_insert(&priv.handlers, "QUIT", cgc_do_quit) != SUCCESS)
-        return 1;
-
-    if (cgc_silk_init(&priv.silk) != SUCCESS)
-        return 1;
-
-    if (cgc_silk_prepare(&priv.silk) != SUCCESS)
-        return 1;
-
-    while (1)
+    switch (menu_n)
     {
-        char *line, *method, *resource;
-        handler_t handler;
-        ht_node_t *node;
-
-        line = cgc_read_line(&priv.silk);
-        if (line == NULL)
-            break;
-
-        if (parse_request(line, &method, &resource) == SUCCESS)
+      case 1:
+        cgc_add_memo();
+        break;
+      case 2:
+        printf("id? ");
+        if ((bytes = cgc_read_until(STDIN, input, sizeof(input), '\n')) < 0)
+          break;
+        if (input[0] != '\0')
         {
-            if (cgc_ht_lookup(&priv.handlers, method, &node) == SUCCESS)
-            {
-                handler = ht_node_value(node);
-                if (handler(&priv, resource) != SUCCESS)
-                    break;
-            }
-            else
-            {
-                // XXX
-            }
+          memo_id = cgc_strtol(input, NULL, 10);
+          cgc_view_memo(memo_id);
         }
-        else
-        {
-            // XXX
-        }
-
-        cgc_free(line);
+        break;
+      case 3:
+        printf("id? ");
+        if ((bytes = cgc_read_until(STDIN, input, sizeof(input), '\n')) < 0)
+          break;
+        memo_id = cgc_strtol(input, NULL, 10);
+        cgc_update_memo(memo_id);
+        break;
+      case 4:
+        printf("id? ");
+        if ((bytes = cgc_read_until(STDIN, input, sizeof(input), '\n')) < 0)
+          break;
+        memo_id = cgc_strtol(input, NULL, 10);
+        cgc_remove_memo(memo_id);
+        break;
+      case 5:
+        cgc_memset(typo, 0, sizeof(typo));
+        cgc_memset(correct, 0, sizeof(correct));
+        printf("typo? ");
+        if ((bytes = cgc_read_until(STDIN, typo, sizeof(typo), '\n')) < 0)
+          break;
+        printf("correct? ");
+        if ((bytes = cgc_read_until(STDIN, correct, sizeof(correct), '\n')) < 0)
+          break;
+        cgc_ac_add_custom(typo, correct);
+        break;
+      case 6:
+        cgc_quit();
+        break;
+      default:
+        printf("invalid menu, try again.\n");
+        break;
     }
-
-    return 0;
+  }
 }

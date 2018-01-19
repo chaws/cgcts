@@ -42,12 +42,9 @@ void cgc_free(void *ptr)
   if (blk->free != 0)
     return;
 
-  if (blk->size >= NEW_CHUNK_SIZE)
-  {
+  if (blk->size >= NEW_CHUNK_SIZE) {
     cgc_free_huge(blk);
-  }
-  else
-  {
+  } else {
     cgc_insert_into_flist(blk);
     cgc_coalesce(blk);
   }

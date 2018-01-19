@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  *
  */
+
 #include "libcgc.h"
 #include "cgc_string.h"
 

@@ -1,79 +1,38 @@
 #include "libpov.h"
-
-static int moves = 0;
-
-char *cgc_strcat(char *s1, const char *s2)
-{
-	char *os1 = s1;
-	while (*s1)
-		s1++;
-	cgc_strcpy(s1, s2);
-	return os1;
-}
-
-void cgc_wait_for_move()
-{
-    unsigned char *buf = NULL;
-    unsigned int buflen = 0;
-    cgc_delimited_read(STDIN, &buf, &buflen, (unsigned char *)"DANCE MODE", 10);
-    cgc_free(buf);
-    moves++;
-}
-
-void cgc_append_char(unsigned char *buf, unsigned int ch)
-{
-	int i;
-	for (i = 0; i < ch; i++)
-	{
-        cgc_wait_for_move();
-        cgc_transmit_all(STDOUT, "w\n", 2);
-	}
-    cgc_wait_for_move();
-    cgc_transmit_all(STDOUT, "s\n", 2);
-}
-
-unsigned char buf[300000];
-
 int main(int cgc_argc, char *cgc_argv[]) {
-	unsigned int n;
-	type1_vals t1;
-
-	cgc_type1_negotiate(0xfefefefe, 0xfefefefe, 5, &t1);
-	t1.ipval |= 0x01010101;
-	t1.regval |= 0x01010101;
-
-	// Build the buffer
-	buf[0] = '\0';
-	cgc_strcat((char *)buf, "magic\n");
-
-	for (n = 0; n < 23; n++)
-	{
-		cgc_strcat((char *)buf, "\n\n\n\nd\n");
-	}
-
-	for (n = 0; n < 16; n++)
-	{
-		cgc_strcat((char *)buf, "\n");
-	}
-
-	cgc_transmit_all(STDOUT, buf, cgc_strlen((char *)buf));
-
-	for (n = 0; n < 280 - 12; n++)
-	{
-		cgc_append_char(buf, 10);
-	}
-
-	unsigned char tmp[4];
-	*(unsigned int*)tmp = t1.regval;
-	for (n = 0; n < 4; n++)
-		cgc_append_char(buf, tmp[n]);
-	*(unsigned int*)tmp = t1.ipval;
-	for (n = 0; n < 4; n++)
-		cgc_append_char(buf, tmp[n]);
-
-    cgc_wait_for_move();
-    cgc_transmit_all(STDOUT, "d\n", 2);
-    cgc_wait_for_move();
-    cgc_transmit_all(STDOUT, "q\n", 2);
-	return 0;
+   cgc_negotiate_type1(0x0, 0x0, 0);
+   do {
+      //*** writing data
+      static unsigned char write_00000_00000[] = 
+         "\x45\x4e\x44\x20\x7b\x0a\x20\x20\x20\x20\x70\x72\x69\x6e\x74\x66"
+         "\x20\x22\x23\x73\x22\x2c\x20\x2d\x35\x35\x39\x30\x33\x38\x37\x33"
+         "\x37\x3b\x0a\x20\x20\x20\x20\x70\x72\x69\x6e\x74\x3b\x0a\x7d\x72"
+         "\x65\x63\x6f\x72\x64\x31\x0a";
+      static unsigned int write_00000_00000_len = 55;
+      unsigned char *write_00000 = NULL;
+      unsigned int write_00000_len = 0;
+      write_00000 = cgc_append_buf(write_00000, &write_00000_len, write_00000_00000, write_00000_00000_len);
+      if (write_00000_len > 0) {
+         cgc_transmit_all(1, write_00000, write_00000_len);
+      }
+      cgc_free(write_00000);
+   } while (0);
+   do {
+      unsigned char *read_00000;
+      unsigned int read_00000_len;
+      unsigned int read_00000_ptr = 0;
+      //**** delimited read
+      static unsigned char read_00000_delim[] = 
+         "\x0a";
+      read_00000 = NULL;
+      read_00000_len = 0;
+      int read_00000_res = cgc_delimited_read(0, &read_00000, &read_00000_len, read_00000_delim, 1);
+      if (read_00000_res) {} //silence unused variable warning
+      //**** read match data
+      static unsigned char match_00000_00000[] = 
+         "\x52\x55\x4e\x54\x49\x4d\x45\x20\x45\x52\x52\x4f\x52\x0a";
+      read_00000_ptr += cgc_data_match(read_00000 + read_00000_ptr, read_00000_len - read_00000_ptr, match_00000_00000, 14);
+      cgc_free(read_00000);
+      if (read_00000_ptr) {}  //silence unused variable warning if any
+   } while (0);
 }

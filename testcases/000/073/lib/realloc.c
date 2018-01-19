@@ -23,6 +23,7 @@
  *
  */
 
+#include "cgc_wrapper.h"
 #include "libcgc.h"
 #include "cgc_malloc.h"
 #include "cgc_stdlib.h"
@@ -39,11 +40,13 @@ void *cgc_realloc(void *ptr, cgc_size_t size)
     return NULL;
   }
 
+  struct blk_t *blk = (struct blk_t *)((intptr_t)ptr - HEADER_PADDING);
+  if (size >= blk->size / 2 && size < blk->size - HEADER_PADDING)
+      return ptr;
+
   void *new = cgc_malloc(size);
   if (new == NULL)
     return NULL;
-
-  struct blk_t *blk = (struct blk_t *)((intptr_t)ptr - HEADER_PADDING);
 
   if (size < blk->size - HEADER_PADDING)
     cgc_memcpy(new, ptr, size);

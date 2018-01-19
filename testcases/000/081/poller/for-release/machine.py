@@ -5,229 +5,222 @@ import random
 import string
 import struct
 import sys
-from collections import OrderedDict
-
-MAX_MEMO_SUBJECT = 32
-MAX_MEMO_BODY = 4096
-MAX_MEMO_ID = 500
-MAX_AC_LEN = 32
-MAX_AC_LIST = 100
-
-def random_string_n(size=20):
-  return ''.join([random.choice(string.ascii_letters) for x in xrange(size)])
+import re
 
 def random_string(size=20):
   return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
 
-def random_body_string(words):
-  s = ''
-  while (len(s) < MAX_MEMO_BODY):
-    if len(s) != 0 and random.randint(1, 100) <= 10:
-      break
-    if random.randint(1, 100) <= 20:
-      s += random.choice(words)[0]
+class HashDict(object):
+  def __init__(self):
+    self.dic = dict()
+    self.TABLE_SIZE = 256
+    self.length = 0
+    self.keys = list()
+
+  def _hash(self, s):
+    h = 5419
+    for c in s:
+      h = ((h << 5) + (h << 2) + h) + ord(c)
+    return (h % self.TABLE_SIZE)
+
+  def find(self, name):
+    cur = self.dic.get(self._hash(name))
+    if cur != None and len(cur) > 0:
+      for x in cur:
+        if x['name'] == name:
+          return x['value']
+    return None
+
+  def insert(self, name, value):
+    x = self.find(name)
+    if x == None:
+      x = dict()
+      x['name'] = name
+      x['value'] = value
+      h = self._hash(name)
+      if self.dic.get(h) == None:
+        self.dic[h] = list()
+      self.dic[h].insert(0, x)
+      self.length += 1
+      self.keys.append(name)
+
+  def remove(self, name):
+    h = self._hash(name)
+    cur = self.dic.get(h)
+    if cur != None and len(cur) > 0:
+      for x in cur:
+        if x['name'] == name:
+          cur.remove(x)
+          self.keys.remove(name)
+          self.length -= 1
+          return x
+
+  def get(self, i):
+    return self.dic.get(i)
+
+
+class ASADFACE(Actions):
+
+  def _var2str(self, var):
+    var_type = var['type']
+    var_value = var['value']
+    if var_type == 0:
+      return var_value
+    elif var_type == 1:
+      return '%d' % var_value
+    elif var_type == 2:
+      return '%.02f' % var_value
     else:
-      s += random_string()
-    s += ' '
-  return s if len(s) < MAX_MEMO_BODY else s[:MAX_MEMO_BODY]
-
-def random_digits(size=20):
-  return ''.join([random.choice(string.digits) for x in xrange(random.randint(1,size))])
-
-class AMMM(Actions):
-  def ac_init(self):
-    self.state['ac_word_list'] = [
-        ("acceptible", "acceptable"), ("amature", "amateur"),
-        ("arguement", "argument"), ("beleive", "believe"),
-        ("calender", "calendar"), ("cemetary", "cemetery"),
-        ("collectable", "collectible"), ("concensus", "consensus"),
-        ("equiptment", "equipment"), ("existance", "existence"),
-        ("firey", "fiery"), ("foriegn", "foreign"),
-        ("guage", "gauge"), ("greatful", "grateful"),
-        ("harrass", "harass"), ("ignorence", "ignorance"),
-        ("lisense", "license"), ("maintenence", "maintenance"),
-        ("relevent", "relevant"), ("wierd", "weird"),
-        ]
+      return 'true' if var_value else 'false'
 
   def start(self):
-    self.state['g_memo_ids'] = list(0 for i in xrange(MAX_MEMO_ID))
-    self.state['ac_word_list'] = []
-    self.state['memos'] = []
-
-    self.ac_init()
-
-    banner_str = "====== 3M v0.2 ======\n"
+    banner_str = '# Sad Face Template Engine - v0.1\n'
     self.read(length=len(banner_str), expect=banner_str)
-    menu_str = "======================\n" + \
-        " 1. New memo\n" + " 2. View memo\n" + \
-        " 3. Update memo\n" + " 4. Delete memo\n" + \
-        " 5. Add custom AC word\n" + " 6. Quit\n" + \
-        "======================\n"
+
+    self.state['vars'] = HashDict()
+    self.state['input'] = ''
+    self.state['output'] = ''
+    self.state['total_len'] = 0
+    self.state['init'] = False
+
+  def menu(self):
+    if self.state['init']:
+      self.read(length=len('\n'), expect='\n')
+    self.state['init'] = True
+    menu_str = '1. Define variables\n'
+    menu_str += '2. View variables\n'
+    menu_str += '3. Submit templated text\n'
+    menu_str += '4. Render text\n'
+    menu_str += '5. Quit\n'
+    menu_str += '\n'
     self.read(length=len(menu_str), expect=menu_str)
+    self.read(length=len('> '), expect='> ')
 
-  def commands(self):
-    pass
-
-  def cmd_new(self):
+  def define_vars(self):
     self.write('1\n')
-    self.read(length=len('subject? '), expect='subject? ')
-    subject = random_string(MAX_MEMO_SUBJECT - 1)
-    self.write(subject + '\n')
-    self.read(length=len('year? '), expect='year? ')
-    year = random.randint(1970, 2500)
-    self.write('%d\n' % year)
-    self.read(length=len('month? '), expect='month? ')
-    month = random.randint(1, 12)
-    self.write('%d\n' % month)
-    self.read(length=len('date? '), expect='date? ')
-    date = random.randint(1, 31)
-    self.write('%d\n' % date)
-    self.read(length=len('priority? '), expect='priority? ')
-    priority = random.randint(0, 2)
-    self.write('%d\n' % priority)
-    self.read(length=len('body? '), expect='body? ')
-    body = random_body_string(self.state['ac_word_list'])
-    self.write(body + '\n')
+    delete_mode = random.choice([True, False])
+    num_vars = random.randint(0, 5)
 
-    words = body.split(' ')
-    body = ''
-    for w in words:
-      for (t,c) in self.state['ac_word_list']:
-        if w == t:
-          w = c
-          break
-      body += w + ' '
-    body = body[:-1]
-    memo_id = -1
-    for i in xrange(MAX_MEMO_ID):
-      if self.state['g_memo_ids'][i] == 0:
-        memo_id = i
-        break
-    if memo_id == -1:
-      return
-    memo = (memo_id, subject, year, month, date, priority, body)
-    self.state['g_memo_ids'][memo_id] = 1
-    self.state['memos'].append(memo)
-    s = 'id: %d created.\n' % memo_id
-    self.read(length=len(s), expect=s)
+    self.read(length=len('-- Empty variable name will exit this menu\n'), expect='-- Empty variable name will exit this menu\n')
+    self.read(length=len('-- Empty value will undefine the variable (if exists)\n'), expect='-- Empty value will undefine the variable (if exists)\n')
 
-  def cmd_view(self):
+    for i in xrange(num_vars):
+      self.read(length=len('var name: '), expect='var name: ')
+      if delete_mode:
+        if self.state['vars'].length == 0:
+          self.write('\n')
+          return
+        var_name = random.choice(self.state['vars'].keys)
+      else:
+        while True:
+          var_name = random_string()
+          if var_name not in self.state['vars'].keys:
+            break
+      self.write('%s\n' % var_name)
+
+      types_str = '-- Available types\n'
+      types_str += '    0 - String (default)\n'
+      types_str += '    1 - Integer\n'
+      types_str += '    2 - Float\n'
+      types_str += '    3 - Bool [true/false]\n'
+      types_str += 'var type: '
+      self.read(length=len(types_str), expect=types_str)
+      var_type = random.choice([0, 1, 2, 3])
+      self.write('%d\n' % var_type)
+
+      self.read(length=len('var value: '), expect='var value: ')
+      if delete_mode:
+        self.write('\n')
+        self.state['vars'].remove(var_name)
+      else:
+        if var_type == 0:
+          var_value = random_string()
+        elif var_type == 1:
+          var_value = random.randint(-2147483648, 2147483647)
+        elif var_type == 2:
+          var_value = ((random.randint(-2147483648, 2147483647) - random.randint(-2147483648, 2147483647)) / 200000.0)
+        else:
+          var_value = random.choice([True, False])
+        self.state['vars'].insert(var_name, { 'type': var_type, 'value': var_value })
+        self.write(self._var2str(self.state['vars'].find(var_name)) + '\n')
+
+    self.read(length=len('var name: '), expect='var name: ')
+    self.write('\n')
+
+  def view_vars(self):
     self.write('2\n')
-    self.read(length=len('id? '), expect='id? ')
-    if len(self.state['memos']) == 0:
-      self.write('%d\n' % random.randint(0, MAX_MEMO_ID))
-      return
-    memo = random.choice(self.state['memos'])
-    self.write('%d\n' % memo[0])
-    s = '[%d] %s\n' % (memo[0], memo[1])
-    self.read(length=len(s), expect=s)
-    s = 'Date: %04d-%02d-%02d\n' % (memo[2], memo[3], memo[4])
-    self.read(length=len(s), expect=s)
-    s = 'Priority: '
-    if memo[5] == 0:
-      s += '*__ (Low)\n'
-    elif memo[5] == 1:
-      s += '**_ (Normal)\n'
-    elif memo[5] == 2:
-      s += '*** (High)\n'
-    self.read(length=len(s), expect=s)
-    s = '------------------------------\n'
-    self.read(length=len(s), expect=s)
-    s = ''
-    for i in xrange(len(memo[6])):
-      if i % 29 == 0:
-        s += '\n'
-      s += memo[6][i]
-    s += '\n'
+    self.read(length=len('-- Current variables:\n'), expect='-- Current variables:\n')
+
+    for i in xrange(self.state['vars'].TABLE_SIZE):
+      cur = self.state['vars'].get(i)
+      if cur:
+        for x in cur:
+          s = ' > %s : %s\n' % (x['name'], self._var2str(x['value']))
+          self.read(length=len(s), expect=s)
+    if self.state['vars'].length > 0:
+      s = '-- Total %d variable(s)\n' % self.state['vars'].length
+    else:
+      s = '-- None\n'
     self.read(length=len(s), expect=s)
 
-  def cmd_update(self):
+  def submit_text(self):
     self.write('3\n')
-    self.read(length=len('id? '), expect='id? ')
-    if len(self.state['memos']) == 0:
-      self.write('%d\n' % random.randint(0, MAX_MEMO_ID))
-      return
-    memo = random.choice(self.state['memos'])
-    self.write('%d\n' % memo[0])
-    self.state['memos'].remove(memo)
+    self.state['input'] = ''
+    self.state['total_len'] = 0
+    self.read(length=len('-- Submit a null-terminated string\n'), expect='-- Submit a null-terminated string\n')
+    s = ''
+    num_things = random.randint(1, 50)
+    for i in xrange(num_things):
+      thing = random.choice(['normal', 'variable', 'section', 'comment'])
+      if thing == 'comment':
+        s += ':(#%s):' % random_string()
+      elif thing == 'variable' and self.state['vars'].length > 0:
+        name = random.choice(self.state['vars'].keys)
+        var = self.state['vars'].find(name)
+        s += ':(%s):' % name
+        self.state['total_len'] += len(self._var2str(var))
+      elif thing == 'section' and any((self.state['vars'].find(x))['type'] == 3 for x in self.state['vars'].keys):
+        name = random.choice(filter(lambda x: (self.state['vars'].find(x))['type'] == 3, self.state['vars'].keys))
+        var = self.state['vars'].find(name)
+        rs = random_string()
+        s += ':(@%s):' % name
+        s += rs
+        s += ':(/%s):' % name
+        if var['value']:
+          self.state['total_len'] += len(rs)
+      else:
+        rs = random_string()
+        s += rs
+        self.state['total_len'] += len(rs)
 
-    self.read(length=len('subject? '), expect='subject? ')
-    if random.randint(1, 100) <= 70:
-      subject = random_string(MAX_MEMO_SUBJECT - 1)
-      self.write(subject + '\n')
-    else:
-      subject = memo[1]
-      self.write('\n')
-    self.read(length=len('year? '), expect='year? ')
-    if random.randint(1, 100) <= 70:
-      year = random.randint(1970, 2500)
-      self.write('%d\n' % year)
-    else:
-      year = memo[2]
-      self.write('\n')
-    self.read(length=len('month? '), expect='month? ')
-    if random.randint(1, 100) <= 70:
-      month = random.randint(1, 12)
-      self.write('%d\n' % month)
-    else:
-      month = memo[3]
-      self.write('\n')
-    self.read(length=len('date? '), expect='date? ')
-    if random.randint(1, 100) <= 70:
-      date = random.randint(1, 31)
-      self.write('%d\n' % date)
-    else:
-      date = memo[4]
-      self.write('\n')
-    self.read(length=len('priority? '), expect='priority? ')
-    if random.randint(1, 100) <= 70:
-      priority = random.randint(0, 2)
-      self.write('%d\n' % priority)
-    else:
-      priority = memo[5]
-      self.write('\n')
-    self.read(length=len('body? '), expect='body? ')
-    if random.randint(1, 100) <= 70:
-      body = random_body_string(self.state['ac_word_list'])
-      self.write(body + '\n')
+    self.state['input'] = s
+    self.write(self.state['input'] + '\0')
 
-      #for (t,c) in self.state['ac_word_list']:
-      #  body = body.replace(t, c)
-    else:
-      body = memo[6]
-      self.write('\n')
-
-    memo = (memo[0], subject, year, month, date, priority, body)
-    self.state['memos'].append(memo)
-
-  def cmd_delete(self):
+  def render_text(self):
     self.write('4\n')
-    self.read(length=len('id? '), expect='id? ')
-    if len(self.state['memos']) == 0:
-      self.write('%d\n' % random.randint(0, MAX_MEMO_ID))
-      return
-    memo = random.choice(self.state['memos'])
-    self.write('%d\n' % memo[0])
-    self.state['memos'].remove(memo)
-    self.state['g_memo_ids'][memo[0]] = 0
-
-  def cmd_add_ac(self):
-    self.write('5\n')
-    self.read(length=len('typo? '), expect='typo? ')
-    typo = random_string(MAX_AC_LEN - 1)
-    self.write(typo + '\n')
-    self.read(length=len('correct? '), expect='correct? ')
-    correct = random_string(len(typo))
-    self.write(correct + '\n')
-
-    if len(self.state['ac_word_list']) >= MAX_AC_LIST:
-      return
-
-    typos = [x for (x,y) in self.state['ac_word_list']]
-    if typo in typos:
-      return
-    self.state['ac_word_list'].append((typo, correct))
+    self.state['output'] = self.state['input']
+    for k in self.state['vars'].keys:
+      v = self.state['vars'].find(k)
+      if v['type'] == 3 and (':(@%s):' % k) in self.state['input']:
+        if not v['value']:
+          self.state['output'] = re.sub(':\(@%s\):.*?:\(/%s\):' % (k, k), '', self.state['output'])
+        else:
+          self.state['output'] = self.state['output'].replace(':(@%s):' % k, '')
+          self.state['output'] = self.state['output'].replace(':(/%s):' % k, '')
+      self.state['output'] = self.state['output'].replace(':(%s):' % k, self._var2str(v))
+    self.state['output'] = re.sub(':\(@.*?\):.*?:\(/.*?\):', '', self.state['output'])
+    self.state['output'] = re.sub(':\(.*?\):', '', self.state['output'])
+    self.state['output'] = re.sub(':\(#.*?\):', '', self.state['output'])
+    self.read(length=len('-- Render start.\n'), expect='-- Render start.\n')
+    if len(self.state['output']) > 0:
+      self.read(length=len(self.state['output']), expect=self.state['output'])
+    s = '\n-- Render complete (%d bytes).\n' % len(self.state['output'])
+    self.read(length=len(s), expect=s)
 
   def quit(self):
-    self.write('6\n')
-    self.read(length=len('bye!\n'), expect='bye!\n')
+    self.write('5\n')
+    self.read(length=len('# Bye.\n\n'), expect='# Bye.\n\n')
+
+  def invalid(self):
+    self.write('%d\n' % random.randint(6, 0xFFFFFFFF))
+    self.read(length=len('Invalid menu. Try again.\n'), expect='Invalid menu. Try again.\n')

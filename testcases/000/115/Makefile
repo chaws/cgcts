@@ -1,4 +1,4 @@
-CHAL=Email_System_2
+CHAL=Scrum_Database
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,33 +20,49 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/message.c.o -c src/message.c
-	$(CC) $(FLAGS) -o Email_System_2_patched lib/prng.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/user.c.o src/service.c.o src/message.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/input.c.o -c lib/input.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/init_database.c.o -c src/init_database.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/sprints.c.o -c src/sprints.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/commands.c.o -c src/commands.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/utility.c.o -c src/utility.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/obf_strings.c.o -c src/obf_strings.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/backlogitems.c.o -c src/backlogitems.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/product.c.o -c src/product.c
+	$(CXX) $(FLAGS) -o Scrum_Database_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o lib/input.c.o src/init_database.c.o src/sprints.c.o src/commands.c.o src/utility.c.o src/service.c.o src/obf_strings.c.o src/backlogitems.c.o src/product.c.o $(LCGC) 
 
 vulnerable:
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/input.c.o -c lib/input.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/init_database.c.o -c src/init_database.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/sprints.c.o -c src/sprints.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/commands.c.o -c src/commands.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/utility.c.o -c src/utility.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/message.c.o -c src/message.c
-	$(CC) $(FLAGS) -o Email_System_2 lib/prng.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/user.c.o src/service.c.o src/message.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/obf_strings.c.o -c src/obf_strings.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/backlogitems.c.o -c src/backlogitems.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/product.c.o -c src/product.c
+	$(CXX) $(FLAGS) -o Scrum_Database lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o lib/input.c.o src/init_database.c.o src/sprints.c.o src/commands.c.o src/utility.c.o src/service.c.o src/obf_strings.c.o src/backlogitems.c.o src/product.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Email_System_2_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Email_System_2_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov1.c.o -c pov_1/pov1.c
+	$(CXX) $(FLAGS) -o Scrum_Database_pov_1 pov_1/pov1.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/prng.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/user.c.o src/service.c.o src/message.c.o lib/prng.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/user.c.o src/service.c.o src/message.c.o Email_System_2_pov_2 Email_System_2_pov_1 Email_System_2_patched Email_System_2
+	rm -f pov_1/pov1.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o lib/input.c.o src/init_database.c.o src/sprints.c.o src/commands.c.o src/utility.c.o src/service.c.o src/obf_strings.c.o src/backlogitems.c.o src/product.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o lib/input.c.o src/init_database.c.o src/sprints.c.o src/commands.c.o src/utility.c.o src/service.c.o src/obf_strings.c.o src/backlogitems.c.o src/product.c.o Scrum_Database_pov_1 Scrum_Database_patched Scrum_Database

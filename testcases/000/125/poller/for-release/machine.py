@@ -1,129 +1,93 @@
-#!/usr/bin/env python
+# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-from cStringIO import StringIO
 from generator.actions import Actions
+from os.path import dirname, abspath, join
 import random
-import string
-import struct
+import sys
 
-p = lambda f,x: struct.pack(f,x)
+sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), 'support'))
+from support import Support
 
-STEG_TAG = 0xD86B74D1
-PPM_TAG = 0x03259036
-MODE_TAG = 0xBB85A71C
-TEXT_TAG = 0xBFEFDDE9
-END_TAG = 0xAB660AF0
+class Matchmaker(Actions):
+    def start(self):
+        self.delay(50)
+        self.state['model'] = Support(self.magic_page)
 
-SECRET_TAG = 0xB58333C6
-SECRET_END_TAG = 0x0507A018
+    def init_dfa(self):
+        dfa = self.state['model'].make_dfa().splitlines()
 
-MODE_EM = 0x1337
-MODE_EX = 0x7331
+        for line in dfa:
+            if self.chance(0.1):
+                self.write(self.state['model'].make_invalid_dfa() + '\n')
+                self.read(delim='\n', expect='Invalid')
 
-def random_string(size=20):
-  return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
+            self.write(line + '\n')
 
-class APPMSteg(Actions):
+        self.read(delim='\n', expect='Ok, matching input now')
 
-  def start(self):
-    if random.randint(1,100) <= 50:
-      self.state['mode'] = MODE_EM
-    else:
-      self.state['mode'] = MODE_EX
+    def cont(self):
+        pass
 
-  def new_ppm(self):
-    w = random.randint(1, 400)
-    h = random.randint(1, 400)
+    def match(self):
+        pass
 
-    pixels = StringIO()
-    for i in xrange(w * h * 3):
-      pixels.write(chr(random.randint(0, 255)))
+    def valid_match(self):
+        matching_input = self.state['model'].make_match()
+        if matching_input:
+            self.write(matching_input + '\n')
+            self.read(delim='\n', expect=self.state['model'].make_onmatch_result(matching_input))
+            csum_str = '%x' % self.state['model'].calculate_csum(matching_input)
+            csum_str = '0' * (8 - len(csum_str)) + csum_str + '\n'
+            self.read(length=len(csum_str), expect=csum_str)
 
-    self.state['w'] = w
-    self.state['h'] = h
-    self.state['pixels'] = pixels
- 
-  def get_ppm(self):
-    ppm = 'PK\n%d %d\n255\n' % (self.state['h'], self.state['w'])
-    ppm += self.state['pixels'].getvalue()
-    return ppm
+    def invalid_match(self):
+        unmatching_input = self.state['model'].make_nomatch()
+        if unmatching_input:
+            self.write(unmatching_input + '\n')
+            self.read(delim='\n', expect='No match :( "%s"' % unmatching_input)
 
-  def embed_text(self, text):
-    message = p('I', SECRET_TAG)
-    message += p('H', len(text))
-    message += text
-    message += p('I', SECRET_END_TAG)
+    def onmatch(self):
+        pass
 
-    if len(message) > self.state['w'] * self.state['h'] * 3 / 8:
-      return False
+    def valid_onmatch(self):
+        self.write(self.state['model'].make_valid_onmatch() + '\n')
+        self.read(delim='\n', expect='Match action updated')
 
-    self.state['pixels'].seek(0)
-    for c in message:
-      for i in xrange(0, 8):
-        pixel = self.state['pixels'].read(1)
-        bit = (ord(c) >> (7 - i)) & 1
-        if bit:
-          pixel = chr(ord(pixel) | 1)
+    def invalid_onmatch(self):
+        self.write(self.state['model'].make_invalid_onmatch() + '\n')
+        self.read(delim='\n', expect='Unrecognized action')
+
+    def example(self):
+        example = self.state['model'].make_example()
+        if example:
+            self.write('example' + '\n')
+            self.read(delim='\n', expect='Here\'s an example: "%s"' % example)
         else:
-          pixel = chr(ord(pixel) & ~1)
-        self.state['pixels'].seek(-1, 1)
-        self.state['pixels'].write(pixel)
-    return True
+            self.write('example' + '\n')
+            self.read(delim='\n', expect='Error, are you done initializing?')
 
-  def generate_ppm(self):
-    self.new_ppm()
+    def reset_dfa(self):
+        self.write('reset' + '\n')
+        self.read(delim='\n', expect='Please re-enter state machine')
 
-    if self.state['mode'] == MODE_EX:
-      # Generate a temporary random input to be extracted
-      text_data = 'Temp random input ___' + random_string(10) + '___'
-      if self.embed_text(text_data):
-        self.state['text'] = text_data
-      else:
-        self.state['text'] = None
+    def quit(self):
+        self.write('quit' + '\n')
 
-    if self.state['mode'] == MODE_EM:
-      text_data = 'Test string ___' + random_string(10) + '___'
-      self.state['text'] = text_data
-    else:
-      text_data = ''
-    text_size = len(text_data)
-
-    ppm_data = self.get_ppm()
-    s = ''
-    s += p('I', STEG_TAG)
-    s += p('I', 0)
-    s += p('I', PPM_TAG)
-    s += p('I', len(ppm_data))
-    s += ppm_data
-    s += p('I', MODE_TAG)
-    if self.state['mode'] == MODE_EM:
-      s += p('H', MODE_EM)
-    else:
-      s += p('H', MODE_EX)
-    s += p('I', TEXT_TAG)
-    s += p('H', text_size)
-    s += text_data
-    s += p('I', END_TAG)
-
-    s = p('I', STEG_TAG) + p('I', len(s)) + s[8:]
-    self.state['string'] = s
-
-  def generate_exp(self):
-    if self.state['mode'] == MODE_EM:
-      if self.embed_text(self.state['text']):
-        return self.get_ppm()
-      else:
-        return '[ERROR] Failed to embed your message.\n'
-    else:
-      if self.state['text'] == None:
-        return '[ERROR] Failed to extract the message.\n'
-      else:
-        return 'Secret Text: %s\n' % self.state['text']
-
-  def doit(self):
-    # DO STUFF
-    self.generate_ppm()
-    self.write(self.state['string'])
-
-    exp = self.generate_exp()
-    self.read(length=len(exp), expect=exp)

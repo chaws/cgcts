@@ -1,40 +1,38 @@
-# Facilities_Access_Control_System
+# CROMU-00004: PCM Message decoder
 
 ## Author Information
 
-"Joe Rogers" <joe@cromulence.com>
+“Joe Rogers” <joe@cromulence.co>
 
 ### DARPA performer group
 Cromulence (CROMU)
 
 ## Description
-This CB implements a basic facility security system.  It takes inputs from door contact, heat sensors, smoke alarms, motion sensors, keypads and card swipes.  Users can be added or deleted from the system, and they can be granted access to specific keypads and card swipes.  Input devices are then associated with alarm devices which read sensors throughout the facility and can be armed or disarmed using keypad or card swipe devices.
 
-Once the devices and users are defined, the CRS can send inputs to the various devices to change their state (ie: motion detected/not-detected, contact open/closed).  And based on these state changes, a given alarm might be triggered.  
+This service reads in a morse code like language in the form of a PCM-encoded file,
+decodes the data, and prints out the message.
 
 ### Feature List
-- 5-digit PIN numbers for keypads
-- 32-digit codes for card swipes
-- Alarms capable of monitoring door contacts, heat sensors, smoke alarms, and motion sensors
-- Binary interface suitable for integration with any user interface front-end
-- User creation and deletion
-- User access controls per keypad or card swipe
+
+This program supports the decoding of a PCM-based audio file format.  It expects a
+sample rate of 44100 samples/sec with 16-bit samples.  It decodes the audio data
+as a morse code like language, printing the decoded message as its output.
 
 ## Vulnerability
-The CB is designed to handle up to 128 users (with UserID's 0 - 127).  User information is stored in an appropriately sized array.  However, a mistake in the AddUser function allows the signed 8-bit integer used for array indexing to take on a value of -1 if an attempt is made to create 129 users.  
-
-This out-of-bounds write allows portions of the preceding Device array to be overwritten.  The device array contains a pointer to device-specific information for the various device types supported by the CB.  For keypad and card swipe devices, this pointer references memory containing the valid pin and codes for those devices.  And, there exists a function available to the user to list all pins and codes for those types of devices.  If the overwritten device entry is properly formatted to look like a keypad or card swipe device, and if the pointer is set to the address of the magic page, a type 2 vulnerability exists.
+The PCM format contains two length specifiers. DataSize is the length of the PCM data
+in the file.  NumSamples number of PCM samples.  The program can only handle 16-bit
+samples, so it checks that DataSize*8/NumSamples == 16.  However it does this check
+using integer division in the unpatched cb which allows DataSize*8 to be larger
+than it should be.  For example 64*8/32 == 16 but 65*8/32 == 16 as well.  Since
+the program uses the DataSize field for reading in the rest of the PCM file,
+a stack-based overflow condition is created.
 
 ### Generic class of vulnerability
-Integer overflow leading to an out-of-bounds array write
+Unchecked user input leads to overrun of fixed size buffer allowing control of EIP.
 
 ### CWE classification
-CWE-190: Integer Overflow or Wraparound
-CWE-787: Out-of-bounds Write
+CWE-120 - Buffer Copy without Checking Size of Input
 
 ## Challenges
-The integer overflow should be relatively easy to identify.  Determining that this overflow can be used to craft a specific type of device and then use that device's pointer to access the magic page will be more difficult.
-
-Discovering - Easy
-Proving - Medium
-Fixing - Easy
+The attacker must be able to determine there's a mistake in the sample size
+check and understand they can use that to send an overly large DataSize.

@@ -1,8 +1,8 @@
 /*
 
-Copyright (c) 2015 Cromulence LLC
+Author: Jason Williams <jdw@cromulence.com>
 
-Authors: Cromulence <cgc@cromulence.com>
+Copyright (c) 2014 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,15 +28,34 @@ THE SOFTWARE.
 
 #include "libcgc.h"
 
-#define RAND_MAX	2147483647
+int cgc_isspace( int c );
+int cgc_isdigit( char c );
+int cgc_isnan( double val );
+int cgc_isinf( double val );
+double cgc_atof(const char *str);
+int cgc_atoi(const char *str);
+int cgc_islower( int c );
+int cgc_isupper( int c );
+int cgc_isalpha( int c );
+int cgc_isalnum( int c );
+int cgc_memcpy( void *dest, void *src, cgc_size_t n);
 
-int cgc_minimum(unsigned int a, unsigned int b);
-int cgc_max(int a, int b);
-int cgc_rand( void );
-void cgc_srand( unsigned int seed );
-int cgc_atoi( const char *pStr );
-double cgc_atof( char *pStr );
- 
+char *cgc_strcpy( char *dest, char *src );
+char *cgc_strncpy( char *, const char *, cgc_size_t );
+int cgc_putc( int );
+int cgc_printf( const char *fmt, ... );
+void cgc_bzero( void *, cgc_size_t );
+void *cgc_memset(void *, int, cgc_size_t);
+int cgc_strcmp( const char *, const char * );
+char *cgc_strncat( char *dest, const char *src, cgc_size_t n );
+cgc_size_t cgc_receive_until( char *, char, cgc_size_t );
+cgc_size_t cgc_strcat( char *, char* );
+cgc_size_t cgc_strlen( char * );
+cgc_size_t cgc_itoa( char *, cgc_size_t, cgc_size_t );
+void cgc_puts( char *t );
+char *cgc_strchr(const char *, int);
+char *cgc_strtok(char *, const char *);
+cgc_ssize_t cgc_write( const void *, cgc_size_t );
+char *cgc_strdup( char * );
 
-
-#endif // STDLIB_H__
+#endif // __STDLIB_H__

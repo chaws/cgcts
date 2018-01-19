@@ -1,11 +1,9 @@
 ---
 nodes:
 - name: start
-- name: setup
-- name: finish
-- name: do_it
-  continue: .75
+- name: gen_cgcf
+- name: parse_cgcf
+
 edges:
-- start: setup
-- setup: do_it
-- do_it: do_it
+- start: gen_cgcf
+- gen_cgcf: parse_cgcf

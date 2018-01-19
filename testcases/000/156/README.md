@@ -1,37 +1,50 @@
-# TIACA (CROMU_00012)
+# CROMU-00016: Network Queuing Simulator
 
 ## Author Information
 
-"Dustin Fraze" <df@cromulence.co>
+“Joe Rogers” <joe@cromulence.co>
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Cromulence (CROMU)
 
 ## Description
-
-This is an opcode service with function names and state were inspired by cars, generally to abstract state tracking for the convience of the author.  Abstracting complicated systems to car analogies is popular in engineering text books.
+This CB implements a network queuing simulator.  Based on inputs from the user,
+the program simulates the transmission of network traffic through an interface 
+tracking statistics like total packets sent, dropped packets, average latency, etc.
 
 ### Feature List
-
-This service is an abstraction of a car, based on my very poor understanding of how cars work.  A user can arm and disarm the car's alarm, open, load/unload, and close the trunk, manipulate the windows and moonroof, listen to music, and drive the car.  Fuel is accounted poorly, based on car load, speed, and window state.  At the end of a drive, the user can ask for the state of the car.
+Users are able configure these items:
+	- Interface bit-rate
+	- Packet generator
+	- Number of queues
+	- Types, depths, priorities, and weights of those queues
+	- Length of the simulation
 
 ## Vulnerability
+Multiple vulnerabilities exist in this CB.  
 
-When the "car" is in a high gear, the user is allowed to turn on the radio.  If the radio is in bluetooth mode, the transmitter sends over metadata about whats being played.  This metadata contains a simple buffer overflow.  The overflowed buffer is inside the serviceLoop's frame, and serviceLoop never returns.  Proper exploitation requires overflowing the carstate pointer in the serviceLoop's stack frame.  In the provided POV, I set this pointer to be ESP at the call to updateBTMetadata, such that when updateBTMetadata is called a second time, I overwrite the return address.
+1. A very simple buffer overflow exists in the packet generator selection code.  The buffer
+reading the user's selected packet generator is sized too small for the number of characters
+they are allowed to enter.
 
-It is possible to read beyond the end of the stack if the car is in gear
+2. A slightly more complicated buffer overflow exists in the packet statistics output code
+which is run at the end of the simulation.  During the input phase, the user is prompted
+for the run time of the simulation.  The prompt describes allowable inputs of 1 - 10 seconds.
+However, the unpatched CB allows for larger values.  If run with a large enough value, and
+appropriately selected interface and input packet rates, the interface total packet counter
+will exceed its available print buffer when the statistics are displayed.
 
 ### Generic class of vulnerability
-Buffer Overflow
+1. Buffer overflow
+
+2. Buffer overflow
 
 ### CWE classification
-NULL Pointer Dereference
-CWE-787: Out-of-bounds Write
+1. CWE-131: Incorrect Calculation of Buffer Size
+
+2. CWE-120: Buffer Copy without Checking Size of Input
 
 ## Challenges
 
-This service has a poor man's "address sanitization" built in.  All pointers are validated as pointing to within the stack address range or program .text address range.  Return addresses are further validated to be pointing into the program .text, and *returnaddress-5 == 0xe8, the 5 byte version of a call.  The validateRet function emits a cmp eax, 0xe8, which is 0x3de8000000, allowing a system to return to the cmp plus 1 byte, which gets interpreted as a call into an invalid address.  Strengthened versions of memcpy, and a handful of other string functions have been written to take advantage of this pointer validation.
-
-The implementation of address sanitization may cause problems for CRS which attempt to introduce defenses without doing analysis on the application.  If they attempt to introduce ASLR in the .text section, all function calls will fall outside of the validateRet() safeguards, and cause all calls to fail.  If they attempt to move the stack in a similar manner, validatePtr() will fail.  Removing these checks will make the poller fail.
-
-This service also has two cases where an overflow of a return address are done, but they are seemingly useless for exploitation.  In the case where the car alarm is set, and the trunk is opened, the program overwrites a return address with 0x41414141, and attempts to validate the return address.  This will of course fail, and print out a message signifying stack smashing has been detected.  Some overzealous CRS may attempt to disallow this overwrite to occur, spotting it as a vulnerability.  In doing so, they may cause SLA failure, as my poller causes this to happen, and checks for the stack overflow detected notification.  Serviceloop's returns address is also overflowable, but there is no way to get serviceLoop to return, as all exits from serviceLoop are through the _terminate() syscall.
+The first vulnerability in this CB is realatively easy to identify.  The second will require
+more in depth code analysis or careful selection of inputs to trigger the overflow. 

@@ -23,6 +23,7 @@
  *
  */
 
+#include "cgc_wrapper.h"
 #include "libcgc.h"
 
 void *cgc_memset(void *s, int c, cgc_size_t n)

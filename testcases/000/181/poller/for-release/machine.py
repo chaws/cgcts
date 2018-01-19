@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+# Copyright (C) 2014 
+#   Brian Caswell <bmc@lungetech.com>
+#   Narf Industries <info@narfindustries.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -21,120 +23,283 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from generator.actions import Actions
-from os.path import dirname, abspath, join
+from generator.actions import Actions, Variable
+from random import choice, randint
+import imp
+import os
 import random
-import struct
-import sys
+import string
 
-sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-from support import Support, Matrix
 
-class PolandBall(Actions):
-    SUCCESS = '\x00' * 4
-    FAILURE = '\xff' * 4
+def random_alpha(a, b):
+    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
+
+
+def random_hex(a, b):
+    return ''.join(choice(string.hexdigits) for _ in range(randint(a, b))) 
+
+
+class Fastlane(Actions):
+    RECV_BUF_LEN = 1024
+
+    # conf = imp.load_source(
+    #     'conf', 
+    #     os.path.join(
+    #         os.path.dirname(os.path.realpath(__file__)), 
+    #         '..',
+    #         '..',
+    #         'support',
+    #         'config.py'))
+
+    # FIXUP_CYCLIC_GROUP_KEY = conf.conf['FIXUP_CYCLIC_GROUP_KEY']
+
+
+    #### HELPER FUNCTIONS ####
 
     def start(self):
-        self.state['model'] = Support()
+        """
+        Intialize state.
+        """
+        self.state['credits'] = 0
 
-    def cmd(self):
-        pass
+        # get a legal filename (for use in other functions)
+        self.write("SUP\n")
+        self.read(
+            delim='\n',
+            expect="here're your files, plebian:")
+        self.read(
+            delim='\n',
+            expect="----------------------------")
 
-    def push(self):
-        pass
+        token = Variable('legalfilename')
+        token.set_re(r'([a-z]{16})')
+        self.read(delim='\r', assign=token)
+        self.state['filename'] = token
 
-    def push_int(self):
-        val = random.randint(-Support.INT_LIMIT, Support.INT_LIMIT)
-        self.state['model'].push(val)
-        self.write(self.state['model'].make_push(val))
-        self.read(length=4, expect=self.SUCCESS)
+    def auth(self):
+        """
+        The main loop, in a sense.
+        All other nodes edge to here and this node edges to all other nodes.
 
-    def push_matrix(self):
-        pass
+        (Possibly) adds credits.
+        """
+        # we don't have credits...
+        # with some likelihood, we attempt to add credits
+        if 0 == self.state['credits'] and self.chance(0.01):
+            req = "AUTH "
 
-    def push_square_matrix(self):
-        size = random.randint(1, 2)
-        val = Matrix(size, size)
-        self.state['model'].push(val)
-        self.write(self.state['model'].make_push(val))
-        self.read(length=4, expect=self.SUCCESS)
+            # with some likelihood, we send a bogus value
+            if self.chance(0.5):
+                self.write("AUTH BOGUS" + random_alpha(1, self.RECV_BUF_LEN-100) + "\n")
+                self.read(
+                    delim='\r',
+                    expect="Adding FASTLANE credits...\n"
+                           "--------------------------\n"
+                           "invalid hex\n"
+                           "Sorry, failed to add credits.\n")
 
-    def push_large_matrix(self):
-        width = random.randint(3, 16)
-        height = random.randint(3, 16)
-        val = Matrix(width, height)
-        self.state['model'].push(val)
-        self.write(self.state['model'].make_push(val))
-        self.read(length=4, expect=self.SUCCESS)
+            # # with some likelihood, we send the right answer
+            # elif self.chance(0.5):
+            #     req += self.FIXUP_CYCLIC_GROUP_KEY
+            #     self.write(req + "\n")
+            #     self.read(
+            #         delim='\r',
+            #         expect="Adding FASTLANE credits...\n"
+            #                "--------------------------\n"
+            #                "Authentication successful!\n")
+            #     self.state['credits'] += 3  
 
-    def push_invalid_matrix(self):
-        size = random.randint(1, 8)
-        self.write(self.state['model'].make_push(Matrix(size, size, None, False)))
-        self.read(length=4, expect=self.FAILURE)
+            # and with some likelihood, we send the wrong answer
+            else:
+                # assumes key does not start with "42"
+                req += "42"
+                req += random_hex(0, 4)
+                self.write(req + "\n")
+                self.read(
+                    delim='\r',
+                    expect="Adding FASTLANE credits...\n"
+                           "--------------------------\n"
+                           "Sorry, failed to add credits.\n")
 
-    def push_double(self):
-        pass
+    def quit(self):
+        """
+        Quit the session / instance.
 
-    def push_valid_double(self):
-        val = random.uniform(-Support.FLOAT_LIMIT, Support.FLOAT_LIMIT)
-        self.state['model'].push(val)
-        self.write(self.state['model'].make_push(val))
-        self.read(length=4, expect=self.SUCCESS)
+        Return -1 to indicate the session is dead.
+        """
+        self.write("QUIT\n")
+        return -1
 
-    def push_invalid_double(self):
-        self.write(self.state['model'].make_push(float('inf')))
-        self.read(length=4, expect=self.FAILURE)
 
-    def pop(self):
-        res = self.state['model'].pop()
-        self.write(self.state['model'].make_pop())
-        if res is not None:
-            fuzzy = isinstance(res, Matrix)
-            packed, length = self.state['model'].pack_value(res, fuzzy=fuzzy)
-            self.read(length=length, expect=packed, expect_format='pcre' if fuzzy else 'asciic')
-            self.read(length=4, expect=self.SUCCESS)
-        else:
-            self.read(length=4, expect=self.FAILURE)
+    #### ERROR STATES ####
 
-    def clear(self):
-        self.state['model'].clear()
-        self.write(self.state['model'].make_clear())
-        self.read(length=4, expect=self.SUCCESS)
+    def invalid_verb(self):
+        """
+        Invalid verb specified.
+        """
+        self.write("BOGUS" + random_alpha(1, self.RECV_BUF_LEN-100) + "\n")
+        self.read(delim='\r', expect="invalid verb\n")
 
-    def add(self):
-        exp = self.state['model'].add()
-        self.write(self.state['model'].make_add())
-        self.read(length=4, expect=self.SUCCESS if exp == 0 else self.FAILURE)
+    def invalid_request(self):
+        """
+        Legal verb specified, URI parameter absent.
+        """
+        self.write("SMORE\n")
+        self.read(delim='\r', expect="invalid request\n")
 
-    def sub(self):
-        exp = self.state['model'].sub()
-        self.write(self.state['model'].make_sub())
-        self.read(length=4, expect=self.SUCCESS if exp == 0 else self.FAILURE)
+    def file_not_found(self):
+        """
+        Request a file that doesn't exist.
+        """
+        self.write("MOOCH BOGUS" + random_alpha(1, self.RECV_BUF_LEN-100) + "\n")
+        self.read(delim='\r', expect="the tubes are \"clogged\" right now...\n"
+                                     "------------------------------------\n"
+                                     "requested file not found\n")
 
-    def mul(self):
-        exp = self.state['model'].mul()
-        self.write(self.state['model'].make_mul())
-        self.read(length=4, expect=self.SUCCESS if exp == 0 else self.FAILURE)
 
-    def div(self):
-        exp = self.state['model'].div()
-        self.write(self.state['model'].make_div())
-        self.read(length=4, expect=self.SUCCESS if exp == 0 else self.FAILURE)
+    #### SLOWLANE VERBS ####
 
-    def inv(self):
-        exp = self.state['model'].inv()
-        # Avoid vuln by not inverting when invalid
-        if exp == -1:
+    def youup(self):
+        self.write("YOUUP\n")
+        self.read(delim="\r",
+                  expect="Yep, i'm up, but all our basic lines are \"clogged\"\n"
+                         "Upgrade to FASTLANE today!\n")
+
+    def mooch(self):
+        """
+        <write>
+            <data>MOOCH </data>
+            <var>last_filename</var>
+            <data>\n</data>
+        </write>
+        <read>
+            <delim>\r</delim>
+            <match>
+                <data format="asciic">the tubes are "clogged" right now...\n</data>
+                <data format="asciic">------------------------------------\n</data>
+                <pcre>^[0-9]{16}\r$</pcre>
+            </match>
+        </read>
+        """
+        self.write('MOOCH ', self.state['filename'], '\n')
+        self.read(
+            delim='\n',
+            expect="the tubes are \"clogged\" right now...")
+        self.read(
+            delim='\n',
+            expect="------------------------------------")
+        self.read(
+            delim='\r',
+            expect=r'^[0-9]{16}\r$',
+            expect_format='pcre')
+
+    def sup(self):
+        self.write("SUP\n")
+        self.read(
+            delim='\n',
+            expect="here're your files, plebian:")
+        self.read(
+            delim='\n',
+            expect="----------------------------")
+        self.read(
+            delim='\r',
+            expect=r'([a-z]{16}\n)+',
+            expect_format='pcre')
+
+    #### FASTLANE VERBS ####
+
+    def check_credits(self, verb):
+        if 0 == self.state['credits']:
+            self.write(verb + "\n")
+            self.read(delim='\r', expect="you're too poor to use this verb :(\n")
+            return -1
+
+        self.state['credits'] -= 1
+        return 0
+
+    def tip(self):
+        """
+        <write>
+            <data>TIP </data>
+            <var>last_filename</var>
+            <data>\n</data>
+        </write>
+        <read>
+            <delim>\r</delim>
+            <match>
+                <data format="asciic">Just the Tip!\n</data>
+                <data format="asciic">-------------\n</data>
+                <pcre>^[0-9]{4}\r$</pcre>
+            </match>
+        </read>
+        """
+        if -1 == self.check_credits("TIP"):
             return
 
-        self.write(self.state['model'].make_inv())
-        self.read(length=4, expect=self.SUCCESS if exp == 0 else self.FAILURE)
+        self.write('TIP ', self.state['filename'], '\n')
+        self.read(
+            delim='\n',
+            expect="Just the Tip!")
+        self.read(
+            delim='\n',
+            expect="-------------")
+        self.read(
+            delim='\r',
+            expect=r'^[0-9]{4}\r$',
+            expect_format='pcre')
 
-    def finish(self):
-        self.write(self.state['model'].make_quit())
+    def status(self):
+        if -1 == self.check_credits("STATUS"):
+            return
 
-    def invalid_cmd(self):
-        self.write(struct.pack('<I', random.randint(8, 2 ** 32 - 1)))
-        self.read(length=4, expect=self.FAILURE)
+        self.write("STATUS" + "\n")
+        self.read(delim="\r",
+                  expect="FASTLANE fully operational!\n"
+                         "Thank you for asking kind sir/madam!\n")
 
+    def gimme(self):
+        """
+        <write>
+            <data>GIMME </data>
+            <var>last_filename</var>
+            <data>\n</data>
+        </write>
+        <read>
+            <delim>\r</delim>
+            <match>
+                <data format="asciic">Your FASTLANE file contents; we appreciate your business!\n</data>
+                <data format="asciic">---------------------------------------------------------\n</data>
+                <pcre>^[0-9]{16}\r$</pcre>
+            </match>
+        </read>
+        """
+        if -1 == self.check_credits("GIMME"):
+            return
 
+        self.write('GIMME ', self.state['filename'], '\n')
+        self.read(
+            delim='\n',
+            expect="Your FASTLANE file contents; we appreciate your business!")
+        self.read(
+            delim='\n',
+            expect="---------------------------------------------------------")
+        self.read(
+            delim='\r',
+            expect=r'^[0-9]{16}\r$',
+            expect_format='pcre')
+
+    def list(self):
+        if -1 == self.check_credits("LIST"):
+            return
+
+        self.write("LIST" + "\n")
+        self.read(
+            delim='\n',
+            expect="Your files, kind sir/madam!")
+        self.read(
+            delim='\n',
+            expect="---------------------------")
+        self.read(
+            delim='\r',
+            expect=r'([a-z]{16}\n)+',
+            expect_format='pcre')

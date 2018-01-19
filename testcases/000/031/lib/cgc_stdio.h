@@ -36,5 +36,6 @@ int cgc_vprintf( const char *format, va_list args );
 int cgc_sprintf( char *buf, const char *format, ... );
 int cgc_vsprintf( char *buf, const char *format, va_list args );
 int cgc_puts( const char *s );
+int cgc_DebugPrint( const char *format, ... );
 
 #endif // __STDIO_H__

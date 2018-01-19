@@ -23,7 +23,7 @@
 
 #ifndef MEMSET_H
 #define MEMSET_H 1
-#include "cgc_libc.h"
+
 /**
  * Fill the contents of a buffer with the provided char.
  *
@@ -32,6 +32,6 @@
  * @param n Number of times to copy character
  * @return Updated buffer in str.
  */
-void *cgc_memset(void *str, int ch, cgc_size_t n);
+void *cgc_memset(void *str, int ch, unsigned int n);
 
 #endif

@@ -54,7 +54,7 @@ patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O1 -fomit-frame-pointer -g -o lib/realloc.c.o -c lib/realloc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O1 -fomit-frame-pointer -g -o lib/strlen.c.o -c lib/strlen.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O1 -fomit-frame-pointer -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o SAuth_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o SAuth_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O1 -fomit-frame-pointer -g -o lib/printf.c.o -c lib/printf.c
@@ -91,11 +91,11 @@ vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O1 -fomit-frame-pointer -g -o lib/realloc.c.o -c lib/realloc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O1 -fomit-frame-pointer -g -o lib/strlen.c.o -c lib/strlen.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O1 -fomit-frame-pointer -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o SAuth lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o SAuth lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O1 -fomit-frame-pointer -g -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o SAuth_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o SAuth_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)

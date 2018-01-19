@@ -1,4 +1,4 @@
-CHAL=Lazybox
+CHAL=REMATCH_4--CGCRPC_Server--MS08-067
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,45 +20,45 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/shell.c.o -c src/shell.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/screen.c.o -c src/screen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o Lazybox_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/shell.c.o src/screen.c.o src/io.c.o src/user.c.o src/fs.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/fs.c.o -c lib/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/cgcmb.c.o -c src/cgcmb.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/cgcrpc.c.o -c src/cgcrpc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/transport.c.o -c src/transport.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/netstuff.c.o -c src/netstuff.c
+	$(CXX) $(FLAGS) -o REMATCH_4--CGCRPC_Server--MS08-067_patched lib/malloc.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/cgcmb.c.o src/cgcrpc.c.o src/user.c.o src/fs.c.o src/service.c.o src/transport.c.o src/netstuff.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/fs.c.o -c lib/fs.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/shell.c.o -c src/shell.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/screen.c.o -c src/screen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/cgcmb.c.o -c src/cgcmb.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/cgcrpc.c.o -c src/cgcrpc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/user.c.o -c src/user.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o Lazybox lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/shell.c.o src/screen.c.o src/io.c.o src/user.c.o src/fs.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/transport.c.o -c src/transport.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/netstuff.c.o -c src/netstuff.c
+	$(CXX) $(FLAGS) -o REMATCH_4--CGCRPC_Server--MS08-067 lib/malloc.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/cgcmb.c.o src/cgcrpc.c.o src/user.c.o src/fs.c.o src/service.c.o src/transport.c.o src/netstuff.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/service.c.o -c pov_2/service.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/service.c.o -c pov_1/service.c
-	$(CC) $(FLAGS) -o Lazybox_pov_2 pov_2/service.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Lazybox_pov_1 pov_1/service.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov_1.c.o -c pov_1/pov_1.c
+	$(CXX) $(FLAGS) -o REMATCH_4--CGCRPC_Server--MS08-067_pov_1 pov_1/pov_1.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/service.c.o pov_1/service.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/shell.c.o src/screen.c.o src/io.c.o src/user.c.o src/fs.c.o src/service.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/shell.c.o src/screen.c.o src/io.c.o src/user.c.o src/fs.c.o src/service.c.o Lazybox_pov_2 Lazybox_pov_1 Lazybox_patched Lazybox
+	rm -f pov_1/pov_1.c.o lib/malloc.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/cgcmb.c.o src/cgcrpc.c.o src/user.c.o src/fs.c.o src/service.c.o src/transport.c.o src/netstuff.c.o lib/malloc.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/cgcmb.c.o src/cgcrpc.c.o src/user.c.o src/fs.c.o src/service.c.o src/transport.c.o src/netstuff.c.o REMATCH_4--CGCRPC_Server--MS08-067_pov_1 REMATCH_4--CGCRPC_Server--MS08-067_patched REMATCH_4--CGCRPC_Server--MS08-067

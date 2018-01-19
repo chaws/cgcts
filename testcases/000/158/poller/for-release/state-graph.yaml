@@ -1,11 +1,13 @@
 ---
 nodes:
 - name: start
-- name: random_pkts
-- name: random_filter
-- name: execute
+- name: branch
+- name: add_object
+- name: fin
 
 edges:
-- start: random_pkts
-- random_pkts: random_filter
-- random_filter: execute
+- start: branch
+- branch: add_object
+- branch: fin
+  weight: 0.1
+- add_object: branch

@@ -1,45 +1,59 @@
-# CROMU_00019 - Casino Games
+# CGC Challenge Binary CROMU_00021
 
 ## Author Information
 
-"Debbie Nuttall" <debbie@cromulence.co>
+"Dustin Fraze" <df@cromulence.co>
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Cromulence (CROMU)
 
 ## Description
 
-This is a casino game service. It runs poker, blackjack, and slots. It offers registration in a player's club to track player information. It also has a hidden programming interface that allows modifying game payouts.  
+This is a challenge which implements a simple integer calculator.  It supports variables, and has a number of built-in functions, some of which are arithmetic and some of which aren't.  It also supports booleans and strings, and some functions on those datatypes.
 
 ### Feature List
 
-In order to simulate randomness while still having a deterministic game the casino service implements an xorshift pseudo random number generator (PRNG) and seeds it with a string taken from the player at game start. This PRNG is used to shuffle the deck before each round of poker or blackjack and to generate the symbols for the slot machine. 
+This is a multi-function calculator.  It supports addition, subtraction, multiplication, division, modulus, length, type, int casts, and equality checks on integers, strings, and booleans.
 
-The casino game service runs poker in the style of a 5 card draw video poker machine. The player is dealt a 5 card hand and allowed to keep or discard each of the cards. Replacement cards are drawn for any discarded and then the new hand is scored. The scoring system pays out anything that is a pair of jacks or better using standard poker hand rankings. To play a round of poker costs the player $10 and the default payouts range from $10 for a pair to $500 for a royal flush. 
-
-The service runs a blackjack game where the goal is to reach closest to 21 points without going over. The player hand is scored against a dealer hand. The player receives a 2 card hand and then may choose to hit (recieve an additional card) or stand (receive no more cards and play moves to the dealer). The dealer will hit until reaching a hand value of 17 or greater (dealer stands on soft 17). A hand of blackjack costs the player $10 and pays out 2 to 1 for a win, and 2.5 to 1 for a 'blackjack' (an initial hand value of 21). 
-
-The casino service slots game can generate a slot machine with 2, 3, 4, or 5 rows/columns. A symbol match in all positions of a row or column is considered a win. Each size slot machine has slightly different odds of winning. The cost to play is $2 and the default payout is $4. Multiple matches in one round will all pay out. 
-
-The players club is used to track how many rounds of each game have been played as well as the player's wallet balance. The service does not begin tracking a player until they have been registered and logged in. 
-
-When a secret password is entered at game start, the service enters a programming mode where it will accept an encoded blob of data. The data is decoded and used to program new payouts for slots, blackjack, and poker. 	
+It allows for some pseudo-intelligent operations to occur on different datatypes.  For example, adding a string and an integer will cast the integer to a string, and concatenate the two.  Adding a integer and a string will not add, because I didn't think that made as much sense.
 
 ## Vulnerability
-This challenge contains two vulnerabilities. 
-The first vulnerability is a stack buffer overflow early in the main function of the program.  In casino.c a stack buffer is declared on line 277. On line 284, a call to receive() allows a 20 byte overwrite of that stack buffer with user data. The vulnerability can only be leveraged if the main function returns normally. There are only two scenarios that allow the main function to return, all other code paths result in a call to _terminate() to end the program. 
+There are multiple vulnerabilities of differing severity.
 
-The second vulnerability is in the hidden programming interface. It is a stack buffer overflow that occurs when the encoded blob of data decodes to a larger size than the destination buffer. In casino.c on line 261 an array is declared on the stack. On line 264 a call to decode() uses this array as the destination buffer. If the user data input into decode() contains the '`' character, it will generate output longer than the destination array. Enough instances of '`' will cause an overflow large enough to overwrite the return address on the stack. 
+The most severe vulnerability is type confusion.
+
+Most of the internal functions are of special type "Function".  These include "add", "sub", "mul", and their friends.  Many of them have a shorthand notation.  Add, for example, is +.
+
+One can redefine an internal function and have the program "mostly" work - var add = 5 will change add to 5, such that 5 add 5 will return 5 (the function stack will be empty, and the last operand in the operator stack is 5).
+
+Variable names are legally only of a string of letters and numbers, with no whitespace between them.  The shorthand operators are made up of symbol characters.  A shorthand operation is always pushed into the function stack, even if the underlying function has been redefined.  The calculator will attempt to call the type data as a function.  In the case of a string type, the calculator will execute the bytes which make up the string.
+
+There is another bug in the operand and function stack.  All inputs are read into a single, length checked buffer.  Inputs are then tokenized, and shoved into a function stack or operand stack, depending on type information.  Each of these stacks contains 32 elements, and there is no bounds check on insertion.  Without a sufficiently fortunate series of heap allocations, this leads to a crash.
+
+A NULL pointer dref exists if a user passes the "var" command without any arguments. Strtok returns NULL and if it does not find a space without a check before the following dereference.
+
+There is an integer overflow vulnerability in the mul command when multiplying a string by an integer. Depending on the length of the string and the size of the integer, an integer overflow may occur resulting in a too small buffer allocation before the string is written leading to a buffer overflow. 
 
 ### Generic class of vulnerability
-Stack Buffer Overflow
+Type Confusion
+Out of bounds read
+out of bounds write
+NULL Pointer Dereference
+Integer overflow
 
 ### CWE classification
-CWE-121: Stack-based Buffer Overflow
+Type Confusion
+CWE-843
+
+Out of bounds read
+CWE-125
+
+Ouf of bounds write
+CWE-787
+
+CWE-476 NULL Pointer DREF
+CWE-190 Integer Overflow or Wraparound
 
 ## Challenges
-The first vulnerability is a classic buffer overflow that should be straightforward to detect and patch. The challenge in proving it is that the CRS must determine the correct sequence of events to reach the end of the main function and return. This involves exploring most of the functionality of the program including registering a player, logging in as that player, playing a round of blackjack, poker, and slots, and then exiting. Attempting to exit the program before exploring those code paths results in a call to _terminate and the overflow thus has no provability. 
 
-An alternate path to reach the end of the main function is to amass enough winnings through gambling to exceed $5000 in which case the program exits normally; however, the odds and payouts of the casino games make it very unlikely that this could be achived through standard fuzzing. 
-
-The second vulnerability is more difficult to reach. Initial user input is hashed to create the seed to the PRNG. If the seed matches a specific value, the service enters a programming mode. The CRS will need to solve for the initial input which leads to the specific hash before this portion of the service can be accessed. Once this portion of the service is reached, a blob of encoded data is accepted and decoded into a stack buffer. For most inputs, the decoding algorithm shrinks the data by half, but for specific values of input, the decoding algorithm generates a same sized output which will overflow the destination stack buffer in the unpatched service. 
+This challenge binary uses a trie to store function pointers to reach deeper functionality.  Exploration of the challenge set will require processing the entries in the trie and generating inputs capable of exercising the application.

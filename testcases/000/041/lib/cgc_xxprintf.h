@@ -22,7 +22,7 @@
 
 #ifndef XXPRINTF_H
 #define XXPRINTF_H 1
-#include "cgc_libc.h"
+
 
 // VA defs for xxprintf functions
 #ifdef WIN

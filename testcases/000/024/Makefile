@@ -1,4 +1,4 @@
-CHAL=matrices_for_sale
+CHAL=Hug_Game
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,25 +20,31 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/lib.c.o -c lib/lib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o matrices_for_sale_patched lib/lib.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/hangman.c.o -c src/hangman.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/dicegame.c.o -c src/dicegame.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/utility.c.o -c src/utility.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/war.c.o -c src/war.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/coinflip.c.o -c src/coinflip.c
+	$(CXX) $(FLAGS) -o Hug_Game_patched lib/libc.c.o src/hangman.c.o src/dicegame.c.o src/utility.c.o src/service.c.o src/war.c.o src/coinflip.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/lib.c.o -c lib/lib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/hangman.c.o -c src/hangman.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/dicegame.c.o -c src/dicegame.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/utility.c.o -c src/utility.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o matrices_for_sale lib/lib.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/war.c.o -c src/war.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/coinflip.c.o -c src/coinflip.c
+	$(CXX) $(FLAGS) -o Hug_Game lib/libc.c.o src/hangman.c.o src/dicegame.c.o src/utility.c.o src/service.c.o src/war.c.o src/coinflip.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o matrices_for_sale_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o matrices_for_sale_pov_3 pov_3/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o matrices_for_sale_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Hug_Game_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_3/pov.c.o pov_2/pov.c.o pov_1/pov.c.o lib/lib.c.o src/service.c.o lib/lib.c.o src/service.c.o matrices_for_sale_pov_3 matrices_for_sale_pov_2 matrices_for_sale_pov_1 matrices_for_sale_patched matrices_for_sale
+	rm -f pov_1/pov.c.o lib/libc.c.o src/hangman.c.o src/dicegame.c.o src/utility.c.o src/service.c.o src/war.c.o src/coinflip.c.o lib/libc.c.o src/hangman.c.o src/dicegame.c.o src/utility.c.o src/service.c.o src/war.c.o src/coinflip.c.o Hug_Game_pov_1 Hug_Game_patched Hug_Game

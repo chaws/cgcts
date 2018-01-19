@@ -1,4 +1,4 @@
-CHAL=simpleOCR
+CHAL=anagram_game
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,69 +20,77 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strdup.c.o -c lib/strdup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strchr.c.o -c lib/strchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/memmove.c.o -c lib/memmove.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strcat.c.o -c lib/strcat.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strcpy.c.o -c lib/strcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strcmp.c.o -c lib/strcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/memcmp.c.o -c lib/memcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/malloc_common.c.o -c lib/malloc_common.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strsep.c.o -c lib/strsep.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/memchr.c.o -c lib/memchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/free.c.o -c lib/free.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strncasecmp.c.o -c lib/strncasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strncmp.c.o -c lib/strncmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strcasecmp.c.o -c lib/strcasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/calloc.c.o -c lib/calloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strtol.c.o -c lib/strtol.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/realloc.c.o -c lib/realloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O2 -o src/main.c.o -c src/main.c
-	$(CC) $(FLAGS) -o simpleOCR_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strcat.c.o -c lib/strcat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o src/atree.c.o -c src/atree.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o src/alphabet.c.o -c src/alphabet.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o src/main.c.o -c src/main.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o src/io.c.o -c src/io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -msse -o src/random.c.o -c src/random.c
+	$(CXX) $(FLAGS) -o anagram_game_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/atree.c.o src/alphabet.c.o src/main.c.o src/io.c.o src/random.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strdup.c.o -c lib/strdup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strchr.c.o -c lib/strchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/memmove.c.o -c lib/memmove.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strcat.c.o -c lib/strcat.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strcpy.c.o -c lib/strcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strcmp.c.o -c lib/strcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/memcmp.c.o -c lib/memcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/malloc_common.c.o -c lib/malloc_common.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strsep.c.o -c lib/strsep.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/memchr.c.o -c lib/memchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/free.c.o -c lib/free.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strncasecmp.c.o -c lib/strncasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strncmp.c.o -c lib/strncmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strcasecmp.c.o -c lib/strcasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/calloc.c.o -c lib/calloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strtol.c.o -c lib/strtol.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/realloc.c.o -c lib/realloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O2 -o src/main.c.o -c src/main.c
-	$(CC) $(FLAGS) -o simpleOCR lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strcat.c.o -c lib/strcat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o src/atree.c.o -c src/atree.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o src/alphabet.c.o -c src/alphabet.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o src/main.c.o -c src/main.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o src/io.c.o -c src/io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -msse -o src/random.c.o -c src/random.c
+	$(CXX) $(FLAGS) -o anagram_game lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/atree.c.o src/alphabet.c.o src/main.c.o src/io.c.o src/random.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -O2 -pedantic -O0 -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -O2 -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o simpleOCR_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o simpleOCR_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O3 -g -msse -pedantic -O0 -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O3 -g -msse -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o anagram_game_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o anagram_game_pov_2 pov_2/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o simpleOCR_pov_2 simpleOCR_pov_1 simpleOCR_patched simpleOCR
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/atree.c.o src/alphabet.c.o src/main.c.o src/io.c.o src/random.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/atree.c.o src/alphabet.c.o src/main.c.o src/io.c.o src/random.c.o anagram_game_pov_2 anagram_game_pov_1 anagram_game_patched anagram_game

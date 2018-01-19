@@ -1,4 +1,4 @@
-CHAL=RAM_based_filesystem
+CHAL=Vector_Graphics_Format
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -21,30 +21,32 @@ all: $(LIBCGC) patched vulnerable pov
 
 patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/pixelmap.c.o -c src/pixelmap.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/cmd.c.o -c src/cmd.c
-	$(CC) $(FLAGS) -o RAM_based_filesystem_patched lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/fs.c.o src/service.c.o src/cmd.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/vgf.c.o -c src/vgf.c
+	$(CXX) $(FLAGS) -o Vector_Graphics_Format_patched lib/printf.c.o lib/malloc.c.o lib/stdlib.c.o src/pixelmap.c.o src/io.c.o src/service.c.o src/vgf.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/fs.c.o -c src/fs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/pixelmap.c.o -c src/pixelmap.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/cmd.c.o -c src/cmd.c
-	$(CC) $(FLAGS) -o RAM_based_filesystem lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/fs.c.o src/service.c.o src/cmd.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/vgf.c.o -c src/vgf.c
+	$(CXX) $(FLAGS) -o Vector_Graphics_Format lib/printf.c.o lib/malloc.c.o lib/stdlib.c.o src/pixelmap.c.o src/io.c.o src/service.c.o src/vgf.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o RAM_based_filesystem_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o RAM_based_filesystem_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Vector_Graphics_Format_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Vector_Graphics_Format_pov_2 pov_2/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/fs.c.o src/service.c.o src/cmd.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/fs.c.o src/service.c.o src/cmd.c.o RAM_based_filesystem_pov_2 RAM_based_filesystem_pov_1 RAM_based_filesystem_patched RAM_based_filesystem
+	rm -f pov_2/pov.c.o lib/printf.c.o lib/malloc.c.o lib/stdlib.c.o src/pixelmap.c.o src/io.c.o src/service.c.o src/vgf.c.o pov_1/pov.c.o lib/printf.c.o lib/malloc.c.o lib/stdlib.c.o src/pixelmap.c.o src/io.c.o src/service.c.o src/vgf.c.o Vector_Graphics_Format_pov_2 Vector_Graphics_Format_patched Vector_Graphics_Format_pov_1 Vector_Graphics_Format

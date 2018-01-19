@@ -1,43 +1,24 @@
-#ifndef __STRING_H__
-#define __STRING_H__
+#ifndef STRING_H_
+#define STRING_H_
 
-#include "cgc_stdint.h"
+#include "cgc_stddef.h"
 
-class String
-{
-public:
-    String();
-    String( const char *instr );
-    String( const String &instr );
-    ~String();
+extern void *cgc_memcpy(void *dest, const void *src, cgc_size_t n);
+extern void *cgc_memmove(void *dest, const void *src, cgc_size_t n);
+extern void *cgc_memset(void *dest, int c, cgc_size_t n);
+extern int memcmp(void *s1, const void *s2, cgc_size_t n);
+extern void *memchr(const void *s, int c, cgc_size_t n);
 
-    String& operator+=( const String &rhs );
-    const String operator+( const String &rhs ) const;
-    const char *c_str( void ) const;
+extern cgc_size_t cgc_strlen(const char *s);
+extern char *cgc_strcpy(char *dest, const char *src);
+extern char *cgc_strncpy(char *dest, const char *src, cgc_size_t n);
+extern char *cgc_strchr(const char *s, int c);
+extern char *cgc_strsep(char **stringp, const char *delim);
+extern int strcmp(const char *s1, const char *s2);
+extern int strncmp(const char *s1, const char *s2, cgc_size_t n);
+extern int strcasecmp(const char *s1, const char *s2);
+extern int strncasecmp(const char *s1, const char *s2, cgc_size_t n);
+extern char *cgc_strcat(char *dest, const char *src);
+extern char *cgc_strdup(const char *src);
 
-    bool operator==( const String &rhs ) const;
-    bool operator!=( const String &rhs ) const;
-    void operator=( const String &rhs );
-    void SetString( const char *pszBuffer );
-
-    String upper( void ) const;
-    String lower( void ) const;
-
-    String Trim( cgc_size_t length );
-    String SubString( cgc_size_t startPos, cgc_size_t endPos ) const;
-    String StripSpaces( void ) const;
-
-    bool ToInteger( int32_t &intValue );
-
-    cgc_size_t length( void );
-    bool empty( void );
-
-public:
-    const static cgc_size_t STRING_END_POS = 0xFFFFFFFF;
-
-private:
-    cgc_size_t m_length;
-    char *m_pData;
-};
-
-#endif // __STRING_H__
+#endif /* !STRING_H_ */

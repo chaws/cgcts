@@ -1,61 +1,39 @@
-# CGC Challenge Binary Template
+# KPRCA-00020
 
-## Author Information
+## DARPA performer group
+Kaprica Security (KPRCA)
 
-"Maxwell Koo" <info@narfindustries.com>
+## Description:
 
-### DARPA performer group
-
-Narf Industries (NRFIN)
-
-## Description
-
-I'm so UTF-8, you so UTF-late. This is a network-enabled file server, which
-keeps all user files in memory for blazing-quick access. The API exposes a
-public dropbox folder, while preventing access to the protected admin area. The
-filesystem is UTF-8 aware, allowing arbitrary unicode filenames of a fixed
-length.
-
-Commands take the form of a 4-byte command identifier, followed by optional
-arguments. Commands may produce output, but will always end in a 4-byte success
-code, 0 on success or -1 on failure.
+This service implements a parser and pretty printer for a Type-Length-Value
+protocol known as ASL6. ASL6 is commonly used amongst retro online-chat
+enthusiasts who desire an easy to exchange basic information about themselves
+to eachother such as age,gender,or geographic location.
 
 ### Feature List
 
-The following features are available:
- - Read file, accepts a filename and returns the contents of that file
- - Write file, accepts a filename and a size, writes the contents to a file
- - List files, lists all files in the dropbox folder
+This service simply reads a ASL6 element up to 32KB in size and pretty prints
+its contents back the the user. It is able to handle a variety of complex
+datetypes such as time and object identifiers.
 
 ## Vulnerability
 
-The UTF-8 decoding function does not properly handle overlong encodings, so it
-is possible to defeat the input validation protecting the admin area and write
-to files in that area. Files in the admin area contain a user-controlled pointer
-value, which allows arbitrary write access to a large portion of the process'
-address space.
+This service's vulnerability lies in the `print_oid` function. This function
+parsers and prints the `OID` element type according to the format defined in
+the ASL6 protocol. The function both fails to do a required bounds check on the
+index into the array containing the OID data after it is updated and to correctly
+pass an upper bounds on a slice into the data to a corresponding helper function.
+These flaws in conjuction result in an out of bounds read.
 
 ### Generic class of vulnerability
-
-Improper handling of unicode encoding
+Out-of-bounds Read
 
 ### CWE classification
-
-CWE-20 Improper input validation
-CWE-22 Improper limitation of a pathname to a restricted directory
-CWE-176 Improper handling of unicode encoding
-CWE-822 Untrusted pointer dereference
+CWE-125: Out-of-bounds Read
 
 ## Challenges
 
-This CB is designed to test the ability for a CRS to comprehend complex string
-functions and stateful processes spanning multiple invocations of a function.
-UTF-8 is a complex variable-width encoding with many possible invalid byte
-sequences. The decoder implemented in this CB handles this by running each
-character through a state machine, invoking a function on each byte which
-records its state into a output variable and its return code. Reasoning over
-separate invocations of the decoder function is necessary in order to determine
-an input which will lead to triggering the vulnerability. This CB is inspired by
-several real-world path traversal and unicode vulnerabilities, including
-CVE-2000-0884 in Microsoft IIS.
-
+The challanges introducted to competitors in this service are a slightly
+complicated protocol which the competitors must adhere to in order to progress
+through the states of the servic, a variety of integrity checks inherent to the
+encoding scheme to which they also must adhere.

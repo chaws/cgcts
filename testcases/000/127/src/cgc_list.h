@@ -1,182 +1,51 @@
-#ifndef LIST_H_
-#define LIST_H_
+/*
+ * Copyright (c) 2014 Kaprica Security, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ */
+#ifndef __LIST_H_
+#define __LIST_H_
 
-#define MAX_LIST_SIZE 50000
+#include "cgc_stdlib.h"
 
-extern "C"
-{
-#include "libcgc.h"
-};
+#define DEF_LIST(name, data_type)                               \
+  typedef struct name##_list {                                  \
+    data_type value;                                            \
+    struct name##_list *prev;                                   \
+    struct name##_list *next;                                   \
+  } name##_list;                                                \
 
-template <typename T>
-class List
-{
-private:
-    struct node
-    {
-        node *next;
-        node *prev;
-        T data;
-    };
+#define DEF_LIST_APPEND(name, data_type)                        \
+  int name##_list_append(name##_list *list, data_type value) {  \
+    if (list == NULL)                                           \
+      return -1;                                                \
+    name##_list *n = cgc_malloc(sizeof(name##_list));               \
+    if (n == NULL)                                              \
+      cgc_exit(1);                                                  \
+    while (list->next != NULL)                                  \
+      list = list->next;                                        \
+    list->next = n;                                             \
+    n->next = NULL;                                             \
+    n->prev = list;                                             \
+    n->value = value;                                           \
+    return 0;                                                   \
+  }
 
-    cgc_size_t len;
-    node *head;
-    node *tail;
-public:
-    List();
-    ~List();
-    int length();
-    bool find(T item);
-    bool add(T item);
-    bool remove(cgc_size_t idx);
-    bool pop(T &item);
-    void clear_list(bool delete_memory=false);
-    bool is_empty();
-
-    T operator[](cgc_size_t idx) const;
-
-};
-
-template <typename T>
-List<T>::List()
-{
-    len = 0;
-    head = NULL;
-    tail = NULL;
-}
-
-template <typename T>
-List<T>::~List()
-{
-    len = 0;
-    clear_list();
-}
-
-template <typename T>
-int List<T>::length()
-{
-    return len;
-}
-
-
-template <typename T>
-bool List<T>::find(T item)
-{
-    for (node *iter = head; iter; iter=iter->next) {
-        if(iter->data == item)
-            return true;
-    }
-
-    return false;
-}
-
-template <typename T>
-bool List<T>::add(T item)
-{
-    node *new_node = new node;
-    if (!new_node)
-        return false;
-
-    new_node->prev = tail;
-    new_node->next = NULL;
-    new_node->data = item;
-
-    if(!head)
-        head = new_node;
-    if(tail)
-        tail->next = new_node;
-
-    tail = new_node;
-    len++;
-    return true;
-}
-
-template <typename T>
-bool List<T>::remove(cgc_size_t idx)
-{
-    if (idx >= len || len == 0)
-        return false;
-
-    if (len == 1) {
-        delete head;
-        head = NULL;
-        tail = NULL;
-
-        len--;
-        return true;
-    }
-
-    int i = 0;
-    node *iter = NULL;
-    for (iter = head; i != idx; iter=iter->next, i++);
-
-    if (iter == head) {
-        head = head->next;
-        head->prev = NULL;
-    } else if (iter == tail) {
-        tail = tail->prev;
-        tail->next = NULL;
-    } else {
-        iter->prev->next = iter->next;
-        iter->next->prev = iter->prev;
-    }
-
-    delete iter;
-    len--;
-    return true;
-}
-
-template <typename T>
-bool List<T>::pop(T &item)
-{
-    if (len == 0)
-        return false;
-
-    node *temp;
-    item = tail->data;
-    if (len == 1) {
-        delete head;
-        head = NULL;
-        tail = NULL;
-        return true;
-    }
-
-    temp = tail;
-    tail = tail->prev;
-    tail->next = NULL;
-
-    delete temp;
-    len--;
-    return true;
-}
-
-template <typename T>
-void List<T>::clear_list(bool delete_memory)
-{
-    T temp;
-    while (pop(temp)) {
-        if (delete_memory)
-            delete temp;
-    }
-}
-
-template <typename T>
-bool List<T>::is_empty()
-{
-    return (len == 0);
-}
-
-template <typename T>
-T List<T>::operator[](cgc_size_t idx) const
-{
-    if (idx >= len)
-        return T();
-
-    int i = 0;
-    node *iter = NULL;
-    for (iter = head; i != idx; iter=iter->next, i++);
-
-    return iter->data;
-}
-
-#endif
+#endif /* __LIST_H_ */

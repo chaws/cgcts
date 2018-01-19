@@ -1,5 +1,5 @@
 /*
- * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
+ * Author: Andrew Wesie <andrew.wesie@kapricasecurity.com>
  *
  * Copyright (c) 2014 Kaprica Security, Inc.
  *
@@ -22,18 +22,14 @@
  * THE SOFTWARE.
  *
  */
-
 #include "libcgc.h"
 #include "cgc_stdint.h"
 
 extern void *cgc_memchr(const void *s, int c, cgc_size_t n)
 {
-  cgc_size_t i = 0;
-  while (i < n) {
-    if (*((uint8_t *)s + i) == c)
-      return (void *)((intptr_t)s + i);
-
-    i++;
-  }
+    cgc_size_t i;
+    for (i = 0; i < n; i++)
+        if (((unsigned char *)s)[i] == c)
+            return (void *)((intptr_t)s + i);
     return NULL;
 }

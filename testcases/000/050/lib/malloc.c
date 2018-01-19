@@ -93,11 +93,6 @@ void *cgc_malloc(cgc_size_t size)
   if (size + HEADER_PADDING >= NEW_CHUNK_SIZE)
     return malloc_huge(size);
 
-#ifdef PATCHED
-  if (size >= 0x80000000)
-    return NULL;
-#endif
-
   if (size % ALIGNMENT != 0)
     size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
 

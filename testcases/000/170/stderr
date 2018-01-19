@@ -1,5 +1,0 @@
-src/service.cc: In function ‘int main(int, char**)’:
-src/service.cc:421:19: error: invalid conversion from ‘void*’ to ‘int’ [-fpermissive]
-     secret_page_i = CGC_FLAG_PAGE_ADDRESS;
-                   ^
-make: *** [patched] Error 1

@@ -19,103 +19,79 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
-#ifndef LIBC_H
-#define LIBC_H 1
-
 #include "libcgc.h"
-#include "cgc_stdint.h"
-#include "cgc_errno.h"
-#include "cgc_memset.h"
-#include "cgc_memcpy.h"
-#include "cgc_send.h"
-#include "cgc_recv_until_delim.h"
-#include "cgc_pi_prng.h"
-#include "cgc_strncpy.h"
-#include "cgc_list.h"
+
+#ifndef NARF_LIBC_H
+#define NARF_LIBC_H
+
+typedef signed int int32_t;
+typedef signed short int16_t;
+typedef signed char int8_t;
+typedef unsigned int uint32_t;
+typedef unsigned short uint16_t;
+typedef unsigned char uint8_t;
 
 
-#define EXIT_SUCCESS 0
-#define EXIT_FAILURE -1
-
-#define PAGE_SIZE (1 << 12)
-
-/**
- * Return the lesser of a and b
- * 
- * @param a The first value
- * @param b The second value
- * @return a if a < b else b
- */
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-
-/**
- * Return the greater of a and b
- *
- * @param a The first value
- * @param b The second value
- * @return a if a > b else b
- */
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
-/**
- * Find the offset of a struct member
- *
- * @param type The struct type to examine
- * @param member The member to calculate the offset of
- * @return The offset of member in type
- */
-#define OFFSETOF(type, member) ((cgc_size_t)(&((type *)NULL)->member))
-
-/**
- * Find the container structure from a pointer to a member.
- *
- * @param type The struct type to examine
- * @param member The member ptr points to
- * @param ptr A pointer to a member
- * @return A pointer to the containing structure
- */
-#define CONTAINEROF(type, member, ptr) ({                               \
-    char *__ptr = (char *)(ptr);                                        \
-    __ptr ? ((type *)(__ptr - OFFSETOF(type, member))) : NULL;          \
-})
+// VA defs for xxprintf functions
+#ifdef WIN
+#define _VA_LIST
+#include <stdarg.h>
+#else
+#ifndef _VA_LIST
+typedef __builtin_va_list va_list;
+#define _VA_LIST
+#endif
+#define va_start(al, lp)  __builtin_va_start(al, lp)
+#define va_end(al)          __builtin_va_end(al)
+#define va_arg(al, t)    __builtin_va_arg(al, t)
+#define va_copy(d, s)       __builtin_va_copy(d, s)
+#endif
 
 
-/**
- * Allocate a chunk of memory on the heap.
- *
- * @param size The size of the chunk to allocate
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_malloc(cgc_size_t size);
+#define SUCCESS 0
+typedef enum {
+	FALSE = 0,
+	TRUE = 1,
+} bool_t;
 
-/**
- * Free a chunk of memory allocated with malloc().
- *
- * @param ptr The chunk to free
- */
-void cgc_free(void *ptr);
+// list errors
+#define ERRNO_LIST_PUSH 44
+#define ERRNO_ALLOC 5
 
-/**
- * Allocate a zeroed chunk of memory on the heap.
- *
- * Note: This differs from standard libc malloc by taking the full size of the
- *      chunk to allocate as its only parameter.
- *
- * @param size The size of the chunk to allocate
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_calloc(cgc_size_t size);
+typedef struct node {
+	void * data;
+	struct node *next;
+	struct node *prev;
+} node_t;
+// doubly-linked list
 
-/**
- * Resize a chunk of memory allocated with malloc().
- *
- * @param ptr The chunk to resize
- * @param size The new size of the chunk
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_realloc(void *ptr, cgc_size_t size);
+typedef struct list {
+	node_t *head;
+	node_t *tail;
+	uint32_t count;
+} list_t;
 
+// List related
+list_t * cgc_list_create();
+int cgc_list_push(list_t *lst, node_t *nd);
 
+// Node related
+node_t * cgc_node_create(void * data);
+
+// I/O
+int cgc_send(const char * buf, const cgc_size_t size);
+int cgc_sendall(int fd, const char * buf, const cgc_size_t size);
+unsigned int cgc_recv_all(char *res_buf, cgc_size_t res_buf_size);
+unsigned int cgc_read_all(int fd, char *buf, unsigned int size);
+int cgc_recvline(int fd, char *buf, cgc_size_t size);
+
+// stdlib
+unsigned int cgc_strlen(const char * str);
+void * cgc_memset(void * str, int ch, unsigned int n);
+void * cgc_memcpy(void * dst, const void * src, cgc_size_t cnt);
+int cgc_rand(char *res, cgc_size_t len);
+int cgc_vsnprintf(char * buf, cgc_size_t buf_size, const char * fmt, va_list args);
+int cgc_snprintf(char * buf, cgc_size_t buf_size, const char * fmt, ...);
+int cgc_int2str(char * str_buf, int buf_size, int i);
 
 #endif

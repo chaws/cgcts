@@ -1,42 +1,85 @@
-# FSK_Messaging_Service
+# CGC Challenge Binary Template
 
 ## Author Information
 
-"Jason Williams" <jdw@cromulence.com>
+"John Berry" <hj@cromulence.co>
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Cromulence
 
 ## Description
 
-This is a service that implements a packet radio receiver with included FSK demodulation front-end, packet decoding, processing, and finally parsing it into a simple messenging service.
+A user can instantiate new sets and combine them via Union, Intersect, Set Difference, and Symmetric Difference. Additionally it can tell a user if a set is a subset of another.
 
 ### Feature List
 
-This service accepts 8-bit signed samples at 9600 bits/second for 4 seconds of sample data. The sample data is first subjected to AWGN (Additive White Gaussian Noise) generated with a Pseudo Random Number Generator and is then passed through two butterworth bandpass filters tuned for 1200 Hz and 2400 Hz respectively. The output is then passed through a comparator to compare power levels and lastly an envelope detector to provide the output symbols filtered for the symbol data rate (3dB cutoff set to 600 Hz). Data is then passed into a CDR stage (Clock Data Recovery) that reconstructs the clock using an edge transition detector and sample counter. Preamble locking occurs when the input transitions are within 12% deviation of the expected symbol rate of 300 symbols/second. After lock occurs the CDR begins a slow rate drift detection and feeds the baseband symbol recovery engine. Once preamble and CDR lock is complete sync word detection begins. This allows the CDR to align the bit/byte receiver. Finally packet processing begins with length, data, and 16-bit checksum. Once a packet is received the premable lock detection resets and begins again for the next packet.
+A user can create a new set with up to 15 elements. An element can be an existing set or an alphanumeric value with a maximum length of 10.
 
-Packets are then passed into a linked list of received packets based on type. A simple messenging protocol supporting 5 different packet types: Broadcast, Channel, Private, Connect, and Disconnect messages are supported. Once all data is received over the course of the 4 seconds worth of samples the packet data is displayed as output from the service.
+New sets can also be created via the Union (+), Intersection (^), Set Difference (-), or Symmetric Difference (~) operators.
+
+A set can be checked if it is the subset of another via the (@) operator.
+
+A user can print a help screen with the '.h' command.
+A user can print all current sets with the '.p' command.
+A user can print a particular set with all subsets expanded via the '.ps' command.
+A user can exit the program via the '.l' command.
 
 ## Vulnerability
 
-There is only one vulnerability in this service and an included type 1 POV. Upon reception of a packet that exceeds the maximum packet size of 64-bytes improper length checking is done for the memcpy to the newly allocated packet structure. This allows a memory overwrite to occur on the heap. This data structure has a function pointer to the packet handler that can be overwritten and once the service executes this function pointer there is an opportunity for control flow execution by overwriting this function pointer.
+There are two vulnerabilities in this service. The first is a stack buffer overflow. 
+
+A set can contain another set as one of its elements which would look like this:
+
+> setone = |"hello", "world"|
+> settwo = |setone|
+
+Executing the '.p' command would print both sets with any expansion like this:
+
+> .p
+setone = |"hello","world"|
+settwo = |setone|
+
+To expand any set elements a user can use the '.ps' command though this one requires a set name as an argument like this:
+
+> .ps settwo
+settwo = ||"hello","world"||
+
+The string printed by '.ps' is created via recursively expanding all elements that are sets. So, something like this:
+
+> setone = |"hello"|
+> settwo = |"world",setone|
+> setthree = |setone, settwo, "yo"|
+> .ps setthree
+setthree = ||"hello"|,|"world",|"hello"||,"yo"|
+
+Both setone and settwo were expanded. Additionally, setone was expanded within settwo.
+
+The expanded string is copied into a statically allocated stack-based buffer. If an attacker could force this expansion to be greater than that value then the overflow will occur and result in a SIGSEGV. However, to make this more difficult, the size of the buffer was calculated to ensure that a minimum of three recursive calls are required to fill be buffer.
+
+Each individual set has a maximum size of 196 bytes:
+
+2 Bytes for the beginning ending '|'
+14 Bytes for commas with a maximum of 15 elements
+30 Bytes for '"' since each element can have two quotes
+150 Bytes for the element data 15*10.
+
+Giving a total of 196. However, if each element of a set were in fact a subset with a maximum of 196 bytes the result would be:
+
+46 Bytes of overhead i.e. commas, quotes and pipes
+196*15 = 2940
+
+Add to this a maximum set name length of 16 plus 3 bytes for the ' = ' and you have 2999. For this reason the data length was set to 3200 to ensure at least three total calls to the vulnerable function.
+
+The second vulnerability is a stack overflow caused by infinite recursion exhausting the stack. This occurs when two sets are created that contain a reference to each other. When either of the sets is printed with the .ps command the print_subsets function will call itself recursively until the stack overflow leads to a crash. 
 
 ### Generic class of vulnerability
-Vulnerability 1 of 1:
-Improper bounds check on a memory buffer.
-Function Pointer overwrite.
-Heap Overwrite.
+Stack-based buffer overflow
+Stack overflow due to infinite recursion. 
 
 ### CWE classification
-Vulnerability 1 of 1:
-CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
-CWE-122: Heap-based Buffer Overflow
+CWE-120 Buffer copy without checking size of input
+CWE-400 Uncontrolled Resource Consumption
 
 ## Challenges
 
-Authors Subjective Challenge Difficulty:
-Discovering: Hard (due to resistance to fuzzing and extremely complex solver equations)
-Proving: Easy
-Fixing: Easy (add bounds checking)
-
-This CB presents a number of challenges to a computer reasoning system. The difficulty lies in the transformation of the input set into the processed data after the RF front-end.  Due to its very nature fuzzing will be ineffective as RF receivers are naturally subjected to noise and are particularly well suited to identifying signals in the presence of noise. Also the CB introduces naturally AWGN (Additive White Guassian Noise) to every received sample. This CRS is therefore subjectively considered to be hard and designed to test beyond state of the art input reasoning capabilities and solvers. 
+The major challenge for this CB, aside from deciphering the set operations is that the CGC competitor will be forced to reason about recursive functions to cause an overflow.

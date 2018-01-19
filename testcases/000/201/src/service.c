@@ -22,279 +22,318 @@
 
 #include "cgc_service.h"
 
-// Copy the URI from the recv buffer into a verb-specific buffer.
-// Vulnerability resides here.
-int cgc_copy_uri(char *buf_verb) {
+////
+// Globals
+////
+char buf_recv_tmp[SZ_BUF_RECV] = { STRING_TERMINATOR };
+
+////
+// Functions
+////
+
+// Populate a buf with len random lowercase alpha characters.
+void cgc_random_alpha_lower(char *buf, cgc_size_t len) {
 
     int ret = SUCCESS;
-    int bytes_sent = -1;
-    cgc_size_t pos_uri = -1;
+    cgc_size_t rnd_bytes = 0;
+    unsigned char rnd[len];
 
-    // Find our delimeter
-    pos_uri = cgc_findchar(buf_recv, DELIM_URI);
-    if (-1 == pos_uri || pos_uri > RECV_BUF_SZ-URI_BUF_SZ) { 
-        SENDNULLTRUNC(ERR_INVALID_REQ, sizeof(ERR_INVALID_REQ), bytes_sent);
-        return ERRNO_INVALID_REQ; 
+    while ((0 != cgc_random(rnd, len, &rnd_bytes)) && (len != rnd_bytes)) {}
+
+    for (int i = 0; i < len; i++) {
+        buf[i] = (rnd[i] % NUM_CHARS_ALPHA) + 'a';
     }
+}
 
-    // Pull out the URI
-#ifndef PATCHED
-    cgc_memcpy(
-        (unsigned char *)buf_verb, 
-        (unsigned char *)buf_recv+pos_uri+1, 
-        URI_BUF_SZ+1); // VULN: off-by-one
-#else
-    cgc_memcpy(
-        (unsigned char *)buf_verb, 
-        (unsigned char *)(buf_recv+pos_uri+1), 
-        URI_BUF_SZ);
+
+// Takes a rp ("raw path") and turns it into a cp ("canonicalized path").
+// Vulnerability is in this function, emulates MS08-067 (Conficker).
+// Canonicalization process:
+    // CANON_TOKEN -> empty string
+    //  for each CANON_TOKEN, advance beyond the token and strncat() until the 
+    //  next CANON_TOKEN
+// Case A:
+    // aaaaaaaaaaaaaaaa
+    // 0000000000000000
+    // Section 0 occupies the entire rp.
+// Case B:
+    // aaaa()bbbb()cccc
+    // 0000  1111  2222
+    // Section 0 is bound by rp and the first token.
+    // Section 1 is bound by the first token and the second token.
+    // Section 2 is bound by the last token and the end of rp (rp + rp_len).
+int cgc_canonicalize_path(char * cp, char * rp, cgc_size_t rp_len) {
+
+    int ret = SUCCESS;
+    char * sec_start = NULL;
+    char * sec_end = NULL;
+    cgc_size_t sz_copy = 0;
+    char *pos = rp; // A parsing index into the rp.
+
+#ifdef PATCHED
+    cgc_size_t sz_consumed = 0;
 #endif
 
-    return ret;
-}
-
-// Check whether the user has any remaining credits.
-int cgc_check_plebian(void) {
-
-    if (*ptr_credits) { 
-        *ptr_credits = *ptr_credits - 1;
-        return SUCCESS; 
-    }
-    return ERRNO_INSUFFICIENT_FUNDS;
-}
-
-// Provided a filename, return a pointer to the file's contents.
-char * cgc_get_file_contents(char *name) {
-
-    int ret = SUCCESS;
-    int bytes_sent = -1;
-    cgc_size_t i = 0;
-
-    for (i=0; i<num_files; i++) {
-        if (!cgc_memcmp(name, files[i].name, FILE_BUF_SZ)) {
-            return files[i].contents;
-        }
-    }
-
-    // we didn't find the file
-    SENDNULLTRUNC(ERR_FILE_NOT_FOUND, sizeof(ERR_FILE_NOT_FOUND), bytes_sent);
-    return NULL;
-}
-
-// Provided a filename, send the file contents to the user.
-int cgc_dump_file(char *name) {
-
-    int ret = SUCCESS;
-    int bytes_sent = -1;
-    char *file_contents = NULL;
-
-    if (NULL == (file_contents = cgc_get_file_contents(name))) {
-        return ERRNO_FILE_NOT_FOUND;
-    }
-
-    SEND(file_contents, FILE_BUF_SZ, bytes_sent);
-    return ret;
-}
-
-// Provided a filename, send the first HEAD_SZ bytes of contents to the user.
-#define HEAD_SZ 4
-int cgc_head_file(char *name) {
-
-    int ret = SUCCESS;
-    int bytes_sent = -1;
-    char *file_contents = NULL;
-
-    if (NULL == (file_contents = cgc_get_file_contents(name))) {
-        return ERRNO_FILE_NOT_FOUND;
-    }
-
-    SEND(file_contents, HEAD_SZ, bytes_sent);
-    return ret;
-}
-
-int cgc_list_files(void) {
-
-    int ret = SUCCESS;
-    cgc_size_t i = 0;
-    int bytes_sent = -1;
-
-    for (i=0; i<num_files; i++) {
-        SEND(files[i].name, FILE_BUF_SZ, bytes_sent);
-        SEND("\n", 1, bytes_sent);
-    }
-
-    return ret;
-}
-
-int cgc_dispatch_verb(void) {
-
-    int ret = SUCCESS;
-    int bytes_sent = -1;
-
-    if (!cgc_memcmp(buf_recv, "TIP", sizeof("TIP"))) {
-
-        if (SUCCESS != (ret = cgc_check_plebian())) { return ret; }
-        if (SUCCESS != (ret = cgc_copy_uri(ptr_uri_tip))) { return ret; }
-        if (SUCCESS != (ret = cgc_do_tip(ptr_uri_tip))) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "STATUS", sizeof("STATUS"))) {
-
-        if (SUCCESS != (ret = cgc_check_plebian())) { return ret; }
-        if (SUCCESS != (ret = cgc_do_status())) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "GIMME", sizeof("GIMME"))) {
-
-        if (SUCCESS != (ret = cgc_check_plebian())) { return ret; }
-        if (SUCCESS != (ret = cgc_copy_uri(ptr_uri_gimme))) { return ret; }
-        if (SUCCESS != (ret = cgc_do_gimme(ptr_uri_gimme))) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "LIST", sizeof("LIST"))) {
-
-        if (SUCCESS != (ret = cgc_check_plebian())) { return ret; }
-        if (SUCCESS != (ret = cgc_do_list())) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "SMORE", sizeof("SMORE"))) {
-
-        if (SUCCESS != (ret = cgc_copy_uri(ptr_uri_smore))) { return ret; }
-        if (SUCCESS != (ret = cgc_do_smore(ptr_uri_smore))) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "YOUUP", sizeof("YOUUP"))) {
-
-        if (SUCCESS != (ret = cgc_do_youup())) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "MOOCH", sizeof("MOOCH"))) {
-
-        if (SUCCESS != (ret = cgc_copy_uri(ptr_uri_mooch))) { return ret; }
-        if (SUCCESS != (ret = cgc_do_mooch(ptr_uri_mooch))) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "SUP", sizeof("SUP"))) {
-
-        if (SUCCESS != (ret = cgc_do_sup())) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "AUTH", sizeof("AUTH"))) {
-
-        if (SUCCESS != (ret = cgc_copy_uri(ptr_uri_auth))) { return ret; }
-        if (SUCCESS != (ret = cgc_do_auth(ptr_uri_auth))) { return ret; }
-
-    } else if (!cgc_memcmp(buf_recv, "QUIT", sizeof("QUIT"))) {
-
-        QUIT();
-
+    // The first section is a special case.
+    // Rather than starting at a token, sec_start will be rp.
+    // sec_end will be either the location of the first token, or if not 
+    // present, rp + rp_len.
+    sec_start = rp;
+    if (NULL != (pos = cgc_strpos(rp, CANON_TOKEN))) {
+        sec_end = pos;
     } else {
-
-        SENDNULLTRUNC(ERR_INVALID_VERB, sizeof(ERR_INVALID_VERB), bytes_sent);
-        ret = ERRNO_INVALID_VERB;
-
+        sec_end = rp + rp_len;
     }
 
+    // Initial ecurity check (this one should actually work without patch).
+    sz_copy = sec_end - sec_start;
+#ifdef PATCHED
+    sz_consumed += sz_copy;
+    if (sz_consumed > SZ_MAX_FILEPATH)
+#else
+    if (sz_copy > SZ_MAX_FILEPATH)
+#endif
+    {
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[D] 1st section: %d > SZ_MAX_FILEPATH; rejecting\n", (sec_end - sec_start));
+#endif
+        ret = ERRNO_CANON;
+        goto _bail_canon;
+    }
+
+    // If we pass the security check, we do the strncat.
+    cgc_strncat(cp, sec_start, sz_copy);
+
+    // If pos is NULL, meaning we just strncat()ed the entire rp into the cp, 
+    // then there's no more to process.  We've handled Case A.
+    if (NULL == pos) { goto _bail_canon; }
+
+    // If, however, pos is non-NULL, then there may be additional sections we 
+    // need to handle.  We advance pos beyond the token and start looking for 
+    // more tokens.
+    pos += (sizeof(CANON_TOKEN)-sizeof(STRING_TERMINATOR_STR));
+    sec_start = pos;
+
+    while (NULL != (pos = cgc_strpos(pos, CANON_TOKEN))) {
+
+        // We found a token.  This token signifies the end of a section.
+        sec_end = pos;
+
+        // We do our security check and then strncat().
+        sz_copy = sec_end - sec_start;
+#ifdef PATCHED
+        sz_consumed += sz_copy;
+        if (sz_consumed > SZ_MAX_FILEPATH)
+#else
+        if (sz_copy > SZ_MAX_FILEPATH)
+#endif 
+        {
+#ifdef DEBUG
+            fprintf(cgc_stderr, "[D] within while(); rejecting overly-long path\n");
+#endif
+            ret = ERRNO_CANON;
+            goto _bail_canon; 
+        }
+
+        cgc_strncat(cp, sec_start, sz_copy);
+
+        // We advance pos beyond the token and update sec_start.
+        pos += (sizeof(CANON_TOKEN)-sizeof(STRING_TERMINATOR_STR));
+        sec_start = pos;
+    }
+
+    // We have another edge case, illustrated by Case B.
+    // If the final section doesn't end in a token, then it ends at rp + rp_len.
+    sec_end = rp + rp_len;
+    if (sec_start < sec_end) {
+        // If sec_start is before the end of the rp, then there's more we need 
+        // to strncat().
+
+        // We do our (buggy) security check and then strncat().
+        sz_copy = sec_end - sec_start;
+#ifdef PATCHED
+        sz_consumed += sz_copy;
+        if (sz_consumed > SZ_MAX_FILEPATH)
+#else
+        if (sz_copy > SZ_MAX_FILEPATH)
+#endif 
+        {
+#ifdef DEBUG
+            fprintf(cgc_stderr, "[D] after while(); rejecting overly-long path\n");
+#endif
+            ret = ERRNO_CANON;
+            goto _bail_canon; 
+        }
+
+        cgc_strncat(cp, sec_start, sz_copy);
+    }
+
+_bail_canon:
     return ret;
 }
 
-// make fake files (names, contents) for querying
-#define NUM_CHARS_ALPHA 26
-#define NUM_CHARS_NUMERIC 10
-int cgc_init_content() {
+
+// This is recursive, depth-first.
+int cgc_request_document(char * path, cgc_size_t recusion_depth) {
 
     int ret = SUCCESS;
-    UINT8 rnd[RND_BUF_SZ];
-    cgc_size_t rnd_bytes = 0;
-    cgc_size_t i = 0;
-    cgc_size_t j = 0;
+    cgc_size_t sz_recv = 0;
 
-    // determine number of files in the directory; range: [1, 255]
-    while ((0 != cgc_random(rnd, 1, &rnd_bytes)) && (1 != rnd_bytes)) {}
-    num_files = rnd[0];
-    if (0 == num_files) { num_files = 1; } // yeah, this biases
+    // Place some arbitrary upper limit on recursion so that SEGFAULTs cannot 
+    // be caused via recursion.
+    if (recusion_depth > MAX_RECURSION_DEPTH) {
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[E] exceeded recursion depth; ignoring request\n");
+#endif 
+        return ERRNO_RECUSION;
+    }
 
-    // allocate NX space for the fileentries
-    ALLOC(sizeof(fileentry) * num_files, 0, (void **)&files, ret);
-    if (SUCCESS != ret) { return ret; }
+#ifdef DEBUG
+    fprintf(cgc_stderr, "[D] *** REQUEST: '%s' ***\n", path);
+#endif    
 
-    // for each file, determine a 16-character (no NULL) ASCII name & contents
-    for (i=0; i<num_files; i++) {
-        while ((0 != cgc_random(rnd, FILE_BUF_SZ*2, &rnd_bytes)) && (FILE_BUF_SZ*2 != rnd_bytes)) {}
+    // Send request to the CRS
+    if (SUCCESS != (ret = cgc_transmit_with_term(STDOUT, path, cgc_strlen(path), NULL))) { 
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[E] during request for '%s'\n", path);
+#endif
+        return ret; 
+    }
 
-        // filename, limited to lowercase ASCII characters
-        for (j=0; j < FILE_BUF_SZ; j++) {
-            files[i].name[j] = (rnd[j] % NUM_CHARS_ALPHA) + 'a';
+    // Parse the response for document length, name and contents.
+
+    // First, get the size of the document.
+    // (Specified as an unsigned short, assumed to be first 2 bytes).
+    unsigned short doc_len = 0;
+    if (SUCCESS != (ret = cgc_receive_all(STDIN, (void *)&doc_len, sizeof(doc_len), NULL))) {
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[E] during doc_len receive ()\n");
+#endif
+        return ret; 
+    }
+
+    // Our poller won't hit this edge case.
+    if (doc_len + 1 < doc_len) {
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[D] overflow in doc_len; rejecting", doc_len);
+#endif
+        return ret;
+    }
+
+    // Next, get the name of the document.
+    if (0 > cgc_recv_until_delim(STDIN, buf_recv_tmp, SZ_BUF_RECV)) {
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[E] during doc name receive ()\n");
+#endif
+        return ret; 
+    }
+
+    // Check the name of the document against the expected name.
+    if (0 != cgc_strcmp(path, buf_recv_tmp)) {
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[E] doc name mismatch: got: %s, expected: %s\n", buf_recv_tmp, path);
+#endif
+        return ret;    
+    }
+
+#ifdef DEBUG
+    fprintf(cgc_stderr, "[D] doc name matches\n");
+#endif 
+
+    // Finally, get the document contents.
+    char * doc_contents = NULL;
+    if (SUCCESS != (ret = cgc_allocate(doc_len+1, 0, (void **)&doc_contents))) {
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[E] allocate(); length = 0x%04x", doc_len);
+#endif
+        return ret;
+    }
+
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[D] allocate()d buffer; doc_contents @ %p, doc_len+1 = %d\n", doc_contents, doc_len+1);
+#endif 
+
+    if (SUCCESS != (ret = cgc_receive_with_term(STDIN, doc_contents, doc_len, &sz_recv)) ||
+        sz_recv != doc_len) {
+
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[E] doc_contents: receive ()d %d bytes, expected %d\n", sz_recv, doc_len);
+#endif
+        goto _bail_request;
+    }
+
+#ifdef DEBUG
+        fprintf(cgc_stderr, "[D] receive ()d %d bytes into allocate()d buffer @ %p; contents:\n", sz_recv, doc_contents);
+        cgc_size_t i = 0;
+        for (i=0; i<sz_recv; i++) {
+            fprintf(cgc_stderr, "%02x ", doc_contents[i]);
+            if (!((i+1)% 32)) { fprintf(cgc_stderr, "\n"); }
         }
+        fprintf(cgc_stderr, "\n[D] (end contents)\n");
+#endif 
 
-        // file contents, limited to numbers
-        for (j=0; j < FILE_BUF_SZ; j++) {
-            files[i].contents[j] = 
-                (rnd[j+FILE_BUF_SZ] % NUM_CHARS_NUMERIC) + '0';
+    // Find all the path references in the document and request those as well.
+
+    // Documents are _kinda_ HTML.  They reference other files like:
+    // ...
+    // $SRC$<filename>$!SRC$
+    char * open = doc_contents;
+    char * clse = NULL;
+
+    while (NULL != (open = cgc_strpos(open, TAG_SRC_OPEN))) {
+
+        // Advance open beyond the tag.
+        open += cgc_strlen(TAG_SRC_OPEN);
+
+        // We found the opening tag, now find the closing tag.
+        clse = cgc_strpos(open, TAG_SRC_CLSE);
+
+        if (NULL != clse) {
+
+            // Now that we have a SRC open & close tag combination, we copy the 
+            // rp between them into a temporary buffer and allocate our cp.
+            cgc_size_t rp_len = clse - open + 1;
+            char rp[rp_len];
+            cgc_strncpy(rp, open, rp_len-1);
+            rp[rp_len-1] = STRING_TERMINATOR;
+
+            char cp[SZ_MAX_FILEPATH] = { STRING_TERMINATOR };
+
+            // We canonicalize from rp to cp.
+            if (SUCCESS != (ret = cgc_canonicalize_path(cp, rp, rp_len))) {
+                goto _bail_request;
+            }
+
+            // Finally, we have a canonicalized path.  Request it and recurse.
+            if (SUCCESS != (ret = cgc_request_document(cp, ++recusion_depth))) {
+                goto _bail_request;
+            }      
         }
     }
 
+_bail_request:
+    cgc_deallocate(doc_contents, doc_len+1);
     return ret;
 }
-
 
 int main(int cgc_argc, char *cgc_argv[]) {
 
     int ret = SUCCESS;
-    int bytes_sent = -1;
-    UINT32 crash;
 
-    // We emulate an end-of-stack / SIGSEGV by putting a pointer directly above
-    // the TIP buffer.  Overflowing the TIP buffer with the correct value
-    // should cause SIGSEGV.
-    UINT32 *ptr_crash = &crash;
+    // Request the "index" document from the CRS.
+    char index_path[SZ_INDEX_PATH];
+    cgc_random_alpha_lower(index_path, SZ_INDEX_PATH);
+    index_path[SZ_INDEX_PATH-1] = STRING_TERMINATOR;
 
-    // These are the (stack) buffers we intend to overflow
-    // high addrs  /-----------------------------------\   end of stack
-    //             |   *ptr_crash                      |
-    //             |   FASTLANE TIP URI buff           |
-    //             |   FASTLANE GIMME URI buff         |
-    //             |   3 dummy bytes                   |
-    //             |   # of FASTLANE credits (1 byte)  |
-    //             |   SLOWLANE SMORE URI buff         |
-    //             |   SLOWLANE MOOCH URI buff         |
-    //             |   SLOWLANE AUTH buff              |
-    // low addrs   \-----------------------------------/
-    char uri_tip[URI_BUF_SZ] = {0};
-    char uri_gimme[URI_BUF_SZ] = {0};
-    UINT8 dummy[3] = {0};
-    UINT8 credits = 0;
-    char uri_smore[URI_BUF_SZ] = {0};
-    char uri_mooch[URI_BUF_SZ] = {0};
-    char uri_auth[URI_BUF_SZ] = {0};
+#ifdef DEBUG
+    fprintf(cgc_stderr, "\n\n\n\n[D] index_path: %s\n", index_path);
+#endif
 
-    // easier referencing in child functions
-    ptr_uri_tip = uri_tip;
-    ptr_uri_gimme = uri_gimme;
-    ptr_credits = &credits; 
-    ptr_uri_smore = uri_smore;
-    ptr_uri_mooch = uri_mooch;
-    ptr_uri_auth = uri_auth;
-
-    // set up the files
-    if ((ret = cgc_init_content()) != SUCCESS) { 
-        FATAL("fatal error during init_content()\n", ERRNO_UNK);
-        return ret; 
-    }
-
-    while(1) {
-
-        RECV(buf_recv, RECV_BUF_SZ, ret);
-
-        if (ERRNO_INSUFFICIENT_FUNDS == (ret = cgc_dispatch_verb())) {
-            SENDNULLTRUNC(
-                ERR_INSUFFICIENT_FUNDS, 
-                sizeof(ERR_INSUFFICIENT_FUNDS), 
-                bytes_sent);
-        }
-
-        SENDNULLTRUNC(DELIM_EOF, sizeof(DELIM_EOF), bytes_sent);
-
-        // This is where a crash _may_ occur.
-        // Specifically, if TIP is overflown with \xfd, \xfe or \xff, this
-        // cgc_write will go off the end of the stack (@ 0xbaaaafff).
-        // This limited choice increases CRS difficulty.
-        *ptr_crash = 0xdeadbeef;
-    }
-    
-    // We should never get here.
-    return ret;
+    return cgc_request_document(index_path, 0);
 }  
+
+
+
+
+
 

@@ -22,9 +22,6 @@
  * THE SOFTWARE.
  *
  */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
 #define IS_SPACE(c) ((c == ' ') || (c == '\t') || (c == '\f') || (c == '\n') || (c == '\v'))
 #define IS_NUM(c) ((c >= '0') && (c <= '9'))
 #define IS_ALPHA(c) (((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z')))
@@ -128,5 +125,3 @@ long unsigned int cgc_strtoul(const char *nptr, char **endptr, int base)
 {
     return (long unsigned int)cgc_strtol(nptr, endptr, base);
 }
-
-#pragma GCC diagnostic pop

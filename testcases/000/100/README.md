@@ -1,70 +1,84 @@
-# CROMU_00034 - Diary Parser
-
-## Author Information
-"James Nuttall" <james@cromulence.co>
+# KPRCA-00048
 
 ### DARPA performer group
-Cromulence
+Kaprica Security (KPRCA)
 
-## Description
-This service accepts a file that represents a diary input. The CRS must craft a proper file that passes input validation.
+## Description:
+
+This service implements and command-line client challenge binary and server
+challenge binary for a simple key-value store. The client reads input from the
+users, performs some perfunctory validity checks on the user issued command,
+encodes the command, passes it via IPC to the server challenge binary, and
+finally displays the result to the user. If the command entered by the user is
+unknown the user is adequately admonished and an error is returned. The keys
+are stored in a binary search tree which allows for easy and efficient in-order
+traversal, removal, and insertion.
 
 ### Feature List
-Initially, the CRS must send a 2-byte number representing the length of their file.
-Upon initial receipt of the input file given by the CRS, the service parses the file into three types of objects:
-Header, Chapters, and Entries. Chapters contain Entries.
 
-A Header contains:
-2 bytes: magic_number
-2 bytes: extension
-4 bytes: offset to the first chapter 
+The following commands are supported by the server.
 
-A Chapter contains:
+  * append: Append a value to a key.
 
-1 byte: title
-1 byte: entry count
-2 byte: offset to first entry
-2 byte: offset to next chapter
+  * auth: Authorize the client to the server, this must be done before any
+    other commands can be issued.
 
-An Entry contains:
+  * bitcount: Return the number of bits set in the value store at a key.
 
-1 byte: entry title
-1 byte: entry format
-1 byte: length of data
-2 byte: offset to data
-2 byte: offset to next entry
+  * bitop: Perform XOR, OR, AND, or NOT between 2 or 1 keys, depending on the
+    action, and store the result in another key.
 
-Entries and Chapters both act like linked lists in the file; each one has the file offset to the next one. When an offset of zero is found, that list is over.
+  * decr: Convert the value at a key to an integer if it is not already one and
+    decrease its value by 1.
+
+  * del: Delete a key from the server if it exists.
+
+  * exists: Return a boolean value that states whether or not a key exists in the server.
+
+  * get: Return the value stored at a key.
+
+  * incr: Convert the value at a key to an integer if it is not already one and
+    increase its value by 1.
+
+  * keys: Return a list of the keys currently stored in the server.
+
+  * rename: Move the value stored at one key to another key.
+
+  * set: Set the value of a key.
 
 ## Vulnerability
-There are four vulnerabilities in this service:
 
-Vulnerability 1:
-Service.c, verify_chapter() checks that each chapter's offsets are correctly contained within the file sent by the CRS. The vulnerability is that a chapter of type 'hobbies' can contain child chapters, and these chapters are not correctly checked for bounds. If a CRS submits a 'hobbies' chapter with a chapter pointing outside the bounds of the file, it will cause an invalid memory read.
+The first vulnerability for this service occurs in the server. When generating the
+current list keys stored in the server the code that resizes the working-data
+buffer when it grows to it's capacity incorrectly calculates the required size
+that the buffer must grow to. The incorrect size is 4 bytes too small. Under
+the right circumstances this can cause heap corruption and result in
+a segmentation fault, i.e. if our `malloc()` implementation returns a block
+that is exactly the requested size or if the black is later split.
 
-The vulnerability is an out of bounds read of buffer in parse_book() in service.c. The exact location depends on the input file.
+The second vulnerability for this service occurs in the server. When performing
+a bitop of type 'AND' to two keys, if one of the keys referenced by the command
+given by the user does not exist as a key within the server then a null pointer
+dereference will occur.
 
-Vulnerability 2:
-If the CRS creates a set of diary entries that meet certain specifications, a vulnerability is available by entering a long name for the last name of the family. Requirements: two married people, a person under the age of 10, two pets, and a job with more than 20 years experience. 
 
-This vulnerability is a buffer overflow in service.c: 819 in test_win().
+### Generic class of vulnerability
 
-Vulnerability 3:
-The third vulnerability is an out of bounds read. If a book is sent to the service with an initial offset value that is larger than the size of the book an out of bounds read will occur. The out of bounds read will also occur if an offset within the book points past the end of the original input. 
+  * Buffer overflow
+  * In correct buffer size calculation
+  * Heap overflow
+  * NULL pointer dereference
 
-Vulnerability 4: 
-The fourth vulnerability is a null pointer dereference. If a chapter entry in a book references a subentry that doesn't exist, the unpatched service will attempt to read from a null address. 
+### CWE classification
 
-### Generic class of vulnerability 
-Vulnerability 1 is an out of bounds buffer read on the stack.
+  * CWE-122: Heap-based Buffer Overflow
+  * CWE-131: Incorrect Calculation of Buffer Size
+  * CWE-788: Access of Memory Location After End of Buffer
+  * CWE-476: NULL Pointer Dereference
 
-Vulnerability 2 is a buffer overflow on the stack.
+## Challenges
 
-### CWE classification 
-Vuln 1: CWE-125: Out-of-bounds Read
-Vuln 2: CWE-121: Stack-based Buffer Overflow
-Vuln 3: CWE-125: Out-of-bounds Read
-Vuln 4: CWE-476: Null pointer dereference
+The challenge binary poses tests the following abilities of a system:
 
-## Challenges 
-The challenge of this binary is providing a properly formatted file that allows each vulnerability to be reached. There are many linked dependencies that force frequent offset calculations. 
+  * Ability to handle and reason about client-server modeled IPC.
+  * Ability to handle nuanced dynamic memory allocation issues

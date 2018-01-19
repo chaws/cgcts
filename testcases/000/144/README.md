@@ -1,61 +1,64 @@
-# Multicast Chat Server
+# Cromulence All Service
 
 ## Author Information
 
-"Jason Rogers" <info@narfindustries.com>
+"Jason Williams" <jdw@cromulence.co>
+“Joe Rogers” <joe@cromulence.co>
+"Debbie Nuttall" <debbie@cromulence.co>
 
 ### DARPA performer group
-
-Narf Industries (NRFIN)
+Cromulence LLC (CROMU)
 
 ## Description
 
-In today's world of social networking, messaging is almost never point-to-point. Instead we are constantly subscribing to blogs, news feeds, chat rooms, and page updates. And yet, it's so hard to throttle the volume of messages we receive and control who gets the messages we send. Well all that chaos is about to end.
+This service is a joint effort from multiple Cromulence developers. It includes a command line interface with a command handler and registered command.
 
-The Chatty Cats, makers of Sir Talks Too Much, will like to introduce MyCast, our new Multicast Chat Server. With MyCast you are able to subscribe to the channels you care about (if permitted), while deciding if you would like to receive every message or only the latest or highest priority ones. 
+The first command is a sort command and allows the user to enter a number of integers to be sorted. The user then enters each integer one line at a time and the sorted list is printed back to the user.
 
+The second command provides basic addition, subtraction, and scalar multiplication matrix math operations.  Depending on the requested operation, the user is prompted to supply the matrices and/or the scalar multiplier.  The resulting matrix is printed out before returning to the matrix operation menu.
+
+The third command is a game similar to Simon says. The game outputs a sequence of colors and the user must generate a reply sequence that matches. After every correct answer, the sequence grows longer. 
+
+The fourth command is a data encoding function similar to Base64.  Raw data is entered and the resulting encoded data is output.
 ### Feature List
 
-MyCast allows users to create their own personalized channels. Using our BEST API, you can 
+This service features an interactive command line, the ability to list commands, and numerous commands. The first command is the sort command which sorts integers entered by the user.  The second command provides basic matrix math operations. The third command is a simon says game. 
 
-1. Authenticate to a new or existing channel
-2. Request a user token
-3. Subscribe to a channel using one of the following delivery types,
-   a. Guaranteed: All new messages will be sent
-   b. Latest: Only the latest message will be sent
-   c. Next: Only the next message will be sent
-   d: Priority: Only messages of a given priority will be sent including "high", "medium" or "low".
-4. Send a message to a channel with a given priority
-5. Get messages from either a specific channel or all channels the user is subscribed to.
+## Vulnerability
 
-## Vulnerability 1
+This service has the following vulnerabilities.
 
-The first vulnerability in this CB is Type 2 caused be an uninitialized variable containing sensitive data. In the sendWrongPasswordMessage function the 'message' variable will contain the address of the administrators password that was sent to the strcmp function in the previous call. When the check for whether 'message' is NULL is performed, it will pass resulting in the administrator's password being leaked back to the user in the "wrong password" error message. By attempting to authenticate to the Flag channel with an invalid password, the user will trigger this leak. The user can then use this password to authenticate to the Flag channel that is sending the contents of the flag. 
+The first vulnerability is in the sort command. A user can enter a negative number for the number of items to be sorted. Due to a sign/unsigned comparison bug it is possible for the user to enter a negative number and pass the max length check for the sort array. In doing so the user can then write outside of the array and corrupt the stack frame overwriting the return address.
+
+The second vulnerability is in the matrix command.  The program uses a fixed size array to store the matrices.  It incorrectly checks the necessary size of the array by multiplying the supplied dimension values together without properly handling the possibility of an integer overflow. 
+
+The third vulnerability is in the simon command. The user response is written to a stack buffer. If the user successfully plays past the first 236 rounds of play, the response will begin writing past the end of the stack buffer. If the game is successfully played up to the maximum number of 256 rounds, a 20 byte stack overwrite will occur before the simon function exits. 
 
 ### Generic class of vulnerability
 
-Use of Uninitialized Variable
-Improper Initialization
-Information Exposure Through an Error Message
-Information Exposure
+sort command:
+Signed to Unsigned Conversion Error
+Stack-based Buffer Overflow
+
+matrix command:
+Integer overflow leading to an incorrect calculation of buffer size
+
+simon command:
+Stack-based Buffer Overflow
 
 ### CWE classification
 
-CWE-200: Information Exposure
-CWE-209: Information Exposure Through an Error Message
-CWE-457: Use of Uninitialized Variable
-CWE-665: Improper Initialization
+sort command:
+CWE-195: Signed to Unsigned Conversion Error
+CWE-121: Stack-based Buffer Overflow
 
-### Challenges
+CWE-190: Integer Overflow or Wraparound
+CWE-131: Incorrect Calculation of Buffer Size
 
-1. Leaking the password will require making a proper authentication request with channel name set to "FLAG." Even then the reasoning engine must understand the significance of the data and how to reflect it in a subsequent authentication request for the "FLAG" channel. 
+simon command:
+CWE-121: Stack-based Buffer Overflow
 
-2. Once authenticated to the channel, the user will need to use the response from the authentication request to make a token request. The token received from the token request will need to be use for sending and receiving messages from the FLAG channel.
+## Challenges
 
-3. The user must send a message to a valid channel, before a message containing flag data will be available to get from the FLAG channel. To do so they must create a proper sendMessage request that contains a valid user token. Once a message has been sent they can get a message from the FLAG channel using a proper getMessage request with the channel set to FLAG that contains a valid user token.
+This service presents the CRS with a number of possible commands that the CRS can select from. The service is designed to be simple in nature and have multiple bugs for the CRS to exploit. The only challenge is in determining the command table, entering the correct command, and setting the proper states for an exploitable command.
 
-
-### Difficulty
-- Discovering is medium
-- Proving is medium
-- Patching is easy

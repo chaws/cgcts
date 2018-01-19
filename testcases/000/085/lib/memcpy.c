@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
+ * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
+ *
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,16 +22,17 @@
  * THE SOFTWARE.
  *
  */
+
 #include "cgc_string.h"
 
-void *cgc_memcpy(void *dst, const void *src, cgc_size_t n)
+void *cgc_memcpy(void *dest, const void *src, cgc_size_t n)
 {
-    unsigned char *udst = dst;
-    const unsigned char *usrc = src;
-    cgc_size_t i;
+    unsigned char *d = (unsigned char *)dest, *s = (unsigned char *)src;
+    cgc_size_t i = 0;
+    while (i < n) {
+        d[i] = s[i];
+        i++;
+    }
 
-    for (i = 0; i < n; i++)
-        udst[i] = usrc[i];
-
-    return dst;
+    return dest;
 }

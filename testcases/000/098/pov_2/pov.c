@@ -1,170 +1,262 @@
-/*
- * Copyright (C) Narf Industries <info@narfindustries.com>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
 #include "libpov.h"
-#include "cgc_crc32.h"
-#include "cgc_adjectives_list.h"
-#include "cgc_adverbs_list.h"
-#include "cgc_verbs_list.h"
-#include "cgc_nouns_list.h"
-
-unsigned int adj[4096];
-unsigned int noun[4096];
-unsigned int adv[4096];
-unsigned int verb[4096];
-
-void *cgc_calloc(cgc_size_t s) {
-    void *p = cgc_malloc(s);
-    if (!p)
-        return NULL;
-    cgc_memset(p, '\0', s);
-    return p;
-}
-
-char * cgc_strcat(char *dest, const char *src) {
-    char *res = dest;
-
-    while(*dest++);
-
-    dest--;
-
-    while(*src)
-        *dest++ = *src++;
-
-    *dest='\0';
-
-    return res;
-}
-
-void cgc_itoa(unsigned int n, char *s) {
-    int i = 0;
-    unsigned int orig = n;
-    do {
-        i++;
-    } while ((n /= 10 ) > 0);
-
-    s[i] = '\n';
-    s[i+1] = '\0';
-    n = orig;
-
-    do {
-        s[--i] = n % 10 + '0';
-    } while ((n /= 10 ) > 0);
-}
-
-int cgc_streq(char *s1, char *s2) {
-    while (*s1++ == *s2++ && (*(s1-1)));
-
-    return (*(s1-1) == *(s2-1));
-}
-
-void cgc_build_crc_map(unsigned int *c, char **list) {
-    int i;
-
-    for (i=0; i < 4096; i++) {
-        c[i] = cgc_crc32(list[i],cgc_strlen(list[i]));
-    }
-}
-
-unsigned int cgc_find_needed_str(unsigned int *c, unsigned char b) {
-    int i;
-    for (i = 0; i < 4096; i++) {
-        if (((c[i]>>24)&0xff) == b)
-            return i;
-    }
-    return 0xffffffff;
-}
-
 int main(int cgc_argc, char *cgc_argv[]) {
-   unsigned char *temp;
-   char num[13] = {0};
-   unsigned int size = 256;
-   unsigned int indexes[4] = {0};
-   unsigned int * van[] = {verb, adj, noun};
-   unsigned int * nvn[] = {noun, verb, noun};
-   unsigned int * vna[] = {verb, noun, adv};
-   unsigned int * nva[] = {noun, verb, adv};
-   int i;
-   static unsigned char delim[] = "\x0a";
-   char *setup = "blah\n1\n0\n";
-
-   cgc_build_crc_map(adj, adjectives_list);
-   cgc_build_crc_map(adv, adverbs_list);
-   cgc_build_crc_map(verb, verbs_list);
-   cgc_build_crc_map(noun, nouns_list);
-
-   type1_vals t1vals;
-   cgc_type1_negotiate(0x00ffffff, 0xffffff00, 1, &t1vals);
-
-   cgc_transmit_all(0, setup, cgc_strlen(setup));
-
-   cgc_itoa(0x80000000|(t1vals.ipval&0x00ffffff), num);
-   cgc_transmit_all(0, num, cgc_strlen(num));
-
-   //we want "secure" mode
-   cgc_transmit_all(0, "1\n", 2);
-
-   //now we calc the rest of the bits we need
-   for (i = 1; i < 4; i++) {
-       if ((indexes[i] = cgc_find_needed_str(van[i-1], t1vals.regval>>(8*i)&0xff)) > 4096)
-           goto noun_verb_noun;
-   }
-   indexes[0] = 0;
-   goto done;
-noun_verb_noun:
-   for (i = 1; i < 4; i++) {
-       if ((indexes[i] = cgc_find_needed_str(nvn[i-1], t1vals.regval>>(8*i)&0xff)) > 4096)
-           goto verb_noun_adv;
-   }
-   indexes[0] = 1;
-   goto done;
-
-   //failed with default, try this 
-verb_noun_adv:
-   for (i = 1; i < 4; i++) {
-       if ((indexes[i] = cgc_find_needed_str(vna[i-1], t1vals.regval>>(8*i)&0xff)) > 4096)
-          goto noun_verb_adv;
-   }
-   indexes[0] = 2;
-   goto done;
-
-noun_verb_adv:
-   for (i = 1; i < 4; i++) {
-       if ((indexes[i] = cgc_find_needed_str(nva[i-1], t1vals.regval>>(8*i)&0xff)) > 4096)
-          return 10; //shouldn't happen?
-   }
-   indexes[0] = 3;
-
-done:
-   for (i = 0; i < 4; i++) {
-       cgc_itoa(indexes[i], num);
-       cgc_transmit_all(0, num, cgc_strlen(num));
-   }
-
-    while(1) {
-        cgc_delimited_read(0, &temp, &size, delim, 1);
-        if(!temp)
-            break;
-        if (cgc_streq((char*)temp,"Thanks for waiting! Here is your password file. Welcome!"))
-            break;
-        size = 256;
-    }
+   cgc_negotiate_type1(0x0, 0x0, 0);
+   do {
+      unsigned char *read_00000;
+      unsigned int read_00000_len;
+      unsigned int read_00000_ptr = 0;
+      //**** delimited read
+      static unsigned char read_00000_delim[] = 
+         "\x0a";
+      read_00000 = NULL;
+      read_00000_len = 0;
+      int read_00000_res = cgc_delimited_read(0, &read_00000, &read_00000_len, read_00000_delim, 1);
+      if (read_00000_res) {} //silence unused variable warning
+      //**** read match data
+      static unsigned char match_00000_00000[] = 
+         "\x6c\x69\x73\x74\x20\x69\x6e\x69\x74\x2e\x2e\x2e";
+      read_00000_ptr += cgc_data_match(read_00000 + read_00000_ptr, read_00000_len - read_00000_ptr, match_00000_00000, 12);
+      cgc_free(read_00000);
+      if (read_00000_ptr) {}  //silence unused variable warning if any
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00000_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x37\x34\x20\x63\x72\x65\x61\x74\x65"
+         "\x20\x63\x61\x74\x0a";
+      static unsigned int write_00000_00000_len = 21;
+      unsigned char *write_00000 = NULL;
+      unsigned int write_00000_len = 0;
+      write_00000 = cgc_append_buf(write_00000, &write_00000_len, write_00000_00000, write_00000_00000_len);
+      if (write_00000_len > 0) {
+         cgc_transmit_all(1, write_00000, write_00000_len);
+      }
+      cgc_free(write_00000);
+   } while (0);
+   do {
+      unsigned char *read_00001;
+      unsigned int read_00001_len;
+      unsigned int read_00001_ptr = 0;
+      //**** delimited read
+      static unsigned char read_00001_delim[] = 
+         "\x0a";
+      read_00001 = NULL;
+      read_00001_len = 0;
+      int read_00001_res = cgc_delimited_read(0, &read_00001, &read_00001_len, read_00001_delim, 1);
+      if (read_00001_res) {} //silence unused variable warning
+      //**** read match data
+      static unsigned char match_00001_00000[] = 
+         "\x69\x6e\x69\x74\x2e\x2e";
+      read_00001_ptr += cgc_data_match(read_00001 + read_00001_ptr, read_00001_len - read_00001_ptr, match_00001_00000, 6);
+      cgc_free(read_00001);
+      if (read_00001_ptr) {}  //silence unused variable warning if any
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00001_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x37\x35\x20\x63\x72\x65\x61\x74\x65"
+         "\x20\x68\x6f\x74\x64\x6f\x67\x0a";
+      static unsigned int write_00001_00000_len = 24;
+      unsigned char *write_00001 = NULL;
+      unsigned int write_00001_len = 0;
+      write_00001 = cgc_append_buf(write_00001, &write_00001_len, write_00001_00000, write_00001_00000_len);
+      if (write_00001_len > 0) {
+         cgc_transmit_all(1, write_00001, write_00001_len);
+      }
+      cgc_free(write_00001);
+   } while (0);
+   do {
+      unsigned char *read_00002;
+      unsigned int read_00002_len;
+      unsigned int read_00002_ptr = 0;
+      //**** delimited read
+      static unsigned char read_00002_delim[] = 
+         "\x0a";
+      read_00002 = NULL;
+      read_00002_len = 0;
+      int read_00002_res = cgc_delimited_read(0, &read_00002, &read_00002_len, read_00002_delim, 1);
+      if (read_00002_res) {} //silence unused variable warning
+      //**** read match data
+      static unsigned char match_00002_00000[] = 
+         "\x69\x6e\x69\x74\x2e\x2e";
+      read_00002_ptr += cgc_data_match(read_00002 + read_00002_ptr, read_00002_len - read_00002_ptr, match_00002_00000, 6);
+      cgc_free(read_00002);
+      if (read_00002_ptr) {}  //silence unused variable warning if any
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00002_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x37\x36\x20\x6e\x61\x6d\x65\x20\x30"
+         "\x20\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x0a";
+      static unsigned int write_00002_00000_len = 50;
+      unsigned char *write_00002 = NULL;
+      unsigned int write_00002_len = 0;
+      write_00002 = cgc_append_buf(write_00002, &write_00002_len, write_00002_00000, write_00002_00000_len);
+      if (write_00002_len > 0) {
+         cgc_transmit_all(1, write_00002, write_00002_len);
+      }
+      cgc_free(write_00002);
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00003_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x37\x37\x20\x6e\x61\x6d\x65\x20\x30"
+         "\x20\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x0a";
+      static unsigned int write_00003_00000_len = 50;
+      unsigned char *write_00003 = NULL;
+      unsigned int write_00003_len = 0;
+      write_00003 = cgc_append_buf(write_00003, &write_00003_len, write_00003_00000, write_00003_00000_len);
+      if (write_00003_len > 0) {
+         cgc_transmit_all(1, write_00003, write_00003_len);
+      }
+      cgc_free(write_00003);
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00004_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x37\x38\x20\x6e\x61\x6d\x65\x20\x30"
+         "\x20\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x0a";
+      static unsigned int write_00004_00000_len = 50;
+      unsigned char *write_00004 = NULL;
+      unsigned int write_00004_len = 0;
+      write_00004 = cgc_append_buf(write_00004, &write_00004_len, write_00004_00000, write_00004_00000_len);
+      if (write_00004_len > 0) {
+         cgc_transmit_all(1, write_00004, write_00004_len);
+      }
+      cgc_free(write_00004);
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00005_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x37\x39\x20\x6e\x61\x6d\x65\x20\x30"
+         "\x20\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x0a";
+      static unsigned int write_00005_00000_len = 50;
+      unsigned char *write_00005 = NULL;
+      unsigned int write_00005_len = 0;
+      write_00005 = cgc_append_buf(write_00005, &write_00005_len, write_00005_00000, write_00005_00000_len);
+      if (write_00005_len > 0) {
+         cgc_transmit_all(1, write_00005, write_00005_len);
+      }
+      cgc_free(write_00005);
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00006_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x38\x30\x20\x6e\x61\x6d\x65\x20\x30"
+         "\x20\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x0a";
+      static unsigned int write_00006_00000_len = 50;
+      unsigned char *write_00006 = NULL;
+      unsigned int write_00006_len = 0;
+      write_00006 = cgc_append_buf(write_00006, &write_00006_len, write_00006_00000, write_00006_00000_len);
+      if (write_00006_len > 0) {
+         cgc_transmit_all(1, write_00006, write_00006_len);
+      }
+      cgc_free(write_00006);
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00007_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x38\x31\x20\x6e\x61\x6d\x65\x20\x30"
+         "\x20\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x0a";
+      static unsigned int write_00007_00000_len = 50;
+      unsigned char *write_00007 = NULL;
+      unsigned int write_00007_len = 0;
+      write_00007 = cgc_append_buf(write_00007, &write_00007_len, write_00007_00000, write_00007_00000_len);
+      if (write_00007_len > 0) {
+         cgc_transmit_all(1, write_00007, write_00007_len);
+      }
+      cgc_free(write_00007);
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00008_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x38\x32\x20\x6e\x61\x6d\x65\x20\x30"
+         "\x20\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x0a";
+      static unsigned int write_00008_00000_len = 50;
+      unsigned char *write_00008 = NULL;
+      unsigned int write_00008_len = 0;
+      write_00008 = cgc_append_buf(write_00008, &write_00008_len, write_00008_00000, write_00008_00000_len);
+      if (write_00008_len > 0) {
+         cgc_transmit_all(1, write_00008, write_00008_len);
+      }
+      cgc_free(write_00008);
+   } while (0);
+   do {
+      //*** writing data
+      static unsigned char write_00009_00000[] = 
+         "\x33\x33\x31\x35\x30\x39\x30\x38\x33\x20\x72\x6f\x6c\x6c\x6f\x76"
+         "\x65\x72\x0a";
+      static unsigned int write_00009_00000_len = 19;
+      unsigned char *write_00009 = NULL;
+      unsigned int write_00009_len = 0;
+      write_00009 = cgc_append_buf(write_00009, &write_00009_len, write_00009_00000, write_00009_00000_len);
+      if (write_00009_len > 0) {
+         cgc_transmit_all(1, write_00009, write_00009_len);
+      }
+      cgc_free(write_00009);
+   } while (0);
+   do {
+      unsigned char *read_00003;
+      unsigned int read_00003_len;
+      unsigned int read_00003_ptr = 0;
+      //**** delimited read
+      static unsigned char read_00003_delim[] = 
+         "\x0a";
+      read_00003 = NULL;
+      read_00003_len = 0;
+      int read_00003_res = cgc_delimited_read(0, &read_00003, &read_00003_len, read_00003_delim, 1);
+      if (read_00003_res) {} //silence unused variable warning
+      //**** read match data
+      static unsigned char match_00003_00000[] = 
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41";
+      read_00003_ptr += cgc_data_match(read_00003 + read_00003_ptr, read_00003_len - read_00003_ptr, match_00003_00000, 41);
+      //**** read match data
+      static unsigned char match_00003_00001[] = 
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41";
+      read_00003_ptr += cgc_data_match(read_00003 + read_00003_ptr, read_00003_len - read_00003_ptr, match_00003_00001, 41);
+      //**** read match data
+      static unsigned char match_00003_00002[] = 
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41";
+      read_00003_ptr += cgc_data_match(read_00003 + read_00003_ptr, read_00003_len - read_00003_ptr, match_00003_00002, 41);
+      //**** read match data
+      static unsigned char match_00003_00003[] = 
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41";
+      read_00003_ptr += cgc_data_match(read_00003 + read_00003_ptr, read_00003_len - read_00003_ptr, match_00003_00003, 41);
+      //**** read match data
+      static unsigned char match_00003_00004[] = 
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41";
+      read_00003_ptr += cgc_data_match(read_00003 + read_00003_ptr, read_00003_len - read_00003_ptr, match_00003_00004, 41);
+      //**** read match data
+      static unsigned char match_00003_00005[] = 
+         "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+         "\x41\x41\x41\x20\x77\x69\x6c\x6c\x20\x6e\x6f\x74\x20\x72\x6f\x6c"
+         "\x6c\x6f\x76\x65\x72";
+      read_00003_ptr += cgc_data_match(read_00003 + read_00003_ptr, read_00003_len - read_00003_ptr, match_00003_00005, 37);
+      cgc_free(read_00003);
+      if (read_00003_ptr) {}  //silence unused variable warning if any
+   } while (0);
 }

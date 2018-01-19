@@ -1,18 +1,18 @@
 /*
- * Author: Andrew Wesie <andrew.wesie@kapricasecurity.com>
- * 
+ * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
+ *
  * Copyright (c) 2014 Kaprica Security, Inc.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,107 +20,124 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- * 
+ *
  */
+
 #include "libcgc.h"
-#include "cgc_stdint.h"
+#include "cgc_malloc.h"
+#include "cgc_stdlib.h"
 
-#include "cgc_malloc_internal.h"
-
-static int allocate_span()
+/* Get some more memory through allocate */
+static int allocate_new_blk(void)
 {
-    void *mem;
-    if (cgc_allocate(SPAN_SIZE << 1, 0, &mem) != 0)
-        return 1;
+  void *ret;
+  struct blk_t *new_blk;
+  cgc_size_t size = NEW_CHUNK_SIZE;
 
-    intptr_t span = ((intptr_t)mem + SPAN_SIZE-1) & ~(SPAN_SIZE-1);
-    if (span - (intptr_t)mem)
-        cgc_deallocate(mem, span - (intptr_t)mem);
-    cgc_deallocate((void *)(span + SPAN_SIZE), ((intptr_t)mem + (SPAN_SIZE << 1)) - (span + SPAN_SIZE));
-    
-    free_block_t *block = (free_block_t *)span;
-    block->hdr.size = SPAN_SIZE;
-    block->hdr.free = 1;
-    block->hdr.cgc_mmap = 0;
-    block->next = cgc_g_malloc.free_list[NUM_BUCKETS-1];
-    block->prev = NULL;
-    cgc_g_malloc.free_list[NUM_BUCKETS-1] = block;
-    return 0;
+  if (cgc_allocate(size, 0, &ret) != 0) {
+    return 1;
+  }
+
+  if (ret == NULL)
+    return 1;
+
+  new_blk = (struct blk_t *)ret;
+  new_blk->size = size;
+  new_blk->free = 1;
+  new_blk->fpred = NULL;
+  new_blk->fsucc = NULL;
+  new_blk->prev = NULL;
+  new_blk->next = NULL;
+
+  cgc_insert_into_flist(new_blk);
+  return 0;
 }
 
-static free_block_t *pop_block(int i)
+/* Find first fit block for a size */
+static int find_fit(cgc_size_t size, struct blk_t **blk)
 {
-    free_block_t *blk = cgc_g_malloc.free_list[i];
-    /* remove from current list */
-    if (blk->next != NULL)
-        blk->next->prev = blk->prev;
-    if (blk->prev != NULL)
-        blk->prev->next = blk->next;
-    else
-        cgc_g_malloc.free_list[i] = blk->next;
+  int sc_i = cgc_get_size_class(size);
 
-    blk->next = NULL;
+  for (; sc_i < NUM_FREE_LISTS; sc_i++) {
+    *blk = cgc_free_lists[sc_i];
+    for(; *blk != NULL; *blk = (*blk)->fsucc)
+      if ((*blk)->size >= size)
+        return sc_i;
+  }
+
+  *blk = NULL;
+  return -1;
+}
+
+static void *malloc_huge(cgc_size_t size)
+{
+    void *mem;
+    size += HEADER_PADDING;
+    if (cgc_allocate(size, 0, &mem) != 0)
+        return NULL;
+    struct blk_t *blk = mem;
+    blk->size = size;
+    blk->free = 0;
+    blk->fpred = NULL;
+    blk->fsucc = NULL;
     blk->prev = NULL;
-    return blk;
+    blk->next = NULL;
+    return (void *)((intptr_t)blk + HEADER_PADDING);
 }
 
 void *cgc_malloc(cgc_size_t size)
 {
-    cgc_size_t min_size = size + OVERHEAD_BYTES;
+  if (size == 0)
+    return NULL;
 
-    if (min_size >= MAX_ALLOC)
-    {
-        void *ret;
-        if (cgc_allocate(min_size, 0, &ret) != 0)
-            return NULL;
-        block_t *block = (block_t *)ret;
-        block->free = 0;
-        block->cgc_mmap = 1;
-        block->size = min_size;
-        return (void *)((intptr_t)ret + OVERHEAD_BYTES);
+  if (size + HEADER_PADDING >= NEW_CHUNK_SIZE)
+    return malloc_huge(size);
+
+  if (size % ALIGNMENT != 0)
+    size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+
+  if (size >= 0x80000000)
+    return NULL;
+  size += HEADER_PADDING;
+
+  struct blk_t *blk = NULL;
+  int sc_i = find_fit(size, &blk);
+
+  /* Allocate a new block if no fit */
+  if (blk == NULL) {
+    if (allocate_new_blk() != 0) {
+      return NULL;
+    } else {
+      sc_i = NUM_FREE_LISTS - 1;
+      blk = cgc_free_lists[sc_i];
     }
+  }
 
-    /* use buddy allocator */
-    int order;
-    for (order = 0; min_size > (MIN_ALLOC << order); order++) ;
+  /* Remove the block we're going to use from the free list */
+  cgc_remove_from_flist(blk);
 
-    /* find first free bucket */
-    int i;
-    for (i = order; i < NUM_BUCKETS && cgc_g_malloc.free_list[i] == NULL; i++) ;
+  /* Split the block into two pieces if possible */
+  cgc_size_t sdiff = blk->size - size;
+  if (sdiff > 2 * HEADER_PADDING) {
+    struct blk_t *nb = (struct blk_t *)((intptr_t)blk + size);
 
-    if (i == NUM_BUCKETS)
-    {
-        /* allocate new span */
-        if (allocate_span() == 0)
-            i = NUM_BUCKETS-1;
-        else
-            return NULL;
-    }
+    nb->size = sdiff;
+    nb->free = 1;
+    nb->fsucc = NULL;
+    nb->fpred = NULL;
 
-    /* split block until it is the minimum size */
-    for (; i > order; i--)
-    {
-        free_block_t *blk = pop_block(i);
+    blk->size = size;
 
-        /* split block */
-        blk->hdr.size >>= 1;
-        free_block_t *blk2 = (free_block_t *)((intptr_t)blk ^ blk->hdr.size);
-        *blk2 = *blk;
+    /* Patch up blk list pointers */
+    nb->prev = blk;
+    nb->next = blk->next;
+    if (blk->next)
+      blk->next->prev = nb;
+    blk->next = nb;
 
-        /* add both to next list */
-        blk->prev = NULL;
-        blk->next = blk2;
-        blk2->prev = blk;
-        blk2->next = cgc_g_malloc.free_list[i-1];
-        if (blk2->next)
-            blk2->next->prev = blk2;
-        cgc_g_malloc.free_list[i-1] = blk;
-    }
+    /* Put the new block into the free list */
+    cgc_insert_into_flist(nb);
+  }
 
-    /* we are now guaranteed that g_malloc.free_list[order] != NULL */
-    free_block_t *blk = pop_block(order);
-    blk->hdr.free = 0;
-
-    //cgc_printf("malloc(%d) = %08X\n", size, ((intptr_t)blk + OVERHEAD_BYTES));
-    return (void *)((intptr_t)blk + OVERHEAD_BYTES);
+  return (void *)((intptr_t)blk + HEADER_PADDING);
 }

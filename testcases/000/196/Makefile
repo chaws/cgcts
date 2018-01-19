@@ -1,4 +1,4 @@
-CHAL=Pipelined
+CHAL=CGC_Symbol_Viewer_CSV
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,75 +20,79 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/printf.c.o -c cb_1/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/cgc_libc.c.o -c cb_1/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/cgc_malloc.c.o -c cb_1/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/service.c.o -c cb_1/src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/printf.c.o -c cb_2/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/cgc_libc.c.o -c cb_2/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/cgc_malloc.c.o -c cb_2/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/contains.c.o -c cb_2/src/contains.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/printf.c.o -c cb_3/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/cgc_libc.c.o -c cb_3/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/cgc_malloc.c.o -c cb_3/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/word-count.c.o -c cb_3/src/word-count.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/printf.c.o -c cb_6/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/cgc_libc.c.o -c cb_6/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/cgc_malloc.c.o -c cb_6/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/src/decompress.c.o -c cb_6/src/decompress.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/printf.c.o -c cb_4/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/cgc_libc.c.o -c cb_4/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/cgc_malloc.c.o -c cb_4/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/src/does-not-contain.c.o -c cb_4/src/does-not-contain.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/printf.c.o -c cb_5/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/cgc_libc.c.o -c cb_5/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/cgc_malloc.c.o -c cb_5/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/src/compress.c.o -c cb_5/src/compress.c
-	$(CC) $(FLAGS) -o Pipelined_4_patched cb_4/lib/printf.c.o cb_4/lib/cgc_libc.c.o cb_4/lib/cgc_malloc.c.o cb_4/src/does-not-contain.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_1_patched cb_1/lib/printf.c.o cb_1/lib/cgc_libc.c.o cb_1/lib/cgc_malloc.c.o cb_1/src/service.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_3_patched cb_3/lib/printf.c.o cb_3/lib/cgc_libc.c.o cb_3/lib/cgc_malloc.c.o cb_3/src/word-count.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_5_patched cb_5/lib/printf.c.o cb_5/lib/cgc_libc.c.o cb_5/lib/cgc_malloc.c.o cb_5/src/compress.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_2_patched cb_2/lib/printf.c.o cb_2/lib/cgc_libc.c.o cb_2/lib/cgc_malloc.c.o cb_2/src/contains.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_6_patched cb_6/lib/printf.c.o cb_6/lib/cgc_libc.c.o cb_6/lib/cgc_malloc.c.o cb_6/src/decompress.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strcat.c.o -c lib/strcat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/slist.c.o -c src/slist.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/main.c.o -c src/main.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/readuntil.c.o -c src/readuntil.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/cgcf.c.o -c src/cgcf.c
+	$(CXX) $(FLAGS) -o CGC_Symbol_Viewer_CSV_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/slist.c.o src/main.c.o src/readuntil.c.o src/cgcf.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/printf.c.o -c cb_6/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/cgc_libc.c.o -c cb_6/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/cgc_malloc.c.o -c cb_6/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/src/decompress.c.o -c cb_6/src/decompress.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/printf.c.o -c cb_1/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/cgc_libc.c.o -c cb_1/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/cgc_malloc.c.o -c cb_1/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/service.c.o -c cb_1/src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/printf.c.o -c cb_3/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/cgc_libc.c.o -c cb_3/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/cgc_malloc.c.o -c cb_3/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/word-count.c.o -c cb_3/src/word-count.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/printf.c.o -c cb_4/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/cgc_libc.c.o -c cb_4/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/cgc_malloc.c.o -c cb_4/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/src/does-not-contain.c.o -c cb_4/src/does-not-contain.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/printf.c.o -c cb_2/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/cgc_libc.c.o -c cb_2/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/cgc_malloc.c.o -c cb_2/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/contains.c.o -c cb_2/src/contains.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/printf.c.o -c cb_5/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/cgc_libc.c.o -c cb_5/lib/cgc_libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/cgc_malloc.c.o -c cb_5/lib/cgc_malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/src/compress.c.o -c cb_5/src/compress.c
-	$(CC) $(FLAGS) -o Pipelined_1 cb_1/lib/printf.c.o cb_1/lib/cgc_libc.c.o cb_1/lib/cgc_malloc.c.o cb_1/src/service.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_2 cb_2/lib/printf.c.o cb_2/lib/cgc_libc.c.o cb_2/lib/cgc_malloc.c.o cb_2/src/contains.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_3 cb_3/lib/printf.c.o cb_3/lib/cgc_libc.c.o cb_3/lib/cgc_malloc.c.o cb_3/src/word-count.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_4 cb_4/lib/printf.c.o cb_4/lib/cgc_libc.c.o cb_4/lib/cgc_malloc.c.o cb_4/src/does-not-contain.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_5 cb_5/lib/printf.c.o cb_5/lib/cgc_libc.c.o cb_5/lib/cgc_malloc.c.o cb_5/src/compress.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Pipelined_6 cb_6/lib/printf.c.o cb_6/lib/cgc_libc.c.o cb_6/lib/cgc_malloc.c.o cb_6/src/decompress.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strcat.c.o -c lib/strcat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/slist.c.o -c src/slist.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/main.c.o -c src/main.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/readuntil.c.o -c src/readuntil.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/cgcf.c.o -c src/cgcf.c
+	$(CXX) $(FLAGS) -o CGC_Symbol_Viewer_CSV lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/slist.c.o src/main.c.o src/readuntil.c.o src/cgcf.c.o $(LCGC) 
 
 pov: $(LIBPOV)
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Pipelined_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
+	$(CXX) $(FLAGS) -o CGC_Symbol_Viewer_CSV_pov_4 pov_4/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o CGC_Symbol_Viewer_CSV_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o CGC_Symbol_Viewer_CSV_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o CGC_Symbol_Viewer_CSV_pov_3 pov_3/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o cb_6/lib/printf.c.o cb_6/lib/cgc_libc.c.o cb_6/lib/cgc_malloc.c.o cb_6/src/decompress.c.o cb_1/lib/printf.c.o cb_1/lib/cgc_libc.c.o cb_1/lib/cgc_malloc.c.o cb_1/src/service.c.o cb_3/lib/printf.c.o cb_3/lib/cgc_libc.c.o cb_3/lib/cgc_malloc.c.o cb_3/src/word-count.c.o cb_4/lib/printf.c.o cb_4/lib/cgc_libc.c.o cb_4/lib/cgc_malloc.c.o cb_4/src/does-not-contain.c.o cb_1/lib/printf.c.o cb_1/lib/cgc_libc.c.o cb_1/lib/cgc_malloc.c.o cb_1/src/service.c.o cb_2/lib/printf.c.o cb_2/lib/cgc_libc.c.o cb_2/lib/cgc_malloc.c.o cb_2/src/contains.c.o cb_3/lib/printf.c.o cb_3/lib/cgc_libc.c.o cb_3/lib/cgc_malloc.c.o cb_3/src/word-count.c.o cb_2/lib/printf.c.o cb_2/lib/cgc_libc.c.o cb_2/lib/cgc_malloc.c.o cb_2/src/contains.c.o cb_6/lib/printf.c.o cb_6/lib/cgc_libc.c.o cb_6/lib/cgc_malloc.c.o cb_6/src/decompress.c.o cb_4/lib/printf.c.o cb_4/lib/cgc_libc.c.o cb_4/lib/cgc_malloc.c.o cb_4/src/does-not-contain.c.o cb_5/lib/printf.c.o cb_5/lib/cgc_libc.c.o cb_5/lib/cgc_malloc.c.o cb_5/src/compress.c.o cb_5/lib/printf.c.o cb_5/lib/cgc_libc.c.o cb_5/lib/cgc_malloc.c.o cb_5/src/compress.c.o Pipelined_pov_1 Pipelined_6 Pipelined_1 Pipelined_3 Pipelined_4 Pipelined_1_patched Pipelined_2_patched Pipelined_3_patched Pipelined_2 Pipelined_6_patched Pipelined_4_patched Pipelined_5 Pipelined_5_patched
+	rm -f pov_4/pov.c.o pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/slist.c.o src/main.c.o src/readuntil.c.o src/cgcf.c.o pov_3/pov.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/slist.c.o src/main.c.o src/readuntil.c.o src/cgcf.c.o CGC_Symbol_Viewer_CSV_pov_4 CGC_Symbol_Viewer_CSV_pov_2 CGC_Symbol_Viewer_CSV_pov_1 CGC_Symbol_Viewer_CSV_patched CGC_Symbol_Viewer_CSV_pov_3 CGC_Symbol_Viewer_CSV

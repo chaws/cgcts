@@ -1,275 +1,278 @@
 /*
+ * Copyright (C) Narf Industries <info@narfindustries.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
-Author: Jason Williams <jdw@cromulence.com>
+#include "libcgc.h"
+// This malloc implementation is borrowed from POLANDBALL verbatim.
 
-Copyright (c) 2014 Cromulence LLC
+#include "cgc_libc.h"
+#include "cgc_list.h"
+#include "cgc_memset.h"
+#include "cgc_memcpy.h"
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+struct chunk {
+    cgc_size_t header;
+    struct list_node list;
+} __attribute__((packed));
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+static cgc_size_t size_class_sizes[] = {
+    16, 32, 64, 128, 256, 512, 1024, 2048
+};
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+#define NUM_SIZE_CLASSES (sizeof(size_class_sizes) / sizeof(cgc_size_t))
 
-*/
-#include "cgc_stdlib.h"
-#include "cgc_malloc.h"
+static struct list freelists[NUM_SIZE_CLASSES] = {};
 
-#define ALLOC_PAGE_SIZE     (4096)
+#define ALIGN(x, a) (((x) + (a - 1)) & ~(a - 1))
+#define IS_PAGE_ALIGNED(a) ((((cgc_size_t)a) & (PAGE_SIZE - 1)) == 0)
+#define CHUNK_OVERHEAD (2 * sizeof(cgc_size_t))
+#define MIN_SIZE (size_class_sizes[0])
+#define MAX_SIZE (PAGE_SIZE - 1)
+#define SIZE_CLASS_INDEX(size) (cgc_log_base_two(size) - cgc_log_base_two(MIN_SIZE))
 
-#define FREE_BLOCK_NEXT( block )    (((tMallocAllocFtr *)((void *)block + (((tMallocAllocHdr *)block)->alloc_size & ~0x3)-sizeof(tMallocAllocHdr)))->pNext)
-#define FREE_BLOCK_PREV( block )    (((tMallocAllocFtr *)((void *)block + (((tMallocAllocHdr *)block)->alloc_size & ~0x3)-sizeof(tMallocAllocHdr)))->pPrev)
+#define CHUNK_SIZE(chunk) ((chunk)->header & ~1)
+#define IS_ALLOCATED(chunk) ((chunk)->header & 1)
+#define FOOTER(chunk) ((cgc_size_t *)((char *)chunk + CHUNK_SIZE(chunk) - sizeof(cgc_size_t)))
+#define NEXT_CHUNK(chunk) ((struct chunk *)((char *)chunk + CHUNK_SIZE(chunk)))
+#define PREV_SIZE(chunk) (CHUNK_SIZE(((struct chunk *)((cgc_size_t *)chunk - 1))))
+#define PREV_CHUNK(chunk) ((struct chunk *)((char *)chunk - PREV_SIZE(chunk)))
 
-#define SET_BIT( val, bit ) (val |= (bit))
-#define CLEAR_BIT( val, bit ) (val &= ~(bit))
-#define IS_BIT_SET( val, bit ) (val & (bit))
-
-tMallocManager g_memManager;
-
-void *cgc_calloc( cgc_size_t count, cgc_size_t obj_size )
+static inline unsigned int
+cgc_log_base_two(unsigned int x)
 {
-    cgc_size_t allocation_size = (count * obj_size);
-    void *pMemBuffer;
-
-    pMemBuffer = cgc_malloc( allocation_size );
-
-    cgc_memset( pMemBuffer, 0, allocation_size );
-
-    return (pMemBuffer);
+    unsigned long ret = 0;
+    while (x >>= 1)
+        ret++;
+    return ret;
 }
 
-void *cgc_add_free_list( cgc_size_t request_size )
+static inline void *
+cgc_chunk_to_ptr(struct chunk *chunk)
 {
-    // Include header
-    cgc_size_t grow_size = (request_size + 4);
-
-    // Increases the size of the free list
-    if ( grow_size % ALLOC_PAGE_SIZE != 0 )
-    {
-        grow_size = (grow_size / ALLOC_PAGE_SIZE) + 1;
-        grow_size *= ALLOC_PAGE_SIZE;
-    }
-
-    void *pAllocLocation;
-
-    if ( cgc_allocate( grow_size, 0, &pAllocLocation ) != 0 )
-    {
-        // Out of memory
-        cgc__terminate( -2 );
-    }
-
-    // Provision allocation
-    tMallocAllocHdr *pNewAllocHdr = (tMallocAllocHdr *)pAllocLocation;
-    tMallocAllocFtr *pNewAllocFtr = (tMallocAllocFtr *)(pAllocLocation + (grow_size-sizeof(tMallocAllocFtr)));
-
-    pNewAllocHdr->alloc_size = (grow_size-sizeof(tMallocAllocHdr));
-
-    // Link at front
-    pNewAllocFtr->pPrev = NULL;
-    pNewAllocFtr->pNext = g_memManager.pFreeList;
-    g_memManager.pFreeList = pNewAllocHdr;
-
-    return (void*)pNewAllocHdr;
+    return (char *)chunk + OFFSETOF(struct chunk, list);
 }
 
-void *cgc_malloc( cgc_size_t alloc_size )
+static inline struct chunk *
+cgc_ptr_to_chunk(void *ptr)
 {
-    // Allocate
-    if ( alloc_size < 8 )
-        alloc_size = 8;
-    else if ( alloc_size % 4 != 0 )
-    {
-        alloc_size = (alloc_size >> 2) + 1;
-        alloc_size = (alloc_size << 2);
-    }
-
-    // Scan free list for available objects
-    void *pFreeCur;
-
-    pFreeCur = g_memManager.pFreeList;
-
-    for (;;)
-    {
-        if ( pFreeCur == NULL )
-        {
-            // End of list -- no suitable allocations available
-            pFreeCur = cgc_add_free_list( alloc_size );
-        }
-
-        tMallocAllocHdr *pFreeCurHeader = ((tMallocAllocHdr *)pFreeCur);
-        tMallocAllocFtr *pFreeCurFooter = ((tMallocAllocFtr *)(pFreeCur + (pFreeCurHeader->alloc_size & ~0x3)-sizeof(tMallocAllocHdr)));
-
-        // Check for a suitable allocation
-        if ( pFreeCurHeader->alloc_size >= alloc_size )
-        {
-            // Claim this allocation
-            void *pClaimAllocation = (pFreeCur + sizeof(tMallocAllocHdr));
-
-            // Split chunk
-            cgc_size_t size_remaining = pFreeCurHeader->alloc_size - alloc_size;
-
-            // Allocate this chunk and set size...
-            pFreeCurHeader->alloc_size = alloc_size;
-
-            // Set it to being inuse
-            SET_BIT( pFreeCurHeader->alloc_size, MALLOC_INUSE_FLAG_BIT );
-
-            if ( size_remaining >= (sizeof(tMallocAllocHdr) + sizeof(tMallocAllocFtr)) )
-            {
-                // Build a new free block
-                void *pNewChunk = (pFreeCur + (alloc_size + sizeof(tMallocAllocHdr)));
-
-                tMallocAllocHdr *pNewChunkHeader = ((tMallocAllocHdr *)pNewChunk);
-                pNewChunkHeader->alloc_size = (size_remaining - sizeof(tMallocAllocHdr));
-
-                tMallocAllocFtr *pNewChunkFooter = pFreeCurFooter;
-
-                if ( ((void *)pNewChunkHeader + (pNewChunkHeader->alloc_size & ~0x3)-sizeof(tMallocAllocHdr)) != pFreeCurFooter )
-                {
-                    cgc_printf( "Footer != in malloc" );
-                    cgc__terminate( -3 );
-                }
-
-                // Fix top link (if we need to)
-                if ( g_memManager.pFreeList == pFreeCur )
-                {
-                    g_memManager.pFreeList = (void *)pNewChunkHeader;
-
-                    if ( pNewChunkFooter->pNext )
-                        FREE_BLOCK_PREV( pNewChunkFooter->pNext ) = pNewChunkHeader;
-                }
-                else
-                {
-                    // Fix up links
-                    if ( pNewChunkFooter->pPrev )
-                        FREE_BLOCK_NEXT( pNewChunkFooter->pPrev ) = pNewChunk;
-
-                    if ( pNewChunkFooter->pNext )
-                        FREE_BLOCK_PREV( pNewChunkFooter->pNext ) = pNewChunk;
-                }
-
-                // Mark the object as having a next object (aids in coalescing)
-                SET_BIT( pFreeCurHeader->alloc_size, MALLOC_NEXT_FLAG_BIT );
-            }
-            else
-            {
-                // Fix link (if we need to)
-                if ( g_memManager.pFreeList == pFreeCur )
-                {
-                    g_memManager.pFreeList = (void *)pFreeCurFooter->pNext;
-
-                    if ( pFreeCurFooter->pNext )
-                        FREE_BLOCK_PREV( pFreeCurFooter->pNext ) = NULL;
-                }
-                else
-                {
-                    // Link around
-                    if ( pFreeCurFooter->pPrev )
-                        FREE_BLOCK_NEXT( pFreeCurFooter->pPrev ) = pFreeCurFooter->pNext;
-
-                    if ( pFreeCurFooter->pNext )
-                        FREE_BLOCK_PREV( pFreeCurFooter->pNext ) = pFreeCurFooter->pPrev;
-                }
-            }
-
-
-            // Clear the allocation
-            cgc_memset( (void *)(pFreeCur + sizeof(tMallocAllocHdr)), 0, alloc_size );
-
-            // Return the allocated memory
-            return (pFreeCur+sizeof(tMallocAllocHdr));
-        }
-
-        // Goto NEXT
-        pFreeCur = pFreeCurFooter->pNext;
-    }
+    return CONTAINEROF(struct chunk, list, ptr);
 }
 
-void cgc_free( void *pItem )
+static void
+cgc_mark_allocated(struct chunk *chunk)
 {
-    // Free an object and coalesce to neighboring block if available
+    chunk->header |= 1;
+    *FOOTER(chunk) = chunk->header;
+}
 
-    // Check neighbor for coalescing
-    tMallocAllocHdr *pItemHdr = (tMallocAllocHdr *)(pItem - sizeof(tMallocAllocHdr));
+static void
+cgc_mark_free(struct chunk *chunk)
+{
+    chunk->header &= ~1;
+    *FOOTER(chunk) = chunk->header;
+}
 
-    // Verify inuse bit is set
-    if ( !IS_BIT_SET(pItemHdr->alloc_size, MALLOC_INUSE_FLAG_BIT) )
-    {
-        // Error object cannot be freed (inuse bit is not set)
-        cgc__terminate( -2 );
-    }
+static int
+cgc_find_fit(const struct list_node *chunk_, void *size_)
+{
+    cgc_size_t size = (cgc_size_t)size_;
+    struct chunk *chunk = list_entry(struct chunk, list, chunk_);
 
-    // Do we have a neighbor??? IF so perform coalescing
-    if ( IS_BIT_SET( pItemHdr->alloc_size, MALLOC_NEXT_FLAG_BIT) )
-    {
-        tMallocAllocHdr *pNeighbor = (pItem + (pItemHdr->alloc_size & ~0x3));
+    return CHUNK_SIZE(chunk) >= size;
+}
 
-        // Is neighbor inuse? If not -- go ahead and coalesce
-        if ( !IS_BIT_SET(pNeighbor->alloc_size, MALLOC_INUSE_FLAG_BIT) )
-        {
-            // Coalesce!
-            cgc_size_t coalesceSize = (pItemHdr->alloc_size & ~0x3) + (pNeighbor->alloc_size & ~0x3) + sizeof(tMallocAllocHdr);
+static int
+cgc_size_cmp(const struct list_node *a_, const struct list_node *b_)
+{
+    const struct chunk *a = list_entry(struct chunk, list, a_);
+    const struct chunk *b = list_entry(struct chunk, list, b_);
 
-            // Set size
-            // The inuse bit is cleared here
-            pItemHdr->alloc_size = coalesceSize;
+    return CHUNK_SIZE(b) - CHUNK_SIZE(a);
+}
 
-            // Set the next flag if the neighbor block has a next flag set
-            if ( IS_BIT_SET( pNeighbor->alloc_size, MALLOC_NEXT_FLAG_BIT ) )
-                SET_BIT( pItemHdr->alloc_size, MALLOC_NEXT_FLAG_BIT );
+static void *
+cgc_allocate_large_chunk(cgc_size_t size)
+{
+    struct chunk *chunk;
 
-            // Relink
-            if ( g_memManager.pFreeList == pNeighbor )
-            {
-                g_memManager.pFreeList = pItemHdr;
+    if (cgc_allocate(size, 0, (void **)&chunk) != 0)
+        return NULL;
 
-                tMallocAllocFtr *pItemFtr = ((tMallocAllocFtr *)((void *)pItemHdr + coalesceSize-sizeof(tMallocAllocHdr)));
+    chunk->header = size;
+    cgc_mark_allocated(chunk);
 
-                if ( pItemFtr->pNext )
-                    FREE_BLOCK_PREV( pItemFtr->pNext ) = pItemHdr;
-            }
-            else
-            {
-                tMallocAllocFtr *pItemFtr = ((tMallocAllocFtr *)((void *)pItemHdr + coalesceSize-sizeof(tMallocAllocHdr)));
+    return cgc_chunk_to_ptr(chunk);
+}
 
-                // Fix up links
-                if ( pItemFtr->pPrev )
-                    FREE_BLOCK_NEXT( pItemFtr->pPrev ) = pItemHdr;
+static struct chunk *
+cgc_grow_heap(void)
+{
+    struct chunk *chunk;
 
-                if ( pItemFtr->pNext )
-                    FREE_BLOCK_PREV( pItemFtr->pNext ) = pItemHdr;
-            }
+    if (cgc_allocate(PAGE_SIZE, 0, (void **)&chunk) != 0)
+        return NULL;
 
-            // Done
-            return;
+    chunk->header = PAGE_SIZE;
+    cgc_mark_free(chunk);
+
+    return chunk;
+}
+
+static struct chunk *
+cgc_split_chunk(struct chunk *chunk, cgc_size_t size)
+{
+    struct chunk *new = (struct chunk *)((char *)chunk + size);
+    cgc_size_t orig_size = CHUNK_SIZE(chunk);
+
+    if (CHUNK_SIZE(chunk) <= size + MIN_SIZE)
+        return chunk;
+
+    chunk->header = size;
+    cgc_mark_allocated(chunk);
+
+    new->header = orig_size - size;
+    cgc_mark_allocated(new);
+    cgc_free(cgc_chunk_to_ptr(new));
+
+    return chunk;
+}
+
+static struct chunk *
+cgc_coalesce(struct chunk *chunk)
+{
+    struct chunk *next = NULL, *prev = NULL;
+    unsigned int size_class;
+
+    if (!IS_PAGE_ALIGNED(chunk))
+        prev = PREV_CHUNK(chunk);
+
+    if (!IS_PAGE_ALIGNED(NEXT_CHUNK(chunk)))
+        next = NEXT_CHUNK(chunk);
+
+    if (prev && !IS_ALLOCATED(prev)) {
+        size_class = SIZE_CLASS_INDEX(CHUNK_SIZE(prev));
+        if (size_class < NUM_SIZE_CLASSES) {
+            list_remove_entry(struct chunk, list, &freelists[size_class], prev);
+            prev->header = CHUNK_SIZE(chunk) + CHUNK_SIZE(prev);
+            cgc_mark_free(prev);
+
+            chunk = prev;
         }
     }
 
-    // No coalesce possible, just link it to the top of the list
-    CLEAR_BIT( pItemHdr->alloc_size, MALLOC_INUSE_FLAG_BIT );
+    if (next && !IS_ALLOCATED(next)) {
+        size_class = SIZE_CLASS_INDEX(CHUNK_SIZE(next));
+        if (size_class < NUM_SIZE_CLASSES) {
+            list_remove_entry(struct chunk, list, &freelists[size_class], next);
+            chunk->header = CHUNK_SIZE(chunk) + CHUNK_SIZE(next);
+            cgc_mark_free(chunk);
+        }
+    }
 
-    tMallocAllocFtr *pItemFtr = ((tMallocAllocFtr *)((void *)pItemHdr + (pItemHdr->alloc_size & ~0x3)-sizeof(tMallocAllocHdr)));
-
-    pItemFtr->pNext = g_memManager.pFreeList;
-    pItemFtr->pPrev = NULL;
-
-    if ( g_memManager.pFreeList )
-        FREE_BLOCK_PREV( g_memManager.pFreeList ) = pItemHdr;
-
-    // Move to top of list
-    g_memManager.pFreeList = pItemHdr;
-
-    // Done
-    return;
+    return chunk;
 }
+
+void *
+cgc_malloc(cgc_size_t size)
+{
+    struct chunk *chunk = NULL;
+    unsigned int size_class;
+
+    if (ALIGN(size, sizeof(cgc_size_t)) + CHUNK_OVERHEAD < size)
+        return NULL;
+
+    size = ALIGN(size, sizeof(cgc_size_t)) + CHUNK_OVERHEAD;
+
+    if (size < MIN_SIZE)
+        size = MIN_SIZE;
+
+    if (size > MAX_SIZE)
+        return cgc_allocate_large_chunk(size);
+
+    size_class = SIZE_CLASS_INDEX(size);
+    if (size_class >= NUM_SIZE_CLASSES)
+        return NULL;
+
+    while (chunk == NULL && size_class < NUM_SIZE_CLASSES)
+        chunk = list_find_entry(struct chunk, list, &freelists[size_class++],
+                cgc_find_fit, (void *)size);
+
+    if (chunk == NULL)
+        chunk = cgc_grow_heap();
+    else
+        list_remove_entry(struct chunk, list, &freelists[size_class - 1], chunk);
+
+    cgc_mark_allocated(chunk);
+    if (CHUNK_SIZE(chunk) > size)
+        chunk = cgc_split_chunk(chunk, size);
+
+    return cgc_chunk_to_ptr(chunk);
+}
+
+void
+cgc_free(void *ptr)
+{
+    struct chunk *chunk = cgc_ptr_to_chunk(ptr);
+    unsigned int size_class;
+
+    if (ptr == NULL)
+        return;
+
+    cgc_mark_free(chunk);
+    chunk = cgc_coalesce(chunk);
+
+    size_class = SIZE_CLASS_INDEX(CHUNK_SIZE(chunk));
+    if (size_class >= NUM_SIZE_CLASSES)
+        size_class = NUM_SIZE_CLASSES - 1;
+
+    list_insert_entry_in_order(struct chunk, list, &freelists[size_class],
+            chunk, cgc_size_cmp);
+}
+
+void *
+cgc_calloc(cgc_size_t size)
+{
+    void *ret = cgc_malloc(size);
+    if (ret)
+        cgc_memset(ret, '\0', size);
+    return ret;
+}
+
+void *
+cgc_realloc(void *ptr, cgc_size_t size)
+{
+    cgc_size_t orig_size;
+    void *ret;
+
+    if (ptr == NULL)
+        return cgc_malloc(size);
+
+    orig_size = CHUNK_SIZE(cgc_ptr_to_chunk(ptr)) - CHUNK_OVERHEAD;
+    if (size == orig_size)
+        return ptr;
+   
+    ret = cgc_malloc(size);
+    cgc_memcpy(ret, ptr, MIN(size, orig_size));
+    cgc_free(ptr);
+
+    return ret;
+}
+

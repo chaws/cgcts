@@ -1,7 +1,5 @@
 /*
- * Author: Andrew Wesie <andrew.wesie@kapricasecurity.com>
- *
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,22 +22,22 @@
  */
 #include "cgc_string.h"
 
-void *cgc_memmove(void *dest, const void *src, cgc_size_t n)
+void *cgc_memmove(void *dst, const void *src, cgc_size_t n)
 {
-    cgc_size_t i;
+    unsigned char *udst = dst;
     const unsigned char *usrc = src;
-    unsigned char *udest = dest;
+    cgc_size_t i;
 
-    if (udest < usrc)
+    if (dst > src)
     {
         for (i = 0; i < n; i++)
-            udest[i] = usrc[i];
+            udst[n - i - 1] = usrc[n - i - 1];
     }
-    else if (udest > usrc)
+    else
     {
-        for (i = n; i > 0; i--)
-            udest[i-1] = usrc[i-1];
+        for (i = 0; i < n; i++)
+            udst[i] = usrc[i];
     }
 
-    return dest;
+    return dst;
 }

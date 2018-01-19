@@ -21,151 +21,140 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from generator.actions import Actions
-from random import choice, randint
-from os.path import dirname, abspath, join
+from generator.actions import Actions, Variable
 import string
-import struct
-import sys
+import random
+import itertools
+import math
+from struct import *
+from collections import Counter
 
-sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-from support import Support
-
-def random_alpha(a, b):
-    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
-
-class FalseProfits(Actions):
-    SUCCESS = '\x00' * 4
-    FAILURE = '\xff' * 4
+class TemplateGenerator(Actions):
 
     def start(self):
-        self.state['model'] = Support()
-        self.state['uaf'] = False
+        self.token = pack('l', 4)
+        self.resource = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(5))
+        self.users = []
+        self.commands = ['REQR', 'LOUT', 'REVR', 'REVU']
 
-    def cmd(self):
-        pass
+    def command_no_user_failure(self):
+        command = random.choice(self.commands)
+        user_id = random.randint(1,100000)
+        while Counter(elem[0][0] for elem in self.users)[user_id] > 0:
+            user_id = random.randint(1,100000)
+        user_id_str = pack('l', user_id)
+        self.write(command + user_id_str + self.token + self.resource + '\x07')
+        self.read(delim="\n", expect = "Command failed.\n")
 
-    def list_stocks(self):
-        stocks = self.state['model'].list_stocks()
+    def request_no_resource_failure(self):
+        user = random.choice(self.users)
+        user_id_str = pack('l', user[0][0])
+        resource = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(5))
+        while Counter(elem[0] for elem in user[1])[resource] > 0:
+            resource = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(5))
+        self.write("REQR" + user_id_str + self.token + resource + '\x07')
+        self.read(delim="\n", expect = "Please re-authenticate.\n")
 
-        self.write(self.state['model'].make_list_stocks_cmd())
+    def request_resource_wrong_token_failure(self):
+        auth_val = Variable('authval')
+        if len(filter(lambda x: x[1], self.users)) == 0:
+            self.auth_success_with_auth_val()
+        user = random.choice(filter(lambda x: x[1], self.users))
+        user_id_str = pack('l', user[0][0])
+        resource = random.choice(user[1])
+        self.write("REQR" + user_id_str + self.token + resource[0] + '\x07')
+        regex_str = 'Authentication failed for resource %s(.*)\x0a' % resource[0]
+        auth_val.set_re(regex_str, group=1)
+        self.read(delim="\n", assign=auth_val)
+        self.read(delim="\n", expect = "Please re-authenticate.\n")
 
-        # After UAF, this list will be corrupted, so expect failure
-        if self.state['uaf']:
-            self.read(length=4, expect=self.FAILURE)
-        else:
-            for s in stocks:
-                self.read(delim='\n', expect=s)
-            self.read(length=4, expect=self.SUCCESS)
+    def request_success(self):
+        my_token = Variable('token')
+        if len(filter(lambda x: x[1], self.users)) == 0:
+            self.auth_success_with_auth_val()
+        user = random.choice(filter(lambda x: x[1], self.users))
+        user_id_str = pack('l', user[0][0])
+        resource = random.choice(user[1])
+        self.write("REQR" + user_id_str)
+        self.write(resource[1])
+        self.write(resource[0] + '\x07')
+        regex_str = 'Access to %s is granted!(.*)\x0a' % resource[0]
+        my_token.set_re(regex_str, group=1)
+        self.read(delim="\n", assign=my_token)
 
-    def list_orders(self):
-        pass
+    def auth_failure_new_user(self):
+        user_id = random.randint(2,100000)
+        while Counter(elem[0][0] for elem in self.users)[user_id] > 0:
+            user_id = random.randint(2,100000)
+        user_id_str = pack('l', user_id)
+        varname = "user"+str(user_id)
+        variable = Variable(varname)
+        user_item = [user_id, variable]
+        self.users.append([user_item, []])
+        resource = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
+        self.write("AUTH" + user_id_str + self.token + resource + '\x07')
+        regex_str = 'Authentication failed for resource %s(.*)\x0a' % resource
+        variable.set_re(regex_str, group=1)
+        self.read(delim="\n", assign=variable)
 
-    def list_orders_valid(self):
-        stocks = self.state['model'].list_stocks()
-        if not stocks:
-            return
+    def auth_failure_current_user(self):
+        user = random.choice(self.users)
+        user_id_str = pack('l', user[0][0])
+        resource = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
+        variable = user[0][1]
+        self.write("AUTH" + user_id_str + self.token + resource + '\x07')
+        regex_str = 'Authentication failed for resource %s(.*)\x0a' % resource
+        variable.set_re(regex_str, group=1)
+        self.read(delim="\n", assign=variable)
 
-        stock = choice(stocks)
-        orders = self.state['model'].list_orders(stock)
+    def auth_success_with_auth_val(self):
+        user = random.choice(self.users)
+        user_id_str = pack('l', user[0][0])
+        resource = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(9))
+        varname = resource+str(user[0][0])
+        variable = Variable(varname)
+        resource_item = [resource, variable]
+        user[1].append(resource_item)
+        self.write("AUTH" + user_id_str)
+        self.write(user[0][1])
+        self.write(resource + '\x07')
+        regex_str = 'Access to %s is granted!(.*)\x0a' % resource
+        variable.set_re(regex_str, group=1)
+        self.read(delim="\n", assign=variable)
 
-        self.write(self.state['model'].make_list_orders_cmd(stock))
+    def revoke_resource_success(self):
+        if len(filter(lambda x: x[1], self.users)) == 0:
+            self.auth_success_with_auth_val()
+        user = random.choice(filter(lambda x: x[1], self.users))
+        user_id_str = pack('l', user[0][0])
+        resource = random.choice(user[1])
+        user[1].remove(resource)
+        self.write("REVR" + user_id_str)
+        self.write(resource[1])
+        self.write(resource[0] + '\x07')
+        self.read(delim="\n", expect="Resource revoked.\n")
 
-        self.read(delim='\n', expect='Order book for %s' % stock)
-        self.read(delim='\n', expect='ID\tSIDE\tQTY\tPRICE\tQTY\tSIDE') 
-        for o in orders:
-            self.read(delim='\n', expect=str(o))
-        self.read(length=4, expect=self.SUCCESS)
+    def revoke_resource_failure(self):
+        if len(filter(lambda x: x[1], self.users)) == 0:
+            self.auth_success_with_auth_val()
+        user = random.choice(filter(lambda x: x[1], self.users))
+        user_id_str = pack('l', user[0][0])
+        resource = random.choice(user[1])
+        token = self.token
+        self.write("REVR" + user_id_str)
+        self.write(token)
+        self.write(resource[0] + '\x07')
+        self.read(delim="\n", expect="Revocation denied.\n")
 
-    def list_orders_invalid(self):
-        stocks = self.state['model'].list_stocks()
-        stock = random_alpha(1, 4)
-        while stock in stocks:
-            stock = random_alpha(1, 4)
+    def logout(self):
+        if not self.users:
+            return self.quit()
+        user = random.choice(self.users)
+        user_id_str = pack('l', user[0][0])
+        self.users.remove(user)
+        self.write("LOUT" + user_id_str + self.token + self.resource + '\x07')
+        self.read(delim="\n", expect="Logged out successfully.\n")
 
-        self.write(self.state['model'].make_list_orders_cmd(stock))
 
-        self.read(length=4, expect=self.FAILURE)
-
-    def add_order(self):
-        pass
-
-    def add_order_existing(self):
-        stocks = self.state['model'].list_stocks()
-        if not stocks:
-            return
-
-        stock = choice(list(stocks))
-        price = randint(1, 20) * 100
-        quantity = randint(1, 100)
-        is_buy = choice((True, False))
-        order, removed = self.state['model'].place_order(stock, price, quantity, is_buy)
-
-        self.write(self.state['model'].make_place_order_cmd(stock, price, quantity, is_buy))
-
-        self.read(length=4, expect=struct.pack('I', order))
-
-        # Prevent hitting UAF by force-allocating new stock, only corrupting one list
-        if removed:
-            self.state['uaf'] = True
-            self.add_order_new()
-
-    def add_order_new(self):
-        stocks = self.state['model'].list_stocks()
-        stock = random_alpha(1, 4)
-        while stock in stocks:
-            stock = random_alpha(1, 4)
-
-        price = randint(1, 20) * 100
-        quantity = randint(1, 100)
-        is_buy = choice((True, False))
-        order, removed = self.state['model'].place_order(stock, price, quantity, is_buy)
-        assert(not removed)
-
-        self.write(self.state['model'].make_place_order_cmd(stock, price, quantity, is_buy))
-
-        self.read(length=4, expect=struct.pack('I', order))
-
-    def check_order(self):
-        stocks = self.state['model'].list_stocks()
-        if not stocks:
-            return
-
-        stock = self.state['model'].stock_dict[choice(stocks)]
-        orders = stock.buy_orders + stock.sell_orders
-        if not orders:
-            return
-
-        order = choice(orders).id_
-
-        self.write(self.state['model'].make_check_order_cmd(order))
-
-        self.read(delim='\n', expect=self.state['model'].check_order(order))
-        self.read(length=4, expect=self.SUCCESS)
-
-    def cancel_order(self):
-        stocks = self.state['model'].list_stocks()
-        if not stocks:
-            return
-
-        stock = self.state['model'].stock_dict[choice(stocks)]
-        orders = stock.buy_orders + stock.sell_orders
-        if not orders:
-            return
-
-        order = choice(orders).id_
-
-        removed = self.state['model'].cancel_order(order)
-
-        self.write(self.state['model'].make_cancel_order_cmd(order))
-
-        self.read(length=4, expect=self.SUCCESS)
-
-        # Prevent hitting UAF by force-allocating new stock
-        if removed:
-            self.state['uaf'] = True
-            self.add_order_new()
-
-    def finish(self):
-        self.write(self.state['model'].make_quit_cmd())
-
+    def quit(self):
+        return -1

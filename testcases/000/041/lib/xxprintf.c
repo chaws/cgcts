@@ -22,7 +22,6 @@
 
 #include "cgc_libc.h"
 #include "cgc_strlen.h"
-#include "cgc_memcpy.h"
 #include "cgc_int2str.h"
 #include "cgc_xxprintf.h"
 

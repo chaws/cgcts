@@ -22,7 +22,7 @@
  */
 #include "cgc_stdio_private.h"
 
-static unsigned int hash_seed(const char *seed)
+static unsigned int cgc_hash_seed(const char *seed)
 {
     unsigned int i;
     unsigned int H = 0x314abc86;
@@ -52,7 +52,7 @@ void cgc_fxlat(FILE *stream, const char *seed)
     
     map = stream->xlat_map = cgc_realloc(stream->xlat_map, 256);
     map_inv = stream->xlat_map_inv = cgc_realloc(stream->xlat_map_inv, 256);
-    state = hash_seed(seed);
+    state = cgc_hash_seed(seed);
 
     /* initialize map with identity */
     for (i = 0; i < 256; i++)

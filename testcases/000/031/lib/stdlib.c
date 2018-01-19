@@ -25,19 +25,65 @@ THE SOFTWARE.
 */
 #include "cgc_stdlib.h"
 #include "cgc_stdint.h"
+#include "cgc_stdio.h"
 #include "cgc_ctype.h"
 
-#include "cgc_prng.h"
 
-int cgc_rand( void )
+#define LONG_MIN (0x80000000L)
+#define LONG_MAX (0x7FFFFFFFL)
+
+uint64_t randState[512];
+uint32_t randIndex;
+uint8_t a, b, c;
+uint64_t mult;
+
+void cgc_srand(void)
 {
-	return (cgc_random_in_range( 0, RAND_MAX-1 ));
+	cgc_memcpy((uint8_t *)&randState, (uint8_t *)0x4347c000, sizeof(randState));
+	randIndex = 0;
+	a = 12;
+	b = 25;
+	c = 27;
+	mult = *(uint64_t *)0x4347c004;
 }
 
-void cgc_srand( unsigned int seed )
-{
-	cgc_seed_prng( seed );
+uint32_t cgc_rand( void )
+{	
+	uint64_t r = randState[randIndex];
+	r = r ^ (r >> a);
+	r = r ^ (r << b);
+	r = r ^ (r >> c);
+	randState[randIndex++] = r;
+	randIndex = randIndex % 512;
+	uint64_t big = (uint64_t)r * mult;
+	return ((r * mult) >> 32);
 }
+
+uint32_t cgc_random_in_range(uint32_t min, uint32_t max)
+{
+	if (min > max)
+		return 0;
+	if (min == max)
+		return min;
+
+	uint32_t value;
+	uint32_t delta = max - min;
+
+	uint32_t scale_divider = (0xffffffff) / delta;
+	value = cgc_rand();
+	return min + (value / scale_divider);
+}
+
+void cgc_populate_random_string( char * s, uint32_t length )
+{
+	int i;
+	for (i=0; i < length - 1; i++)
+	{
+		s[i] = cgc_random_in_range(0x41, 0x71);
+	}
+	s[i] = '\0';
+}
+
 
 int cgc_atoi( const char *pStr )
 {
@@ -156,4 +202,97 @@ void *cgc_memcpy( void *pDest, const void *pSource, cgc_size_t nbytes )
 	}
 
 	return (pDestReturn);
+}
+
+long int cgc_strtol( const char *str, char **endptr, int base )
+{
+	long int value = 0;
+	int neg = 0;
+
+	if ( str == NULL )
+		return (0);
+
+	if ( base >= 16 )
+		base = 16;
+
+	// Skip whitespace	
+	while ( cgc_isspace( *str ) )
+		str++;
+
+	if ( *str == '-' )
+	{
+		neg = 1;
+		str++;
+	}
+	else if ( *str == '+' )
+		str++;
+
+	if ( (base == 16 || base == 0) && *str == '0' && (*(str+1) == 'x' || *(str+1) == 'X') )
+	{
+		str+=2;
+		base = 16;
+	}
+	else if ( (base == 0 || base == 2 ) && *str == '0' && (*(str+1) == 'b' || *(str+1) == 'B') )
+	{
+		str+=2;
+		base = 2;
+	}
+
+	if ( base == 0 )
+	{
+		if ( *str == '0' )
+		{
+			base = 8;
+		}
+		else
+			base = 10;
+	}
+
+	unsigned long cutoff_value = 0;
+	if ( neg )
+		cutoff_value = -(unsigned long)LONG_MIN;
+	else
+		cutoff_value = (unsigned long)LONG_MAX;
+	long int cutlim_value = cutoff_value % (unsigned long)base;
+	
+	cutoff_value /= base;
+
+	while ( *str != '\0' )
+	{
+		int c = *str;
+
+		if ( cgc_isdigit( c ) )
+			c -= '0';
+		else if ( cgc_isalpha(c) )
+		{
+			if ( cgc_isupper(c) )
+				c -= ('A' - 10);
+			else
+				c -= ('a' - 10);
+		}
+		else
+			break;
+	
+		if ( c >= base )
+			break;
+
+		if ( value > cutoff_value || (value == cutoff_value && c > cutlim_value) )
+			break;
+		else
+		{
+			value *= base;
+			value += c;
+		}
+
+		str++;	
+	}
+
+	// Check if we should set endptr
+	if ( endptr )
+		*endptr = (char *)str;
+
+	if ( neg )
+		return -value;
+	else
+		return value;	
 }

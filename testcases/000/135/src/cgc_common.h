@@ -1,49 +1,34 @@
 /*
+ * Copyright (c) 2015 Kaprica Security, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ */
 
-Author: Jason Williams <jdw@cromulence.com>
+#ifndef __COMMON__H
+#define __COMMON__H
 
-Copyright (c) 2014 Cromulence LLC
+#define HASH unsigned long long
+#define DATA void *
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+#define error(e) cgc__error(e, __FILE__, __LINE__)
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-*/
-#ifndef __COMMON_H__
-#define __COMMON_H__
-
-extern "C" {
-#include "cgc_stdlib.h"
-#include "libcgc.h"
-#include "cgc_stdint.h"
-}
-
-#ifdef NULL
-#undef NULL
-#define NULL (0)
-#endif
-
-#include "cgc_string.h"
-
-#include "cgc_doublequeue.h"
-#include "cgc_usermessage.h"
-#include "cgc_userdatabase.h"
-#include "cgc_usermanager.h"
-
-void ReadLine( String &sLine );
-
-#endif // __COMMON_H___
+int cgc_readline(int fd, char *buf, cgc_size_t max, cgc_size_t *nrx);
+char *str_to_hex(char *s);
+#endif /* __COMMON__H */

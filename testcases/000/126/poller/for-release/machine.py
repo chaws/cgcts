@@ -1,125 +1,163 @@
 #!/usr/bin/env python
 
 from generator.actions import Actions
+import copy
 import random
-import string
+import struct
 
-MOVIES = [
-  ("The Shawshank Redemption", "Two imprisoned men bond over a number of years, finding solace and eventual\n     redemption through acts of common decency.", 1994, 93, "Other", "R"),
-  ("The Godfather", "The aging patriarch of an organized crime dynasty transfers control of his clandestine\n     empire to his reluctant son.", 1972, 92, "Other", "R"),
-  ("The Dark Knight", "When Batman, Gordon have Harvey Dent launch an assault on the mob, they let the clown\n     out of the box, the Joker, bent on turning Gotham on itself and bringing any heroes\n     down to his level.", 2008, 90, "Action", "PG13"),
-  ("Inception", "A thief who steals corporate secrets through use of dream-sharing technology is given the\n     inverse task of planting an idea into the mind of a CEO.", 2010, 88, "Action", "PG13"),
-  ("The Matrix", "A computer hacker learns from mysterious rebels about the true nature of his reality and\n     his role in the war against its controllers.", 1999, 87, "Action", "R"),
-  ("Modern Times", "The Tramp struggles to live in modern industrial society with the help of a young\n     homeless woman.", 1936, 86, "Comedy", "G"),
-  ("About Time", "At the age of 21, Tim discovers he can travel in time and change what happens and has\n     happened in his own life. His decision to make his world a better place by getting\n     a girlfriend turns out not to be as easy as you might think.", 2013, 78, "Romance", "R"),
-  ("Yes Man", "A guy challenges himself to say \"yes\" to everything for an entire year.", 2008, 69, "Comedy", "PG13"),
-  ("The Conjuring", "Paranormal investigators Ed and Lorraine Warren work to help a family terrorized\n     by a dark presence in their farmhouse.", 2013, 75, "Horror", "R"),
-  ("The Lion King", "Lion cub and future king Simba searches for his identity. His eagerness to please others\n     and penchant for testing his boundaries sometimes gets him into trouble.", 1994, 85, "Other", "G")
-]
+_INT_MAX_ = 0x1FFFFFFF
+_PUSH_ = 0x0
+_POP_ = 0x1
+_PUSHPC_ = 0x2
+_JMPZ_ = 0x3
+_SWAP_ = 0x4
+_DUP_ = 0x5
+_ADD_ = 0x6
+_SUB_ = 0x7
+_END_ = 0xFFFFFFFF
+_FILLER_ = 0
+_OPCODE_MASK_ = 0x7
+_OP_MASK_ = 0x1FFFFFFF
 
-def random_string(size=20):
-    return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
+_STACK_OVERFLOW_EXCP_MSG_ = "STACK OVERFLOW EXCEPTION\n"
+_STACK_UNDERFLOW_EXCP_MSG_ = "STACK UNDERFLOW EXCEPTION\n"
+_INSNS_OVERFLOW_EXCP_MSG_ = "INSNS OVERFLOW EXCEPTION\n"
+_ILLEGAL_INSN_EXCP_MSG_ = "ILLEGAL INSTRUCTION EXCEPTION\n"
+_PC_EXCP_MSG_ = "INVALID PROGRAM COUNTER EXCEPTION\n"
 
-class ARentMovie(Actions):
-    def start(self):
-        self.state['rented'] = []
+_MAX_STACK_SIZE_IN_BYTES_ = (4096)
+_MAX_INSNS_SIZE_IN_BYTES_ = (8192)
+_MAX_STACK_SIZE_ = (_MAX_STACK_SIZE_IN_BYTES_/4)
+_MAX_INSNS_SIZE_ = (_MAX_INSNS_SIZE_IN_BYTES_/4)
 
-        self.read(delim='\n', expect='========= Movie Rental Service v0.1 =========\n')
-        self.read(delim='\n', expect='   . . . Initializing the inventory . . .\n')
-        self.read(delim='\n', expect='         (movie info from IMDb.com)\n')
-        self.read_string('=============================================')
+def _INSN_TO_OPCODE_(insn) :
+    return (insn & _OPCODE_MASK_)
 
-    def read_string(self, s):
-        self.read(length=len(s), expect=s)
+def _INSN_TO_IMM_(insn) :
+    return (insn >> 3)
+    
+def encodeInsn(opcode, op) :
+    return ( (opcode & _OPCODE_MASK_) | ((op & _OP_MASK_) << 3) )
 
-    def read_movie(self, movies, idx):
-        title, desc, year, score, genre, rating = movies[idx]
-        self.read_string('[%d] %s (%d, %s) - %s [%d/100]\n  => %s\n'
-            % (idx+1, title, year, rating, genre, score, desc))
+def toLittleEndian(i) :
+    return (struct.pack("<I", i))
 
-    def read_movies(self):
-        self.read_string('\nMovies (Full)\n--------------\n')
-        for x in xrange(len(MOVIES)):
-            self.read_movie(MOVIES, x)
-        self.read_string('--------------\n%d movie(s)\n' % len(MOVIES))
+class StackMachine(Actions):
 
-    def menu(self):
-        self.read_string('\n1. List movies\n2. Rent movie\n3. Return movie\n4. Admin mode\n5. Exit\n\nChoice: ')
-
-    def list_movie(self):
-        self.write('1 list\n')
-        self.read_movies()
-        self.read_string('\nMovies (Rented)\n--------------\n')
-        for x in xrange(len(self.state['rented'])):
-            self.read_movie(map(lambda x: MOVIES[x], self.state['rented']), x)
-        self.read_string('--------------\n%d movie(s)\n' % len(self.state['rented']))
-
-    def rent_movie(self):
-        self.write('2 rent\n')
-        self.read_movies()
+    def send_insn(self, opcode, op):
+        if len(self.insns) >= _MAX_INSNS_SIZE_ :
+          if not self.excp :
+            self.excp = _INSNS_OVERFLOW_EXCP_MSG_
+        else :
+          insn = encodeInsn(opcode, op)
+          self.insns.append(insn)
+          self.write(toLittleEndian(insn))
         
-        self.read_string('Enter movie id: ')
-        if random.randint(1, 100) <= 15:
-            self.write('%d\n' % random.randint(11, 200))
-            self.read_string('[ERROR] Invalid movie id. Try again.\n')
-            self.read_string('Enter movie id: ')
+    def start(self):
+        self.stack = []
+        self.insns = []
+        self.excp = ""
 
-        idx = random.randint(0, 9)
-        if random.randint(1, 100) <= 75:
-            for i in xrange(0, 10):
-                if i not in self.state['rented']:
-                    idx = i
-                    break
+    def generate_work(self):
+        pass
 
-        self.write('%d\n' % (idx+1))
-        if idx in self.state['rented']:
-            self.read(delim='\n', expect='Sorry, [%s] is already rented at this time. Please try again later.\n' % MOVIES[idx][0])
-        else:
-            self.read(delim='\n', expect='Successfully rented [%s]! Enjoy!\n' % MOVIES[idx][0])
-            self.state['rented'].append(idx)
+    def gen_push(self):
+        if len(self.stack) >= _MAX_STACK_SIZE_ :
+          return
+          if not self.excp :
+            self.excp = _STACK_OVERFLOW_EXCP_MSG_ 
+        op = random.randint(0,_INT_MAX_)
+        self.send_insn(_PUSH_, op)
+        self.stack.append(op)
 
-    def return_movie(self):
-        self.write('3 return\n')
-        self.read_string('\nMovies (Rented)\n--------------\n')
-        for x in xrange(len(self.state['rented'])):
-            self.read_movie(map(lambda x: MOVIES[x], self.state['rented']), x)
-        self.read_string('--------------\n%d movie(s)\n' % len(self.state['rented']))
-        if len(self.state['rented']) == 0:
-            self.read(delim='\n', expect='[ERROR] All the movies are in our inventory.\n')
-            return
-        while True:
-            self.read_string('Enter movie id: ')
-            if random.randint(1, 100) <= 15:
-                idx = random.randint(11, 200)
-            elif random.randint(1, 100) <= 80:
-                idx = random.randint(1, len(self.state['rented']))
-            else:
-                idx = random.randint(1, 10)
-            self.write('%d\n' % idx)
-            if idx <= len(self.state['rented']):
-                break
-            self.read(delim='\n', expect='[ERROR] Invalid movie id. Try again.\n')
-        idx = self.state['rented'].pop(idx - 1)
-        self.read(delim='\n', expect='Successfully returned [%s]! Thank you!\n' % MOVIES[idx][0])
+    def gen_pop(self):
+        if self.stack :
+          self.stack.pop()
+        else :
+          if not self.excp :
+            self.excp = _STACK_UNDERFLOW_EXCP_MSG_
+  
+        self.send_insn(_POP_, _FILLER_)
 
-    def try_login(self):
-        self.write('4 login\n')
-        self.read_string('username: ')
-        if random.randint(1, 100) <= 80:
-            self.write('admin\n')
-            self.read_string('password: ')
-            self.write('%s\n' % random_string(20))
-        else:
-            self.write('%s\n' % random_string(15))
-        self.read(delim='\n', expect='[ERROR] Permission Denied: Wrong credentials\n')
+    def gen_add(self):
+        if len(self.stack) >= 2 :
+          self.stack[-2] += self.stack[-1]
+          self.stack[-2] &= 0xFFFFFFFF
+          self.stack.pop()
+        else :
+          if not self.excp :
+            self.excp = _STACK_UNDERFLOW_EXCP_MSG_
+        
+        self.send_insn(_ADD_, _FILLER_)
 
-    def invalid_menu(self):
-        if random.randint(0, 1) == 0:
-            self.write('%d invalid\n' % random.randint(6, 9))
-        else:
-            self.write('%s invalid\n' % random_string(10))
-        self.read(delim='\n', expect='[ERROR] Invalid menu. Please select again.\n')
+    def gen_sub(self):
+        if len(self.stack) >= 2 :
+          self.stack[-2] -= self.stack[-1]
+          self.stack[-2] &= 0xFFFFFFFF
+          self.stack.pop()
+        else :
+          if not self.excp :
+            self.excp = _STACK_UNDERFLOW_EXCP_MSG_
 
-    def quit(self):
-        self.write('5 quit\n')
-        self.read(delim='\n', expect='Bye!\n')
+        self.send_insn(_SUB_, _FILLER_)
+
+    def gen_swap(self):
+        if self.stack :
+          op = random.randint(0,len(self.stack)) #note that this can cause an underflow - which is good
+          if (op >= len(self.stack)) :
+            if not self.excp :
+              self.excp = _STACK_UNDERFLOW_EXCP_MSG_
+          else :
+            temp = self.stack[-1] 
+            self.stack[-1] = self.stack[len(self.stack) - 1 - op]
+            self.stack[len(self.stack) - 1 - op] = temp
+
+          self.send_insn(_SWAP_, op) #note that this can cause an underflow - which is good
+
+    def gen_dup(self):
+        if self.stack :
+          op = random.randint(0,len(self.stack)) #note that this can cause an underflow - which is good
+          if (op >= len(self.stack)) :
+            if not self.excp :
+              self.excp = _STACK_UNDERFLOW_EXCP_MSG_
+          else :
+            if len(self.stack) >= _MAX_STACK_SIZE_ :
+              return
+
+            self.stack.append(self.stack[len(self.stack) - 1 - op])
+
+          self.send_insn(_DUP_, op) #note that this can cause an underflow - which is good
+
+    def gen_loop(self):
+        c = random.randint(0,10) 
+        if not c :
+          if not self.excp :
+            self.send_insn(_PUSH_, _INT_MAX_)
+            self.send_insn(_PUSH_, 0)
+            self.send_insn(_JMPZ_, _FILLER_)
+            self.excp = _PC_EXCP_MSG_
+        elif c > 5 :
+          self.send_insn(_PUSHPC_, _FILLER_)
+          self.send_insn(_PUSH_, 5)
+          self.send_insn(_ADD_, _FILLER_)
+          self.send_insn(_PUSH_, 0)
+          self.send_insn(_JMPZ_, _FILLER_)
+        else :
+          self.send_insn(_PUSHPC_, _FILLER_)
+          self.send_insn(_PUSH_, 1)
+          self.send_insn(_JMPZ_, _FILLER_)
+
+    def end(self):
+        if self.excp == _INSNS_OVERFLOW_EXCP_MSG_ :
+          self.read(length=len(self.excp), expect=self.excp)
+        else :
+          self.write(toLittleEndian(_END_))
+          if self.excp :
+            self.read(length=len(self.excp), expect=self.excp)
+          else :
+            if self.stack :
+                self.read(length=4, expect=toLittleEndian(self.stack[-1]))
+            else :
+              self.read(length=len(_STACK_UNDERFLOW_EXCP_MSG_), expect=_STACK_UNDERFLOW_EXCP_MSG_)
+           
+

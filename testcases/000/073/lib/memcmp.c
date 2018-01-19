@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  *
  */
+#include "cgc_wrapper.h"
 #include "libcgc.h"
 
 int cgc_memcmp(const char *s1, const char *s2, cgc_size_t n)
@@ -29,7 +30,7 @@ int cgc_memcmp(const char *s1, const char *s2, cgc_size_t n)
     cgc_size_t i;
     for(i = 0; i < n; i++)
       if (*s1 != *s2)
-        return *s1 - *s2;
+        return *s2 - *s1;
       else
         s1++, s2++;
     return 0;

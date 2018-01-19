@@ -27,11 +27,15 @@ THE SOFTWARE.
 #define __STDLIB_H__
 
 #include "libcgc.h"
+#include "cgc_stdint.h"
 
 #define RAND_MAX	2147483647
+#define FLAG_PAGE 0x4347c800
 
-int cgc_rand( void );
-void cgc_srand( unsigned int seed );
+void cgc_srand(void);
+uint32_t cgc_rand( void );
+uint32_t cgc_random_in_range(uint32_t min, uint32_t max);
+void cgc_populate_random_string( char * s, uint32_t length );
 
 int cgc_atoi( const char *pStr );
 double cgc_atof( char *pStr );
@@ -39,5 +43,7 @@ double cgc_atof( char *pStr );
 char *cgc_strcpy( char *pDest, const char *pSource );
 char *cgc_strncpy( char *pDest, const char *pSource, cgc_size_t maxlen );
 void *cgc_memcpy( void *pDest, const void *pSrc, cgc_size_t nbytes );
+
+long int cgc_strtol( const char *str, char **endptr, int base );
 
 #endif // STDLIB_H__

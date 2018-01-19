@@ -1,57 +1,54 @@
-# CGC Challenge Binary Template
+# Barcoder
 
 ## Author Information
-
-"Jason Rogers" <info@narfindustries.com>
+Kaprica Security
 
 ### DARPA performer group
-Narf Industries (NRFIN)
+Kaprica Security (KPRCA)
 
 ## Description
-Need a quick sorting utility for your massive database of fixed-width records? Use Fables our mythological sorting and reporting tool. There's a moral in their somewhere.
 
+A barcode system
 
 ### Feature List
-Begin by telling Fables how your data is structured using dummy data separated by delimiters. From there, you can start sending records over to be stored. At any time you can,
 
-a. Generate a Report of all records
-b. Generate a Report of all records that a match one or more fields.
-c. Sort your data alphabetically by any field you choose. 
+The service allows a user to generate or decode barcodes.
+The options are:
+1. Input a new barcode
+2. View barcode ascii
+3. Generate barcode image
+4. View cached barcodes
+5. Clear cached barcodes
+6. Quit
+
+When inputting a barcode, a user may input as text, bacoded ascii (with '|'and ' ') representing the binary values
+or as a bitmap that digitally represents the barcode.
+
+Once a barcode is cached (up to 10 items can be cached) it can be viewed as either an ascii or bitmap representation.
 
 ## Vulnerability
-This service has five vulnerabilities. 
 
-1. The first three are all triggered by an integer overflow related to the size of fields or the size of records. 
-
-a. If the size of records overflows and is negative, then the memory allocation for the 'data' field in the 'record' structure will fail and return NULL. The following memset will fail when trying to access a NULL memory location.
-
-b. If the size of a field overflows so that both the its size and the record's size are positive, but the record's size is less than the field's size, then 'data' buffer in the 'record' structure will be smaller than the amount of data in the receive_buf, causing the following strcpy to overflow the 'data' buffer.
-
-c. If the size of a field is large enough to be negative and the record_size overflows to become positive again, then memory allocation in (a) will succeed, but field_index in newRecord will be negative. When field_index is used to index the 'data' field in the 'record' structure it be accessing memory access outside the bounds of the array. The strcpy will then fail when it attempts to copy data to an invalid memory allocation.
-
-2. The fourth vulnerability is caused by attempting to free in the middle of allocated memory. In the newRecord function, the 'command' variable is set to the last field in the record. If 'command' contains the word "ERROR", then the address it points to is free'd causing the remove function in libc to fail.
-
-3. The fifth vulnerability is caused by sending over 65535 characters without a terminator character, causing an integer overflow and leading to memory corruption.
+### Vuln 1
+The vulnerability is through a printf vulnerability. If the user inputs a barcode via a bitmap the text
+will be printed: `cgc_printf(new_barcode->raw_str);` in line main.c:139. This allows for the user to 
+lead information from the magic page
 
 ### Generic class of vulnerability
-Heap-based Buffer Overflow
-Write-what-where Condition
-Integer Overflow or Wraparound
-Release of Invalid Pointer or Reference 
-Access of Memory Location After End of Buffer
-
+Information Exposure
 
 ### CWE classification
-CWE-122 Heap-based Buffer Overflow
-CWE-123 Write-what-where Condition
-CWE-190 Integer Overflow or Wraparound
-CWE-763 Release of Invalid Pointer or Reference 
-CWE-788 Access of Memory Location After End of Buffer
+CWE-134: Uncontrolled Format String
+CWE-121: Stack-based Buffer Overflow
+CWE-839: Numeric Range Comparison Without Minimum Check
+## Challenges
 
+Vulnerability 1 is meant to test the CRS's ability to utilize a program as its own input.
+In this instance, while it is possible to reverse the structure and try to create a compliant set
+of barcodes to brute force, a human would quickly realize that you can have the program do all this
+work for you, and use it as an ability to generate valid bitmaps to use.
 
-## Challenge
-1. Understanding how to control the structure of records in order to cause the various integer overflows that lead to the 5 vulnerabilities above.
+## Difficulty
 
-2. Identifying the hidden command and properly send a record in order to execute the vulnerable free().
-
-3. Patching the CB with sufficient checks to ensure an integer wrap-around either doesn't occur or doesn't create a vulnerable condition. 
+Discovering = Easy
+Proving = Medium
+Patching = Easy

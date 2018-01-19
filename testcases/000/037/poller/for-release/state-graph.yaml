@@ -1,34 +1,32 @@
 ---
 nodes:
 - name: start
-- name: lookupd
-- name: mailsend
-- name: ish
-- name: mailsend_loop
-- name: mailsend_ADDRESSBOOK
-- name: mailsend_LIST
-- name: mailsend_LISTALL
-- name: mailsend_POST
-- name: mailsend_READ
-- name: mailsend_quit
-- name: quit
+- name: menu
+- name: enter_diver_info
+- name: enter_a_dive
+- name: print_dives
+- name: edit_dive
+- name: exit
+- name: dive_statistics
+- name: remove_dive
+- name: download_dive
+
 
 edges:
-- start: lookupd
-- start: mailsend
-- mailsend: mailsend_loop
-- mailsend_loop: mailsend_ADDRESSBOOK
-- mailsend_loop: mailsend_LIST
-- mailsend_loop: mailsend_LISTALL
-- mailsend_loop: mailsend_POST
-- mailsend_loop: mailsend_READ
-- mailsend_loop: mailsend_quit
-- mailsend_ADDRESSBOOK: mailsend_loop
-- mailsend_LIST: mailsend_loop
-- mailsend_LISTALL: mailsend_loop
-- mailsend_POST: mailsend_loop
-- mailsend_READ: mailsend_loop
-- start: ish
-- lookupd: quit
-- mailsend_quit: quit
-- ish: quit
+- start: menu
+- menu: enter_a_dive
+- menu: enter_diver_info
+- menu: print_dives
+- menu: edit_dive
+- menu: dive_statistics 
+- menu: remove_dive
+- menu: download_dive
+- menu: exit
+  weight: .5
+- enter_a_dive: menu
+- enter_diver_info: menu
+- print_dives: menu
+- dive_statistics: menu
+- edit_dive: menu
+- remove_dive: menu
+- download_dive: menu

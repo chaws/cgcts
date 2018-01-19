@@ -19,356 +19,503 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
 #include "libcgc.h"
 #include "cgc_libc.h"
-#include "cgc_common.h"
-#include "cgc_gofish.h"
 #include "cgc_operation.h"
-#include "cgc_rxtx.h"
+#if TEST_COMMON_H == 1
+#include "cgc_t_operation.h"
+#endif
 
-struct game_state *game = NULL;
+list_t *cgc_haiku_list = NULL;
+uint32_t next_haiku_id = INIT_HAIKU_ID;
 
-/**
- * If the remote player has an empty hand, process
- * the player's request to draw a new hand.
+/*
+ * Receive 4 bytes as a uint32_t.
  *
- * @return SUCCESS or ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, ERR_HAND_FULL,
- *	ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_DECK, ERR_INVALID_QTY,
- *	ERR_INVALID_XML, ERRNO_RECV on error 
+ * Returns:
+ *  uint32_t >= 0
  */
-static int cgc_process_remote_player_empty_hand() {
-	int ret = SUCCESS;
-	if (TRUE == cgc_is_player_hand_empty(game->p_remote)) {
-		if (SUCCESS != (ret = cgc_recv_draw_request())) {return ret;}
-		ret = cgc_draw_new_hand(game->p_remote, game->pool, cgc_get_hand_size());
-		// when pool doesn't have enough cards, get ERR_NULL_CARD, which is ok
-		if ((0 > ret) && (ERR_NULL_CARD != ret)) {
-			return ret;
-		} else {
-			ret = SUCCESS;
-		}
-		cgc_send_hand(game->p_remote->h);
-	}
-	return ret;
+uint32_t cgc_recv_uint32() {
+    uint32_t num[1] = {0};
+    RECV(num, sizeof(uint32_t));
+	return num[0];
 }
 
-/**
- * If the bot player has an empty hand, process drawing a new hand.
+/*
+ * Receive 2 bytes as a uint16_t.
  *
- * @return SUCCESS or ERR_UNINITIALIZED_HAND, ERR_HAND_FULL,
- *	ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_DECK, ERR_INVALID_QTY on error 
+ * Returns:
+ *  uint16_t >= 0
  */
-static int cgc_process_bot_player_empty_hand() {
-	int ret = SUCCESS;
-	if (TRUE == cgc_is_player_hand_empty(game->p_bot)) {
-		ret = cgc_draw_new_hand(game->p_bot, game->pool, cgc_get_hand_size());
-		if ((0 <= ret) || (ERR_NULL_CARD == ret)) {ret = SUCCESS;}
-	}
-	return ret;
+uint32_t cgc_recv_uint16() {
+    uint16_t num[1] = {0};
+    RECV(num, sizeof(uint16_t));
+	return num[0];
 }
 
-/**
- * When remote player has to go fish, process their notification
- * and subsequent fishing action.
+/*
+ * Test to see if the haiku list exists.
  *
- * @return SUCCESS or ERR_INVALID_CARD, ERR_INVALID_XML, ERRNO_RECV, 
- *	ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, ERR_HAND_FULL,
- *	ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_DECK, 
- *	ERR_UNINITIALIZED_ARRAY on error
+ * Returns:
+ *  exists: TRUE
+ *  not exists: FALSE
  */
-static int cgc_process_remote_player_fishing(uint8_t rank) {
-	int ret = 0;
-	struct card *c[1] = {0};
-
-	if (SUCCESS != (ret = cgc_recv_fish_request())) {return ret;}
-
-	if (0 == game->pool->count) { // pool is out of cards
-		cgc_send_cards(c, 0);
+uint8_t cgc_haiku_list_exists() {
+	if (NULL == cgc_haiku_list) {
+		return FALSE;
 	} else {
-		if (SUCCESS != (ret = cgc_take_top_card(game->p_remote, game->pool))) {return ret;}
-		if (SUCCESS != (ret = cgc_get_players_newest_card(game->p_remote, c))) {return ret;}
-		cgc_send_cards(c, 1);
-		if (rank == c[0]->rank) {
-			ret = cgc_recv_and_match_cards(c, 1);
-		} else {
-			c[0] = NULL;
-			ret = cgc_recv_and_match_cards(c, 0);
-		}
-		if (FALSE == ret) {
-			ret = ERR_INVALID_CARD;
-		} else {
-			ret = SUCCESS;
-		}
-
+		return TRUE;
 	}
-
-	return ret;
 }
 
-/**
- * Process bot player going fishing
+/*
+ * Test to see if the haiku list is empty.
  *
- * @return SUCCESS or ERR_INVALID_CARD, ERR_INVALID_XML, ERRNO_RECV, 
- *	ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, ERR_HAND_FULL,
- *	ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_DECK, 
- *	ERR_UNINITIALIZED_ARRAY on error
- */
-static int cgc_process_bot_player_fishing(uint8_t rank) {
-	int ret = 0;
-	struct card *c[1] = {0};
-
-	if (0 != game->pool->count) { // only fish if there are cards in the pool
-		if (SUCCESS != (ret = cgc_take_top_card(game->p_bot, game->pool))) {return ret;}
-		if (SUCCESS != (ret = cgc_get_players_newest_card(game->p_bot, c))) {return ret;}
-		if (rank == c[0]->rank) {
-			cgc_send_cards(c, 1);
-		} else {
-			cgc_send_cards(c, 0);
-		}
-	}
-	return SUCCESS;
-}
-
-/**
- * Process bot player giving cards to remote player.
+ * Assumes haiku_list exists.
  *
- * @return SUCCESS or ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, 
- * 	ERR_INVALID_QTY, ERR_HAND_FULL on error
+ * Returns:
+ *  is empty: TRUE
+ *  not empty: FALSE
  */
-static int cgc_process_remote_player_accept_cards(struct card *cards[], uint8_t qty) {
-	int ret = 0;
-
-	cgc_send_cards(cards, qty);
-
-	return cgc_accept_cards(game->p_remote, cards, qty);
-}
-
-/**
- * Process remote player giving cards to bot player.
- *
- * @return SUCCESS or ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, 
- * 	ERR_INVALID_QTY, ERR_HAND_FULL, ERR_INVALID_CARD on error
- */
-static int cgc_process_bot_player_accept_cards(struct card *cards[], uint8_t qty) {
-	int ret = 0;
-	if (TRUE != (ret = cgc_recv_and_match_cards(cards, qty))) {
-		if (FALSE == ret) {
-			ret = ERR_INVALID_CARD;
-		}
-		goto bail;
-	}
-
-	ret = cgc_accept_cards(game->p_bot, cards, qty);
-bail:
-
-	return ret;
-}
-
-/**
- * Process remote player asking bot player for cards of rank.
- *
- * @return SUCCESS or ERR_INVALID_XML, ERR_INVALID_RANK,
- *	ERRNO_RECV, ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, 
- * 	ERR_INVALID_QTY, ERR_HAND_FULL, ERR_INVALID_CARD, 
- *	ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_DECK, 
- *	ERR_UNINITIALIZED_ARRAY on error
- */
-static int cgc_process_remote_player_ask() {
-	int rank = 0;
-	int qty = 0;
-	int ret = 0;
-	struct card *cards[4] = {0};
-
-	rank = cgc_recv_ask_and_get_rank();
-	// when hand is empty, a rank of 0 is used for the ask, which is
-	// an invalid rank. so expect ERR_INVALID_RANK in that case
-	if (0 > rank) {
-		if (FALSE == ((ERR_INVALID_RANK == rank) && (TRUE == cgc_is_hand_empty(game->p_remote->h)))) {
-			return rank;
-		}
-	}
-	qty = cgc_have_cards_of_rank(game->p_bot, rank, cards);
-
-	if (0 <= qty) {
-		cgc_send_go_fish_notice(qty);
-	}
-
-	if (0 == qty) { // go fish
-		ret = cgc_process_remote_player_fishing(rank);
-	} else if ((1 == qty) || (2 == qty) || (3 == qty)) { // take cards
-		ret = cgc_process_remote_player_accept_cards(cards, qty);
-	} else { // error
-		ret = qty;
-	}
-
-	cgc_turn_complete(game);
-
-	return ret;
-}
-
-/**
- * Process bot player asking remote player for cards of rank.
- *
- * @return SUCCESS or ERR_UNINITIALIZED_PLAYER, ERR_HAND_EMPTY,
- *	ERR_UNINITIALIZED_HAND, ERR_INVALID_CARD, ERR_INVALID_XML, ERRNO_RECV, 
- *	ERR_NULL_CARD, ERR_HAND_FULL, ERR_UNINITIALIZED_DECK, 
- *	ERR_UNINITIALIZED_ARRAY, ERR_INVALID_QTY on error
- */
-static int cgc_process_bot_player_ask() {
-	int rank = 0;
-	int qty = 0;
-	int ret = 0;
-	struct card *cards[4] = {0};
-
-	rank = cgc_select_random_card(game->p_bot);
-	// when hand is empty rank will be ERR_HAND_EMPTY
-	if ((0 > rank) && (ERR_HAND_EMPTY != rank)) {return rank;}
-
-	if (ERR_HAND_EMPTY == rank) {
-		rank = 0;
-	}
-	cgc_send_ask(rank);
-
-	qty = cgc_have_cards_of_rank(game->p_remote, rank, cards);
-
-	if (qty != (ret = cgc_recv_go_fish_notice())) {
-		if (0 <= ret) {
-			return ERR_INVALID_QTY;
-		} else {
-			return ret;
-		}
-	}
-
-	if (0 == qty) { // go fish
-		ret = cgc_process_bot_player_fishing(rank);
-	} else if ((1 == qty) || (2 == qty) || (3 == qty)) { // take cards
-		ret = cgc_process_bot_player_accept_cards(cards, qty);
-	}
-
-	cgc_turn_complete(game);
-
-	return ret;
-}
-
-/**
- * Process remote player playing books.
- *
- * @return SUCCESS or ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_HAND, 
- *	ERR_NULL_CARD, ERR_INVALID_CARD, ERR_INVALID_QTY on error
- */
-static int cgc_process_remote_player_books() {
-	int ret = 0;
-
-	if (0 > (ret = cgc_play_books(game->p_remote))) {return ret;}
-
-	if (TRUE != (ret = cgc_recv_and_match_count_books_played((uint8_t)ret))) {
-		if (FALSE == ret) {
-			ret = ERR_INVALID_QTY;
-		}
+uint8_t cgc_is_haiku_list_empty() {
+	if (0 == cgc_haiku_list->count) {
+		return TRUE;
 	} else {
-		ret = SUCCESS;
+		return FALSE;
+	}
+}
+
+/*
+ * Initialize the haiku list.
+ */
+void cgc_init_haiku_list() {
+	if (FALSE == cgc_haiku_list_exists()) {
+		cgc_haiku_list = cgc_list_create();
+	}
+}
+
+/*
+ * Get the number of haiku in the list.
+ *
+ * Returns:
+ *  Success: >= 0
+ *  Failure: ERR_LIST_NOT_EXIST
+ */
+int cgc_get_count() {
+	if (TRUE == cgc_haiku_list_exists()) {
+		return cgc_haiku_list->count;
+	} else {
+		return ERR_LIST_NOT_EXIST;
+	}
+}
+
+/*
+ * Get the id number for the haiku in this node.
+ *
+ * Returns:
+ *  Success: >= 0
+ *  Failure: ERR_EMPTY_NODE
+ */
+uint32_t cgc_get_id_from_haiku(node_t *haiku) {
+	if (NULL != haiku->data) {
+		struct haiku *h = (struct haiku *) haiku->data;
+		return h->id;
+	} else {
+		return ERR_EMPTY_NODE;
+	}
+}
+
+/*
+ * Get next available haiku id number.
+ */
+uint32_t cgc_get_next_haiku_id() {
+	next_haiku_id++;
+	return next_haiku_id - 1;
+}
+
+/*
+ * Get a random index in the list of haiku ids.
+ *
+ * Returns:
+ *  Success: SUCCESS
+ *  Failure: ERR_LIST_NOT_EXIST, ERR_LIST_EMPTY, ERR_RAND_FAILED
+ */
+int cgc_get_random_idx(uint32_t *idx) {
+	uint32_t random_idx = 0;
+	int ret = 0;
+	ret = cgc_rand((char *)&random_idx, 4);
+	int32_t count = cgc_get_count();
+
+	if (ERR_LIST_NOT_EXIST == count) {
+		return count;
+	} else if (0 == count) {
+		return ERR_LIST_EMPTY;
+	} else if (0 != ret) {
+		return ERR_RAND_FAILED;
+	} else {
+		*idx = random_idx % (uint32_t)count;
+		return SUCCESS;
+	}
+}
+
+/*
+ * Populate array with all haiku ids.
+ *
+ * Returns:
+ *  Success: SUCCESS
+ *  Failure: ERR_LIST_NOT_EXIST, ERR_LIST_EMPTY
+ */
+int cgc_populate_array_with_haiku_ids(uint32_t id_arr[], uint32_t count) {
+
+	node_t *haiku_ptr = NULL;
+	struct haiku *h = NULL;
+	uint32_t id = 0;
+
+	if (TRUE == cgc_haiku_list_exists()) {
+		haiku_ptr = cgc_haiku_list->tail;
+	} else {
+		return ERR_LIST_NOT_EXIST;
 	}
 
-	return ret;
-}
+	if ((0 == count) || (NULL == haiku_ptr)) {
+		return ERR_LIST_EMPTY;
+	}
 
-/**
- * Process bot player playing books.
- *
- * @return SUCCESS or ERR_UNINITIALIZED_PLAYER,
- *  ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, ERR_INVALID_CARD on error
- */
-static int cgc_process_bot_player_books() {
-	int ret = 0;
+	while ((0 < count) && (NULL != haiku_ptr)) {
+		h = (struct haiku *)haiku_ptr->data;
+		id_arr[count - 1] = h->id;
 
-	if (0 > (ret = cgc_play_books(game->p_bot))) {return ret;}
-
-	cgc_send_count_books_played((uint8_t)ret);
-
+		count--;
+		haiku_ptr = haiku_ptr->prev;
+	}
 	return SUCCESS;
 }
 
-/**
- * Process a bot player turn.
+/*
+ * Find haiku having id.
  *
- * @return SUCCESS or ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, ERR_HAND_FULL,
- *	ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_DECK, ERR_INVALID_QTY, 
- *	ERR_HAND_EMPTY, ERR_INVALID_CARD, ERR_INVALID_XML, ERRNO_RECV,
- *	ERR_UNINITIALIZED_ARRAY on error
+ * Returns:
+ *  Success: SUCCESS
+ *  Failure: ERR_INVALID_ID, ERR_LIST_NOT_EXIST, ERR_LIST_EMPTY
  */
-static int cgc_do_bot_turn() {
-	int ret = 0;
-	cgc_send_turn_notice(1);
+int cgc_find_haiku_with_id(struct haiku **h, uint32_t id) {
 
-	if (SUCCESS != (ret = cgc_process_bot_player_empty_hand())) {return ret;}
+	node_t *haiku_ptr = NULL;
+	struct haiku *tmp = NULL;
+	int count = 0;
+	bool_t found = FALSE;
 
-	if (SUCCESS != (ret = cgc_process_bot_player_ask())) {return ret;}
+	count = cgc_get_count();
+	if (0 < count) {
+		haiku_ptr = cgc_haiku_list->head;
+	} else if (0 == count) {
+		return ERR_LIST_EMPTY;
+	} else {
+		return ERR_LIST_NOT_EXIST;
+	}
 
-	if (SUCCESS != (ret = cgc_process_bot_player_books())) {return ret;}
+	while (NULL != haiku_ptr) {
+		tmp = (struct haiku *)haiku_ptr->data;
+		if (id == tmp->id) {
+			*h = tmp;
+			found = TRUE;
+			break;
+		}
+		haiku_ptr = haiku_ptr->next;
+	}
 
-	return SUCCESS;
+	if (TRUE == found) {
+		return SUCCESS;
+	} else {
+		return ERR_INVALID_ID;
+	}
 }
 
-/**
- * Process a remote player turn.
- *
- * @return SUCCESS or ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, ERR_HAND_FULL,
- *	ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_DECK, ERR_INVALID_QTY,
- *	ERR_INVALID_XML, ERRNO_RECV, ERR_INVALID_RANK, ERR_INVALID_CARD, 
- *	ERR_UNINITIALIZED_ARRAY on error 
+/*
+ * Send the struct haiku to client.
  */
-static int cgc_do_player_turn() {
-	int ret = 0;
-	cgc_send_turn_notice(0);
+void cgc_send_haiku(struct haiku *h) {
+	uint32_t id = h->id;
+	char *content = h->content;
+	uint16_t length = h->length;
 
-	if (SUCCESS != (ret = cgc_process_remote_player_empty_hand())) {return ret;}
-
-	if (SUCCESS != (ret = cgc_process_remote_player_ask())) {return ret;}
-
-	if (SUCCESS != (ret = cgc_process_remote_player_books())) {return ret;}
-
-	return SUCCESS;
+	cgc_send((char *)&id, sizeof(uint32_t));
+	cgc_send((char *)&length, sizeof(uint16_t));
+	cgc_send(content, length);
 }
 
-/**
- * Process a player turn.
- *
- * @return SUCCESS or ERR_UNINITIALIZED_HAND, ERR_NULL_CARD, ERR_HAND_FULL,
- *	ERR_UNINITIALIZED_PLAYER, ERR_UNINITIALIZED_DECK, ERR_INVALID_QTY,
- *	ERR_INVALID_XML, ERRNO_RECV, ERR_INVALID_RANK, ERR_INVALID_CARD, 
- *	ERR_UNINITIALIZED_ARRAY, ERR_HAND_EMPTY on error
+/*
+ * Send the Ester Egg haiku to client.
  */
-static int cgc_do_turn() {
+void cgc_send_easter_egg_haiku() {
+
+	uint32_t id = EGG_ID;
+	char *content = EGG_HAIKU;
+	uint16_t length = cgc_strlen(content);
+
+	cgc_send((char *)&id, sizeof(uint32_t));
+	cgc_send((char *)&length, sizeof(uint16_t));
+	cgc_send(content, length);
+}
+
+/*
+ * Send the id of the haiku to the client.
+ */
+void cgc_send_haiku_id(uint32_t id) {
+	SENDUI(id);
+}
+
+/*
+ * Create a new node with the haiku as its data element and insert
+ *  the node into the haiku list.
+ *
+ * Returns:
+ *  Success: SUCCESS
+ */
+int cgc_add_haiku_to_list(struct haiku *h) {
+
+	node_t *nd = cgc_node_create((void *)h);
+	return cgc_list_push(cgc_haiku_list, nd);
+}
+
+/*
+ * Receive one haiku line from client and store it at the haiku_content_ptr.
+ *
+ * Returns:
+ *  bytes written at haiku_content_ptr >= 0
+ */
+int cgc_recv_haiku_line(char *haiku_content_ptr, int16_t bytes_remaining) {
+
+	char temp_line_buf[MAX_HAIKU_LINE_LEN] = {0};
+	int16_t bytes_received = 0;
+	int16_t bytes_written = 0;
+
+	// bytes_received includes line termination char, 
+	//  but line term char is not written to temp_line_buf, a null is in its place.
+	bytes_received = cgc_recvline(STDIN, temp_line_buf, MAX_HAIKU_LINE_LEN);
+
+	//  this will make the creation of POV input harder to create 
+	//   since it will need line termination chars at set intervals.
+	if (0 > bytes_received) {
+		return ERR_INVALID_HAIKU;
+	}
+
+	// VULN HERE
+	// - if bytes_remaining goes neg, MAX_HAIKU_LINE_LEN chars can be written
+	//  to haiku_content_ptr for each line of input.
+
+	// +1 for trailing null
+	bytes_written = cgc_snprintf(haiku_content_ptr, bytes_remaining + 1, "~c\x07", temp_line_buf);
+
+	return bytes_written;
+}
+
+/*
+ * Receive a full haiku from the client and store it in the haiku struct.
+ *
+ * Returns:
+ *  VA of new struct haiku 
+ */
+struct haiku *cgc_recv_haiku(uint16_t total_bytes) {
+
+	struct haiku *h = NULL;
+	char *haiku_content_ptr = NULL;
+	int16_t bytes_remaining = 0;
+	int16_t bytes_written = 0;
+
+	bytes_remaining = (int16_t)total_bytes;
+
+	ALLOC(sizeof(struct haiku) + total_bytes + 1, &h); // +1 for trailing null
+	haiku_content_ptr = h->content;
+
+	// VULN HERE - if something causes bytes_remaining to go negative, this loop will not stop.
+#if PATCHED
+	while (0 < bytes_remaining) {
+#else
+	while (0 != bytes_remaining) {
+#endif
+		bytes_written = cgc_recv_haiku_line(haiku_content_ptr, bytes_remaining);
+		if (0 > bytes_written) { // ERR_INVALID_HAIKU
+			return NULL;
+		}
+
+		haiku_content_ptr += bytes_written;
+		bytes_remaining -= bytes_written;
+	}
+
+	h->id = cgc_get_next_haiku_id();
+	h->length = total_bytes;
+
+	return h;
+}
+
+/*
+ * Receive the size of the haiku, including line termination chars.
+ *
+ * A Haiku has 3 lines, expect 1 line termination char at the end of each line.
+ *
+ * Returns:
+ *  haiku size uint16 >= 0
+ */
+uint16_t cgc_recv_haiku_size() {
+	return cgc_recv_uint16(); 
+}
+
+// Operation functions
+
+/*
+ * Add a new haiku to the list of haiku.
+ *
+ * Also responsible for initializing the haiku list with the first add.
+ *
+ * Returns:
+ *  Success: SUCCESS
+ *  Failure: ERR_INVALID_HAIKU_LEN, ERR_INVALID_HAIKU
+ */
+int cgc_add_haiku() {
+
 	int ret = SUCCESS;
-	if (TRUE == cgc_is_player_turn(game)) {
-		ret = cgc_do_player_turn();
-	} else {
-		ret = cgc_do_bot_turn();
+	uint16_t total_bytes = 0; // number of bytes in haiku, including line termination chars.
+	struct haiku *h = NULL;
+
+	if (FALSE == cgc_haiku_list_exists()) {
+		cgc_init_haiku_list();
 	}
+
+	total_bytes	= cgc_recv_haiku_size();
+
+	if ((0 < total_bytes) && (MAX_HAIKU_LEN > total_bytes)) {
+		h = cgc_recv_haiku(total_bytes);
+		if (NULL == h) {
+			ret = ERR_INVALID_HAIKU;
+		} else {
+			ret = cgc_add_haiku_to_list(h);
+
+			cgc_send_haiku_id(h->id);			
+		}
+	} else {
+		ret = ERR_INVALID_HAIKU_LEN;
+	}
+
 	return ret;
 }
 
+/*
+ * Get the haiku having id from the list of haiku.
+ *
+ * Returns:
+ *  Success: SUCCESS
+ *  Failure: ERR_INVALID_ID, ERR_LIST_NOT_EXIST, ERR_LIST_EMPTY
+ */
+int cgc_get_haiku_by_id() {
+	struct haiku *h = NULL;
+	uint32_t id = 0;
+	int res = 0;
 
-int cgc_play_game() {
-	int ret = 0;
-	char *player_name = NULL;
+	if (TRUE == cgc_haiku_list_exists()) {
 
-	if (SUCCESS != (ret = cgc_recv_player_name(&player_name))) {return ret;}
+		id = cgc_recv_uint32();
 
-	game = cgc_create_game(player_name);
-
-	if (SUCCESS != (ret = cgc_deal(game))) {return ret;}
-
-	if (SUCCESS != (ret = cgc_send_initial_hand_to_player(game))) {return ret;}
-
-	while (FALSE == cgc_is_game_over(game)) {
-		if (SUCCESS != (ret = cgc_do_turn())) {
-			return ret;
+		if (EGG_ID == id) {
+			cgc_send_easter_egg_haiku();
+		} else {
+			res = cgc_find_haiku_with_id(&h, id);
+			if (SUCCESS == res) {
+				cgc_send_haiku(h);
+			}
 		}
+	} else {
+		res = ERR_LIST_NOT_EXIST;
 	}
 
-	cgc_send_final_results(game);
+	return res;
+}
 
-	return ret;
+/*
+ * Get a randomly selected haiku from the list of haiku.
+ *
+ * Returns:
+ *  Success: SUCCESS
+ *  Failure: ERR_INVALID_ID, ERR_LIST_NOT_EXIST, ERR_LIST_EMPTY, ERR_RAND_FAILED
+ */
+int cgc_get_haiku_cgc_random() {
+
+	uint32_t random_idx = 0;
+	uint32_t count = 0;
+	uint32_t *id_arr = NULL;
+	struct haiku *rand_haiku = NULL;
+	int res = SUCCESS;
+
+	if (TRUE == cgc_haiku_list_exists()) {
+		count = cgc_get_count();
+		if (0 == count) {
+			return ERR_LIST_EMPTY;
+		}
+
+		ALLOC(count * sizeof(uint32_t), &id_arr);
+
+		// these functions should not return error due to haiku_list existance or count <= 0.
+		res = cgc_populate_array_with_haiku_ids(id_arr, count);
+		res = cgc_get_random_idx(&random_idx);
+		if (ERR_RAND_FAILED != res) {
+			res = cgc_find_haiku_with_id(&rand_haiku, id_arr[random_idx]);
+		}
+
+		DEALLOC(id_arr, count * sizeof(uint32_t));
+
+		if (SUCCESS == res) {
+			cgc_send_haiku(rand_haiku);
+		}
+
+	} else {
+		res = ERR_LIST_NOT_EXIST;
+	}
+
+	return res;
+}
+
+/*
+ * Get the number of haiku in the list.
+ *
+ * Returns:
+ *  Success: SUCCESS
+ *  Failure: ERR_LIST_NOT_EXIST
+ */
+int cgc_get_haiku_count() {
+	uint32_t count = 0;
+	if (TRUE == cgc_haiku_list_exists()) {
+		count = cgc_get_count();
+		SENDUI(count);
+		return SUCCESS;
+	} else {
+		return ERR_LIST_NOT_EXIST;
+	}
+}
+
+/*
+ * Get the list of haiku id numbers.
+ *
+ * Sends to client the count of ids followed by the list of ids.
+ * If count is 0, nothing is sent for the list.
+ *
+ * Returns:
+ *  Success: SUCCESS
+ *  Failure: ERR_LIST_NOT_EXIST
+ */
+int cgc_get_haiku_ids() {
+	if (TRUE == cgc_haiku_list_exists()) {
+		uint32_t count = (uint32_t)cgc_get_count();
+		SENDUI(count);
+
+		node_t *hl_ptr = cgc_haiku_list->head;
+		while(NULL != hl_ptr) {
+			uint32_t id = cgc_get_id_from_haiku(hl_ptr);
+			SENDUI(id);
+			hl_ptr = hl_ptr->next;
+		}
+	} else {
+		return ERR_LIST_NOT_EXIST;
+	}
+
+	return SUCCESS;
 }

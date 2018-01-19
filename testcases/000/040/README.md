@@ -1,44 +1,34 @@
-# KPRCA-00030
+# FaceMag
 
-## DARPA performer group
-Kaprica Security (KPRCA)
+## Author Information
 
-## Description:
+"Steve Wood" <swood@cromulence.com>
 
-This CB is based on Conways Game of Life and uses a Quadtree to implement the infrastructure. The CB turned the rules of Conways game of life into a shooter type game. When imagined it was thought of as a space shooter, where the person is controlling some kind of ship shooting and bombing other enemy ships. But it is completely up to the players imagination. 
+### DARPA performer group
+Cromulence LLC (CROMU)
 
-The game spans an 8k by 8k board and upon a new game creates 25 "ships" or "runners". Each runner travels the diagnoally across the board to the further corner. The game ends in 10000 steps, which typically isn't enough time for any of the runners to get to the end of the board. A player has two options, the first is to shoot at an unrevealed board and receive 100 points for each successful pixel hit. The second option is to plant a bomb after seeing the current position of the board. Bombs are detonated 10 steps after the runners start moving, and the minimum number of steps a player can choose is 100. This was more or less arbitary but it seemed a litlte more fun this way. Bombing is the way to rack up major points, because each bomb hits 9 squares, the pixel its planted on and the 8 adjacent pixels. Each runner pixel that is blown up via a single bomb gives a multiplicative score bonus.
+## Description
 
-The rules aren't necessarily explained to the user, but the game is simple enough that it shoudln't be difficult to figure out.
+This service is a social media server where users can post messages for others to view and comments on.
 
 ### Feature List
-Before the board is revealed, the player may choose:
-1. Shoot!
-2. Reveal Board
-3. New Game
-4. Quit
+This service is a social media server that provides a network protocol for new accounts to be created, message posts to be made, comments to those posts and a posting feed where the user can retrieve postings that she hasn't previously seen.  Specific posts can be retrieved by their posting ID and all associated comments are also displayed.  A filesystem is used for the underlying storage mechanism for the server with each user having an account file that maintains their state information as well as their real/full name.
 
-After the board is revealed the player may choose to:
-1. Place Bomb
-2. Reveal Board
-3. Let them Run!
-4. New Game
-5. Quit
-
-And once the game is over the player may either:
-1. New Game
-2. Quit
 
 ## Vulnerability
+Vulnerability 1 is a buffer overwrite due to the server relying on user specified length parameters to dictate how long incoming messages, user names, passwords, and fullnames are.  Even though these incoming messages overwrite the data structure they are cast to, they are still much shorter than the full 4K page of memory that was allocated, so they have no affect on program behavior when first received.  The real overwrite occurs later when one of these strings, the fullname, is later retrieved from the user's account file and used to build a posting message for return to the user.
 
-The vulnerability is triggered when a user places two bomb close enough to one another such that they both destroy the same cell. The code doesn't properly check the return value from the qt_get_pixel function, but instead assumes that the cell will always exist since it's already in the living cells linked list. However, because the program tries to remove the dead cell from the tree, this assumption is wrong with multiple adjacent bombs and causes the program to crash.
+### Generic class of vulnerability
+Stack buffer overflow
 
 ### CWE classification
-
-CWE-690: Unchecked Return Value
+CWE-121 Stack based buffer overflow
 
 ## Challenges
+Although this vulnerability is easily found and corrected, proving it to be exploitable is not.  A buffer is created with an allocate() call that is much larger than is required to hold the incoming message.  Even though the string's length is specified in the message, a single byte is allocated in the message for the length paramter which limits the string to 255 bytes--far too short to overwrite a 4K page.  Several strings in the incoming messages have this same vulnerability but only one is not later truncated:  the user's fullname.  This string is stored in the user's account file and is used to tag posts with their real name rather than their username.  However, when a post message is created, the username is null terminated at the proper length.  Only when the username is applied to a comment that's been made to another post is the full string retrieved which allows the local stack space to be overwritten.  Due to the arrangement of variables in the stack frame, the overwrite is not able to corrupt the stack frame and the saved registers.  What can be overwritten is the file handle used to read the stored post and its comments.  Another file on the system is persistently open and happens to be a memory-mapped file that points to the magic page.  By overwriting the local file handle to the value of the other open file, the next read of a comment will actually load raw data from the magic page.  An additional complication occurs if this read is done soon after the service is running though.  The amount of data in the memory mapped file is too large and will completely corrupt the stack frame resulting in an uncontrollable program crash.  Only after the memory-mapped file has been used well over 100 times does its read pointer move near enough to the end to not read too much data before EOF is reached.  There are other nuances to making a working POV that involve the order of operations with the server as well.
 
-This challenge attempts to do a few things in order to make it difficult. The first challenge is obscurity, the program gives no real guidance on how the game should be played and it's not obvious what the rules are. Additionally bombs are triggered after 10 steps, but the minimum number of steps run is 100. This was intended to make it slightly less obvious to determine what triggers a bomb. Additionally the runners follow a Conways game of life time trajectory, but that isn't specified to the player.
+	Finding Vulnerability 1: easy
+	Proving Vulnerability 1: hard
+	Fixing Vulnerability 1: easy 
 
-The second challenge was contraining resources (namely bombs) while creating a large game board. The size of the board is 8192 x 8192, which is meant to make brute forcing slightly more difficult.
+

@@ -1,0 +1,430 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+AES128_CBC_decrypt_buffer	../../shared/tsid/src/aes.c	/^void AES128_CBC_decrypt_buffer(uint8_t* output, uint8_t* input, uint32_t length, const uint8_t* key, const uint8_t* iv)$/;"	f
+AES128_CBC_encrypt_buffer	../../shared/tsid/src/aes.c	/^void AES128_CBC_encrypt_buffer(uint8_t* output, uint8_t* input, uint32_t length, const uint8_t* key, const uint8_t* iv)$/;"	f
+AES128_ECB_decrypt	../../shared/tsid/src/aes.c	/^void AES128_ECB_decrypt(uint8_t* input, const uint8_t* key, uint8_t *output)$/;"	f
+AES128_ECB_encrypt	../../shared/tsid/src/aes.c	/^void AES128_ECB_encrypt(uint8_t* input, const uint8_t* key, uint8_t* output)$/;"	f
+ALIGNED	lib/malloc_common.c	29;"	d	file:
+AddRoundKey	../../shared/tsid/src/aes.c	/^static void AddRoundKey(uint8_t round)$/;"	f	file:
+BLOCK_SIZE	../../shared/tsid/include/ansi_x931_aes128.h	4;"	d
+BlockCopy	../../shared/tsid/src/aes.c	/^static void BlockCopy(uint8_t* output, uint8_t* input)$/;"	f	file:
+CBC	../../shared/tsid/include/tiny-AES128-C/aes.h	14;"	d
+CC	Makefile	/^CC=\/usr\/bin\/gcc$/;"	m
+CFLAGS	Makefile	/^CFLAGS=$(FLAGS) -std=gnu99$/;"	m
+CGC_EBADF	../../shared/tsid/include/libcgc.h	80;"	d
+CGC_EFAULT	../../shared/tsid/include/libcgc.h	81;"	d
+CGC_EINVAL	../../shared/tsid/include/libcgc.h	82;"	d
+CGC_ENOMEM	../../shared/tsid/include/libcgc.h	83;"	d
+CGC_ENOSYS	../../shared/tsid/include/libcgc.h	84;"	d
+CGC_EPIPE	../../shared/tsid/include/libcgc.h	85;"	d
+CGC_FD_CLR	../../shared/tsid/include/libcgc.h	69;"	d
+CGC_FD_ISSET	../../shared/tsid/include/libcgc.h	72;"	d
+CGC_FD_SET	../../shared/tsid/include/libcgc.h	66;"	d
+CGC_FD_SETSIZE	../../shared/tsid/include/libcgc.h	49;"	d
+CGC_FD_ZERO	../../shared/tsid/include/libcgc.h	59;"	d
+CGC_FLAG_PAGE_ADDRESS	../../shared/tsid/include/libcgc.h	34;"	d
+CGC__NFDBITS	../../shared/tsid/include/libcgc.h	53;"	d
+CHAL	Makefile	/^CHAL=SAuth$/;"	m
+CTYPE_H_	lib/cgc_ctype.h	2;"	d
+CXX	Makefile	/^CXX=\/usr\/bin\/g++$/;"	m
+CXXFLAGS	Makefile	/^CXXFLAGS=$(FLAGS) -g -std=gnu++11 $/;"	m
+Cipher	../../shared/tsid/src/aes.c	/^static void Cipher(void)$/;"	f	file:
+DBG_ASSERT	lib/malloc_common.c	30;"	d	file:
+EBADF	../../shared/tsid/include/libcgc.h	95;"	d
+ECB	../../shared/tsid/include/tiny-AES128-C/aes.h	18;"	d
+EFAULT	../../shared/tsid/include/libcgc.h	96;"	d
+EINVAL	../../shared/tsid/include/libcgc.h	97;"	d
+ENOMEM	../../shared/tsid/include/libcgc.h	98;"	d
+ENOSYS	../../shared/tsid/include/libcgc.h	99;"	d
+EPIPE	../../shared/tsid/include/libcgc.h	100;"	d
+EXPECTED_MAX_FDS	../../shared/tsid/include/libcgc.h	109;"	d
+FD_CLR	../../shared/tsid/include/libcgc.h	92;"	d
+FD_ISSET	../../shared/tsid/include/libcgc.h	93;"	d
+FD_SET	../../shared/tsid/include/libcgc.h	91;"	d
+FD_SETSIZE	../../shared/tsid/include/libcgc.h	88;"	d
+FD_ZERO	../../shared/tsid/include/libcgc.h	90;"	d
+FILE	lib/cgc_stdio.h	/^typedef struct FILE FILE;$/;"	t	typeref:struct:FILE
+FILE	lib/cgc_stdio_private.h	/^struct FILE {$/;"	s
+FLAGS	Makefile	/^FLAGS=-DFORTIFY_SOURCE=0 -DLINUX -Derrno=__cgc_errno -fno-builtin -w -g3 -m32 -fno-stack-protector$/;"	m
+F_READ	lib/cgc_stdio_private.h	30;"	d
+F_WRITE	lib/cgc_stdio_private.h	31;"	d
+INCLUDE	Makefile	/^INCLUDE=-I ..\/..\/shared\/tsid\/include -I ..\/..\/shared\/tsid\/include\/tiny-AES128-C$/;"	m
+INT16_MAX	lib/cgc_stdint.h	29;"	d
+INT16_MIN	lib/cgc_stdint.h	21;"	d
+INT32_MAX	lib/cgc_stdint.h	30;"	d
+INT32_MIN	lib/cgc_stdint.h	22;"	d
+INT64_MAX	lib/cgc_stdint.h	31;"	d
+INT64_MIN	lib/cgc_stdint.h	23;"	d
+INT8_MAX	lib/cgc_stdint.h	28;"	d
+INT8_MIN	lib/cgc_stdint.h	20;"	d
+INT_MAX	lib/cgc_stdint.h	32;"	d
+INT_MIN	lib/cgc_stdint.h	24;"	d
+INVALID_IDX	lib/cgc_stdio_private.h	29;"	d
+IS_ASCII	lib/ctype.c	/^    IS_ASCII = 0x01,$/;"	e	enum:__anon1	file:
+IS_CNTRL	lib/ctype.c	/^    IS_CNTRL = 0x80$/;"	e	enum:__anon1	file:
+IS_DIGIT	lib/ctype.c	/^    IS_DIGIT = 0x02,$/;"	e	enum:__anon1	file:
+IS_LOWER	lib/ctype.c	/^    IS_LOWER = 0x04,$/;"	e	enum:__anon1	file:
+IS_PRINT	lib/ctype.c	/^    IS_PRINT = 0x10,$/;"	e	enum:__anon1	file:
+IS_PUNCT	lib/ctype.c	/^    IS_PUNCT = 0x20,$/;"	e	enum:__anon1	file:
+IS_SPACE	lib/ctype.c	/^    IS_SPACE = 0x40,$/;"	e	enum:__anon1	file:
+IS_UPPER	lib/ctype.c	/^    IS_UPPER = 0x08,$/;"	e	enum:__anon1	file:
+InvCipher	../../shared/tsid/src/aes.c	/^static void InvCipher(void)$/;"	f	file:
+InvMixColumns	../../shared/tsid/src/aes.c	/^static void InvMixColumns(void)$/;"	f	file:
+InvShiftRows	../../shared/tsid/src/aes.c	/^static void InvShiftRows(void)$/;"	f	file:
+InvSubBytes	../../shared/tsid/src/aes.c	/^static void InvSubBytes(void)$/;"	f	file:
+Iv	../../shared/tsid/src/aes.c	/^  static uint8_t* Iv;$/;"	v	file:
+KEYLEN	../../shared/tsid/src/aes.c	49;"	d	file:
+Key	../../shared/tsid/src/aes.c	/^static const uint8_t* Key;$/;"	v	file:
+KeyExpansion	../../shared/tsid/src/aes.c	/^static void KeyExpansion(void)$/;"	f	file:
+LARGE_SIZE	lib/cgc_malloc_private.h	32;"	d
+LCGC	Makefile	/^LCGC=-L $(dir $(LIBCGC)) -lcgc$/;"	m
+LIBCGC	Makefile	/^LIBCGC=..\/..\/shared\/tsid\/libcgc.a$/;"	m
+LIBCGC_IMPL	../../shared/tsid/src/libcgc.c	3;"	d	file:
+LIBPOV	Makefile	/^LIBPOV=..\/..\/shared\/tsid\/libpov.a$/;"	m
+LIBS	Makefile	/^LIBS=$(LIBCGC) $(LIBPOV)$/;"	m
+LONG_MAX	lib/cgc_stdint.h	33;"	d
+LONG_MIN	lib/cgc_stdint.h	25;"	d
+LPOV	Makefile	/^LPOV=$(LCGC) -lpov$/;"	m
+MALLOC_PRIVATE_H_	lib/cgc_malloc_private.h	24;"	d
+MATH_H_	lib/cgc_math.h	24;"	d
+MAX	../../shared/tsid/src/libcgc.c	21;"	d	file:
+MAX_NUM_CBS	../../shared/tsid/include/libcgc.h	105;"	d
+MAX_SIZE	lib/cgc_malloc_private.h	33;"	d
+MIN	../../shared/tsid/src/libcgc.c	20;"	d	file:
+MIN_PASSWD	src/service.c	8;"	d	file:
+MM_LARGE	lib/cgc_malloc_private.h	/^    MM_LARGE$/;"	e	enum:__anon2
+MM_SMALL	lib/cgc_malloc_private.h	/^    MM_SMALL,$/;"	e	enum:__anon2
+MM_TINY	lib/cgc_malloc_private.h	/^    MM_TINY,$/;"	e	enum:__anon2
+MM_UNALLOCATED	lib/cgc_malloc_private.h	/^    MM_UNALLOCATED,$/;"	e	enum:__anon2
+MSG_DISCONNECT	poller/for-release/machine.py	/^MSG_DISCONNECT = 100$/;"	v
+MSG_DISCONNECT	src/service.c	/^    MSG_DISCONNECT = 100,$/;"	e	enum:__anon9	file:
+MSG_IGNORE	poller/for-release/machine.py	/^MSG_IGNORE = 101$/;"	v
+MSG_IGNORE	src/service.c	/^    MSG_IGNORE,$/;"	e	enum:__anon9	file:
+MSG_SERVICE_ACCEPT	poller/for-release/machine.py	/^MSG_SERVICE_ACCEPT = 104$/;"	v
+MSG_SERVICE_ACCEPT	src/service.c	/^    MSG_SERVICE_ACCEPT,$/;"	e	enum:__anon9	file:
+MSG_SERVICE_REQUEST	poller/for-release/machine.py	/^MSG_SERVICE_REQUEST = 103$/;"	v
+MSG_SERVICE_REQUEST	src/service.c	/^    MSG_SERVICE_REQUEST,$/;"	e	enum:__anon9	file:
+MSG_UNRECOGNIZED	poller/for-release/machine.py	/^MSG_UNRECOGNIZED = 102$/;"	v
+MSG_UNRECOGNIZED	src/service.c	/^    MSG_UNRECOGNIZED,$/;"	e	enum:__anon9	file:
+MSG_USERAUTH_BANNER	poller/for-release/machine.py	/^MSG_USERAUTH_BANNER = 113$/;"	v
+MSG_USERAUTH_BANNER	src/service.c	/^    MSG_USERAUTH_BANNER,$/;"	e	enum:__anon9	file:
+MSG_USERAUTH_FAILURE	poller/for-release/machine.py	/^MSG_USERAUTH_FAILURE = 111$/;"	v
+MSG_USERAUTH_FAILURE	src/service.c	/^    MSG_USERAUTH_FAILURE,$/;"	e	enum:__anon9	file:
+MSG_USERAUTH_PASSWD_CHANGEREQ	poller/for-release/machine.py	/^MSG_USERAUTH_PASSWD_CHANGEREQ = 120$/;"	v
+MSG_USERAUTH_PASSWD_CHANGEREQ	src/service.c	/^    MSG_USERAUTH_PASSWD_CHANGEREQ = 120,$/;"	e	enum:__anon9	file:
+MSG_USERAUTH_REQUEST	poller/for-release/machine.py	/^MSG_USERAUTH_REQUEST = 110$/;"	v
+MSG_USERAUTH_REQUEST	src/service.c	/^    MSG_USERAUTH_REQUEST = 110,$/;"	e	enum:__anon9	file:
+MSG_USERAUTH_SUCCESS	poller/for-release/machine.py	/^MSG_USERAUTH_SUCCESS = 112$/;"	v
+MSG_USERAUTH_SUCCESS	src/service.c	/^    MSG_USERAUTH_SUCCESS,$/;"	e	enum:__anon9	file:
+MULTIPLY_AS_A_FUNCTION	../../shared/tsid/src/aes.c	57;"	d	file:
+MixColumns	../../shared/tsid/src/aes.c	/^static void MixColumns(void)$/;"	f	file:
+Multiply	../../shared/tsid/src/aes.c	/^static uint8_t Multiply(uint8_t x, uint8_t y)$/;"	f	file:
+Multiply	../../shared/tsid/src/aes.c	312;"	d	file:
+NAN	lib/cgc_math.h	26;"	d
+NULL	../../shared/tsid/include/libcgc.h	11;"	d
+NULL	../../shared/tsid/include/libcgc.h	9;"	d
+NUM_BINS	lib/cgc_malloc_private.h	36;"	d
+NUM_CREDS	src/service.c	7;"	d	file:
+NUM_RUNS	lib/cgc_malloc_private.h	37;"	d
+NUM_SMALL_BINS	lib/cgc_malloc_private.h	34;"	d
+NUM_TINY_BINS	lib/cgc_malloc_private.h	35;"	d
+Nb	../../shared/tsid/src/aes.c	45;"	d	file:
+Nk	../../shared/tsid/src/aes.c	47;"	d	file:
+Nr	../../shared/tsid/src/aes.c	51;"	d	file:
+OUTPUT_CHAR	lib/printf.c	85;"	d	file:
+OUTPUT_STRING	lib/printf.c	97;"	d	file:
+PACKET_SIZE	src/service.c	6;"	d	file:
+PAGE_SIZE	../../shared/tsid/include/libcgc.h	30;"	d
+PAGE_SIZE	lib/malloc_common.c	31;"	d	file:
+PI	lib/cgc_math.h	27;"	d
+POV_INCLUDE	Makefile	/^POV_INCLUDE=$(INCLUDE) -I ..\/..\/shared\/tsid\/include\/libpov -I ..\/..\/shared\/tsid\/include\/libpov\/pov$/;"	m
+PRINTF_CHAR	lib/printf.c	35;"	d	file:
+RUN_SIZE	lib/cgc_malloc_private.h	29;"	d
+Rcon	../../shared/tsid/src/aes.c	/^static const uint8_t Rcon[255] = {$/;"	v	file:
+RoundKey	../../shared/tsid/src/aes.c	/^static uint8_t RoundKey[176];$/;"	v	file:
+SIZE_MAX	../../shared/tsid/include/libcgc.h	46;"	d
+SMALL_SIZE	lib/cgc_malloc_private.h	31;"	d
+SSIZE_MAX	../../shared/tsid/include/libcgc.h	42;"	d
+STDARG_H_	lib/cgc_stdarg.h	2;"	d
+STDERR	../../shared/tsid/include/libcgc.h	6;"	d
+STDIN	../../shared/tsid/include/libcgc.h	4;"	d
+STDINT_H_	lib/cgc_stdint.h	2;"	d
+STDIO_H_	lib/cgc_stdio.h	24;"	d
+STDIO_PRIVATE_H_	lib/cgc_stdio_private.h	24;"	d
+STDLIB_H_	lib/cgc_stdlib.h	24;"	d
+STDOUT	../../shared/tsid/include/libcgc.h	5;"	d
+STD_SIZE_T	../../shared/tsid/include/libcgc.h	24;"	d
+STD_SIZE_T	../../shared/tsid/include/libcgc.h	26;"	d
+STRING_H_	lib/cgc_string.h	24;"	d
+STRTOUL	lib/strtoul.c	1;"	d	file:
+ShiftRows	../../shared/tsid/src/aes.c	/^static void ShiftRows(void)$/;"	f	file:
+SubBytes	../../shared/tsid/src/aes.c	/^static void SubBytes(void)$/;"	f	file:
+TINY_SIZE	lib/cgc_malloc_private.h	30;"	d
+TemplateGenerator	poller/for-release/machine.py	/^class TemplateGenerator(Actions):$/;"	c
+UINT16_MAX	lib/cgc_stdint.h	37;"	d
+UINT32_MAX	lib/cgc_stdint.h	38;"	d
+UINT64_MAX	lib/cgc_stdint.h	39;"	d
+UINT8_MAX	lib/cgc_stdint.h	36;"	d
+UINT_MAX	lib/cgc_stdint.h	40;"	d
+ULONG_MAX	lib/cgc_stdint.h	41;"	d
+XorWithIv	../../shared/tsid/src/aes.c	/^static void XorWithIv(uint8_t* buf)$/;"	f	file:
+_AES_H_	../../shared/tsid/include/tiny-AES128-C/aes.h	2;"	d
+_ANSI_X931_AES128_H_	../../shared/tsid/include/ansi_x931_aes128.h	2;"	d
+_LIBCGC_H	../../shared/tsid/include/libcgc.h	2;"	d
+_NFDBITS	../../shared/tsid/include/libcgc.h	89;"	d
+__attribute__	../../shared/tsid/include/libcgc.h	14;"	d
+__builtin_isinf	../../shared/tsid/include/libcgc.h	16;"	d
+__builtin_isnan	../../shared/tsid/include/libcgc.h	15;"	d
+__ctype	lib/ctype.c	/^static unsigned char __ctype[256] = {$/;"	v	file:
+_b	../../shared/tsid/include/libcgc.h	/^typedef struct { long _b[8]; } jmp_buf[1];$/;"	m	struct:__anon11
+_fd_bits	../../shared/tsid/include/libcgc.h	/^    _fd_mask _fd_bits[CGC_FD_SETSIZE \/ CGC__NFDBITS];$/;"	m	struct:__anon10
+_fd_mask	../../shared/tsid/include/libcgc.h	/^typedef long int _fd_mask;$/;"	t
+_stderr	lib/stdio.c	/^FILE _stderr = {$/;"	v
+_stdin	lib/stdio.c	/^FILE _stdin = {$/;"	v
+_stdout	lib/stdio.c	/^FILE _stdout = {$/;"	v
+boolean	src/service.c	/^typedef byte boolean;$/;"	t	file:
+buffer	lib/cgc_stdio_private.h	/^    char buffer[1024];$/;"	m	struct:FILE
+byte	poller/for-release/machine.py	/^def byte(x):$/;"	f
+byte	src/service.c	/^typedef unsigned char byte;$/;"	t	file:
+cgc__convert_signed	lib/printf.c	/^static void cgc__convert_signed(char *buf, int x, int base, int upper)$/;"	f	file:
+cgc__convert_unsigned	lib/printf.c	/^static void cgc__convert_unsigned(char *buf, unsigned x, int base, int upper)$/;"	f	file:
+cgc__getc	lib/fread.c	/^static int cgc__getc(FILE *stream)$/;"	f	file:
+cgc__refill	lib/fread.c	/^static int cgc__refill(FILE *stream)$/;"	f	file:
+cgc__terminate	../../shared/tsid/src/libcgc.c	/^void cgc__terminate(unsigned int status) {$/;"	f
+cgc__terminate	lib/malloc_common.c	/^void cgc__terminate(int ec)$/;"	f
+cgc__vsfprintf	lib/printf.c	/^static int cgc__vsfprintf(const char *fmt, va_list ap, FILE *stream, char *buf, cgc_size_t buf_size)$/;"	f	file:
+cgc_aes_get_bytes	../../shared/tsid/src/ansi_x931_aes128.c	/^void cgc_aes_get_bytes(cgc_prng *prng, uint32_t len, uint8_t *buf) {$/;"	f
+cgc_aes_state	../../shared/tsid/include/ansi_x931_aes128.h	/^typedef struct cgc_aes_state {$/;"	s
+cgc_aes_state	../../shared/tsid/include/ansi_x931_aes128.h	/^} cgc_aes_state;$/;"	t	typeref:struct:cgc_aes_state
+cgc_allocate	../../shared/tsid/src/libcgc.c	/^int cgc_allocate(cgc_size_t length, int is_executable, void **addr) {$/;"	f
+cgc_allocate	lib/malloc_common.c	/^int cgc_allocate(cgc_size_t length, int is_X, void **addr)$/;"	f
+cgc_calloc	lib/calloc.c	/^void *cgc_calloc(cgc_size_t count, cgc_size_t size)$/;"	f
+cgc_check_timeout	../../shared/tsid/include/libcgc.h	/^int cgc_check_timeout(const struct cgc_timeval *timeout) {$/;"	f
+cgc_clear_packet	src/service.c	/^static void cgc_clear_packet(server_t *server)$/;"	f	file:
+cgc_copy_cgc_fd_set	../../shared/tsid/src/libcgc.c	/^static int cgc_copy_cgc_fd_set(const cgc_fd_set *cgc_fds, fd_set *os_fds, int *num_fds) {$/;"	f	file:
+cgc_copy_os_fd_set	../../shared/tsid/src/libcgc.c	/^static void cgc_copy_os_fd_set(const fd_set *os_fds, cgc_fd_set *cgc_fds) {$/;"	f	file:
+cgc_deallocate	../../shared/tsid/src/libcgc.c	/^int cgc_deallocate(void *addr, cgc_size_t length) {$/;"	f
+cgc_digittoint	lib/ctype.c	/^int cgc_digittoint(int c)$/;"	f
+cgc_exit	lib/exit.c	/^void cgc_exit(int code)$/;"	f
+cgc_fbuffered	lib/fflush.c	/^void cgc_fbuffered(FILE *stream, int enabled)$/;"	f
+cgc_fd_set	../../shared/tsid/include/libcgc.h	/^} cgc_fd_set;$/;"	t	typeref:struct:__anon10
+cgc_fdwait	../../shared/tsid/src/libcgc.c	/^int cgc_fdwait(int nfds, cgc_fd_set *readfds, cgc_fd_set *writefds,$/;"	f
+cgc_fflush	lib/fflush.c	/^int cgc_fflush(FILE *stream)$/;"	f
+cgc_fopen	lib/fopen.c	/^FILE * cgc_fopen(int fd, int mode)$/;"	f
+cgc_fprintf	lib/printf.c	/^int cgc_fprintf(FILE *stream, const char *fmt, ...)$/;"	f
+cgc_fread	lib/fread.c	/^cgc_ssize_t cgc_fread(void *ptr, cgc_size_t size, FILE *stream)$/;"	f
+cgc_freaduntil	lib/fread.c	/^cgc_ssize_t cgc_freaduntil(char *str, cgc_size_t size, char term, FILE *stream)$/;"	f
+cgc_free	lib/free.c	/^void cgc_free(void *ptr)$/;"	f
+cgc_fwrite	lib/fwrite.c	/^cgc_ssize_t cgc_fwrite(const void *ptr, cgc_size_t size, FILE *stream)$/;"	f
+cgc_fxlat	lib/fxlat.c	/^void cgc_fxlat(FILE *stream, const char *seed)$/;"	f
+cgc_gen_block	../../shared/tsid/src/ansi_x931_aes128.c	/^void cgc_gen_block(cgc_prng *prng) {$/;"	f
+cgc_get_boolean	src/service.c	/^static int cgc_get_boolean(server_t *server, boolean *out)$/;"	f	file:
+cgc_get_byte	src/service.c	/^static int cgc_get_byte(server_t *server, byte *out)$/;"	f	file:
+cgc_get_string	src/service.c	/^static int cgc_get_string(server_t *server, char *out, cgc_size_t n)$/;"	f	file:
+cgc_get_string_alloc	src/service.c	/^static int cgc_get_string_alloc(server_t *server, char **out)$/;"	f	file:
+cgc_get_uint32	src/service.c	/^static int cgc_get_uint32(server_t *server, uint32 *out)$/;"	f	file:
+cgc_handle_service_request	src/service.c	/^static int cgc_handle_service_request(server_t *server)$/;"	f	file:
+cgc_hash_seed	lib/fxlat.c	/^static unsigned int cgc_hash_seed(const char *seed)$/;"	f	file:
+cgc_heap_error	lib/malloc_common.c	/^static void cgc_heap_error(const char *fmt, ...)$/;"	f	file:
+cgc_init_creds	src/service.c	/^static void cgc_init_creds(server_t *server, const char *secrets)$/;"	f	file:
+cgc_init_packet	src/service.c	/^static void cgc_init_packet(server_t *server)$/;"	f	file:
+cgc_init_prng	../../shared/tsid/src/ansi_x931_aes128.c	/^void cgc_init_prng(cgc_prng *prng, const cgc_aes_state *seed) {$/;"	f
+cgc_initialize_flag_page	../../shared/tsid/src/libcgc.c	/^static void __attribute__ ((constructor)) cgc_initialize_flag_page(void) {$/;"	f	file:
+cgc_internal_prng	../../shared/tsid/src/libcgc.c	/^static cgc_prng *cgc_internal_prng = NULL;$/;"	v	file:
+cgc_isalnum	lib/ctype.c	/^int cgc_isalnum(int c)$/;"	f
+cgc_isalpha	lib/ctype.c	/^int cgc_isalpha(int c)$/;"	f
+cgc_isascii	lib/ctype.c	/^int cgc_isascii(int c)$/;"	f
+cgc_iscntrl	lib/ctype.c	/^int cgc_iscntrl(int c)$/;"	f
+cgc_isdigit	lib/ctype.c	/^int cgc_isdigit(int c)$/;"	f
+cgc_islower	lib/ctype.c	/^int cgc_islower(int c)$/;"	f
+cgc_isprint	lib/ctype.c	/^int cgc_isprint(int c)$/;"	f
+cgc_ispunct	lib/ctype.c	/^int cgc_ispunct(int c)$/;"	f
+cgc_isspace	lib/ctype.c	/^int cgc_isspace(int c)$/;"	f
+cgc_isupper	lib/ctype.c	/^int cgc_isupper(int c)$/;"	f
+cgc_isxdigit	lib/ctype.c	/^int cgc_isxdigit(int c)$/;"	f
+cgc_large_alloc	lib/malloc_common.c	/^static void *cgc_large_alloc(malloc_t *heap, cgc_size_t n)$/;"	f	file:
+cgc_large_free	lib/malloc_common.c	/^static void cgc_large_free(malloc_t *heap, void *ptr)$/;"	f	file:
+cgc_malloc	lib/malloc.c	/^void *cgc_malloc(cgc_size_t n)$/;"	f
+cgc_malloc_alloc	lib/malloc_common.c	/^void *cgc_malloc_alloc(malloc_t *heap, cgc_size_t n)$/;"	f
+cgc_malloc_free	lib/cgc_malloc_private.h	/^typedef struct cgc_malloc_free {$/;"	s
+cgc_malloc_realloc	lib/malloc_common.c	/^void *cgc_malloc_realloc(malloc_t *heap, void *ptr, cgc_size_t n)$/;"	f
+cgc_malloc_size	lib/malloc_common.c	/^cgc_size_t cgc_malloc_size(malloc_t *heap, void *ptr)$/;"	f
+cgc_memchr	lib/memchr.c	/^void *cgc_memchr(const void *s, int c, cgc_size_t n)$/;"	f
+cgc_memcmp	lib/memcmp.c	/^int cgc_memcmp(const void *s1, const void *s2, cgc_size_t n)$/;"	f
+cgc_memcpy	lib/memcpy.c	/^void *cgc_memcpy(void *dst, const void *src, cgc_size_t n)$/;"	f
+cgc_memmove	lib/memmove.c	/^void *cgc_memmove(void *dst, const void *src, cgc_size_t n)$/;"	f
+cgc_memset	lib/memset.c	/^void *cgc_memset(void *s, int c, cgc_size_t n)$/;"	f
+cgc_mystrndup	src/service.c	/^static cgc_size_t cgc_mystrndup(const char *str, cgc_size_t n, char **out)$/;"	f	file:
+cgc_printf	lib/printf.c	/^int cgc_printf(const char *fmt, ...)$/;"	f
+cgc_prng	../../shared/tsid/include/ansi_x931_aes128.h	/^typedef struct cgc_prng {$/;"	s
+cgc_prng	../../shared/tsid/include/ansi_x931_aes128.h	/^} cgc_prng;$/;"	t	typeref:struct:cgc_prng
+cgc_random	../../shared/tsid/src/libcgc.c	/^int cgc_random(void *buf, cgc_size_t count, cgc_size_t *rnd_bytes) {$/;"	f
+cgc_realloc	lib/realloc.c	/^void *cgc_realloc(void *ptr, cgc_size_t n)$/;"	f
+cgc_receive	../../shared/tsid/src/libcgc.c	/^int cgc_receive(int fd, void *buf, cgc_size_t count, cgc_size_t *rx_bytes) {$/;"	f
+cgc_recv_bytes	src/service.c	/^static uint32 cgc_recv_bytes(server_t *server, uint32 count)$/;"	f	file:
+cgc_recv_packet	src/service.c	/^static uint32 cgc_recv_packet(server_t *server)$/;"	f	file:
+cgc_run_alloc	lib/malloc_common.c	/^static void *cgc_run_alloc(malloc_t *heap, int type)$/;"	f	file:
+cgc_safe_memcpy	src/service.c	/^static int cgc_safe_memcpy(server_t *server, char *dst, unsigned short n)$/;"	f	file:
+cgc_safe_strdup	src/service.c	/^static int cgc_safe_strdup(server_t *server, char **out, unsigned short n)$/;"	f	file:
+cgc_send_disconnect	src/service.c	/^static int cgc_send_disconnect(server_t *server)$/;"	f	file:
+cgc_send_packet	src/service.c	/^static int cgc_send_packet(server_t *server)$/;"	f	file:
+cgc_send_service_accept	src/service.c	/^static int cgc_send_service_accept(server_t *server, const char *service_name)$/;"	f	file:
+cgc_send_unrecognized	src/service.c	/^static int cgc_send_unrecognized(server_t *server)$/;"	f	file:
+cgc_send_userauth_changereq	src/service.c	/^static int cgc_send_userauth_changereq(server_t *server, const char *prompt)$/;"	f	file:
+cgc_send_userauth_failure	src/service.c	/^static int cgc_send_userauth_failure(server_t *server)$/;"	f	file:
+cgc_send_userauth_success	src/service.c	/^static int cgc_send_userauth_success(server_t *server)$/;"	f	file:
+cgc_size_t	../../shared/tsid/include/libcgc.h	/^typedef unsigned long cgc_size_t;$/;"	t
+cgc_size_to_bin	lib/cgc_malloc_private.h	/^static inline int cgc_size_to_bin(cgc_size_t n)$/;"	f
+cgc_small_alloc	lib/malloc_common.c	/^static void *cgc_small_alloc(malloc_t *heap, cgc_size_t n)$/;"	f	file:
+cgc_small_alloc_run	lib/malloc_common.c	/^static int cgc_small_alloc_run(malloc_t *heap)$/;"	f	file:
+cgc_small_free	lib/malloc_common.c	/^static void cgc_small_free(malloc_t *heap, void *ptr)$/;"	f	file:
+cgc_small_insert_free	lib/malloc_common.c	/^static void cgc_small_insert_free(malloc_t *heap, int bin, malloc_small_free_t *hdr)$/;"	f	file:
+cgc_small_split	lib/malloc_common.c	/^static void cgc_small_split(malloc_t *heap, malloc_small_free_t *hdr, cgc_size_t len)$/;"	f	file:
+cgc_small_unlink_free	lib/malloc_common.c	/^static void cgc_small_unlink_free(malloc_t *heap, int bin, malloc_small_free_t *hdr)$/;"	f	file:
+cgc_sprintf	lib/printf.c	/^int cgc_sprintf(char *str, const char *fmt, ...)$/;"	f
+cgc_ssize_t	../../shared/tsid/include/libcgc.h	/^typedef long cgc_ssize_t;$/;"	t
+cgc_stderr	lib/stdio.c	/^FILE * const cgc_stderr = &_stderr;$/;"	v
+cgc_stdin	lib/stdio.c	/^FILE * const cgc_stdin = &_stdin;$/;"	v
+cgc_stdout	lib/stdio.c	/^FILE * const cgc_stdout = &_stdout;$/;"	v
+cgc_strcasecmp	lib/strcasecmp.c	/^int cgc_strcasecmp(const char *s1, const char *s2)$/;"	f
+cgc_strcasestr	lib/strcasestr.c	/^char *cgc_strcasestr(const char *haystack, const char *needle)$/;"	f
+cgc_strchr	lib/strchr.c	/^char *cgc_strchr(const char *s, int c)$/;"	f
+cgc_strcmp	lib/strcmp.c	/^int cgc_strcmp(const char *s1, const char *s2)$/;"	f
+cgc_strcpy	lib/strcpy.c	/^char *cgc_strcpy(char *dest, const char *src)$/;"	f
+cgc_strdup	lib/strdup.c	/^char *cgc_strdup(const char *s1)$/;"	f
+cgc_strlen	lib/strlen.c	/^cgc_size_t cgc_strlen(const char *s)$/;"	f
+cgc_strncasecmp	lib/strncasecmp.c	/^int cgc_strncasecmp(const char *s1, const char *s2, cgc_size_t n)$/;"	f
+cgc_strncpy	lib/strncpy.c	/^char *cgc_strncpy(char *dest, const char *src, cgc_size_t len)$/;"	f
+cgc_strndup	lib/strndup.c	/^char *cgc_strndup(const char *s1, cgc_size_t n)$/;"	f
+cgc_strsep	lib/strsep.c	/^char * cgc_strsep(char **stringp, const char *delim)$/;"	f
+cgc_strstr	lib/strstr.c	/^char *cgc_strstr(const char *haystack, const char *needle)$/;"	f
+cgc_strtoul	lib/strtol.c	/^unsigned long cgc_strtoul(const char *str, char **endptr, int base)$/;"	f
+cgc_timeval	../../shared/tsid/include/libcgc.h	/^struct cgc_timeval {$/;"	s
+cgc_tiny_alloc	lib/malloc_common.c	/^static void *cgc_tiny_alloc(malloc_t *heap, cgc_size_t n)$/;"	f	file:
+cgc_tiny_free	lib/malloc_common.c	/^static void cgc_tiny_free(malloc_t *heap, void *ptr)$/;"	f	file:
+cgc_tolower	lib/ctype.c	/^int cgc_tolower(int c)$/;"	f
+cgc_toupper	lib/ctype.c	/^int cgc_toupper(int c)$/;"	f
+cgc_transmit	../../shared/tsid/src/libcgc.c	/^int cgc_transmit(int fd, const void *buf, cgc_size_t count, cgc_size_t *tx_bytes) {$/;"	f
+cgc_transmit_all	lib/cgc_stdio_private.h	/^static inline int cgc_transmit_all(int fd, const void *buf, cgc_size_t count)$/;"	f
+cgc_transmit_xlat	lib/cgc_stdio_private.h	/^static inline int cgc_transmit_xlat(int fd,  const unsigned char *map, const void *buf, cgc_size_t count)$/;"	f
+cgc_try_init_prng	../../shared/tsid/src/libcgc.c	/^static void cgc_try_init_prng() {$/;"	f	file:
+cgc_userauth_handler	src/service.c	/^static int cgc_userauth_handler(server_t *server, byte type)$/;"	f	file:
+cgc_userauth_password	src/service.c	/^static int cgc_userauth_password(server_t *server, const char *username, const char *service_name)$/;"	f	file:
+cgc_vfprintf	lib/printf.c	/^int cgc_vfprintf(FILE *stream, const char *fmt, va_list ap)$/;"	f
+cgc_vprintf	lib/printf.c	/^int cgc_vprintf(const char *fmt, va_list ap)$/;"	f
+cgc_vsprintf	lib/printf.c	/^int cgc_vsprintf(char *str, const char *fmt, va_list ap)$/;"	f
+cgc_write_boolean	src/service.c	/^static int cgc_write_boolean(server_t *server, boolean b)$/;"	f	file:
+cgc_write_byte	src/service.c	/^static int cgc_write_byte(server_t *server, byte b)$/;"	f	file:
+cgc_write_string	src/service.c	/^static int cgc_write_string(server_t *server, const char *s, uint32 length)$/;"	f	file:
+cgc_write_uint32	src/service.c	/^static int cgc_write_uint32(server_t *server, uint32 x)$/;"	f	file:
+cgc_xlat	lib/cgc_stdio_private.h	/^static inline void cgc_xlat(const unsigned char *map, void *buf, cgc_size_t count)$/;"	f
+cgc_xor	../../shared/tsid/src/ansi_x931_aes128.c	/^void cgc_xor(const uint8_t *a, const uint8_t *b, uint8_t *buf) {$/;"	f
+cred_t	src/service.c	/^} cred_t;$/;"	t	typeref:struct:__anon8	file:
+credentials	src/service.c	/^    cred_t credentials[NUM_CREDS];$/;"	m	struct:server	file:
+data	lib/cgc_malloc_private.h	/^    char data[0];$/;"	m	struct:__anon4
+datetime	../../shared/tsid/include/ansi_x931_aes128.h	/^    uint8_t datetime[BLOCK_SIZE];$/;"	m	struct:cgc_aes_state
+deallocate	lib/malloc_common.c	/^int deallocate(void *addr, cgc_size_t length)$/;"	f
+disconnect	poller/for-release/machine.py	/^    def disconnect(self):$/;"	m	class:TemplateGenerator
+fd	lib/cgc_stdio_private.h	/^    int fd;$/;"	m	struct:FILE
+fmax	lib/cgc_math.h	/^static inline double fmax(double a, double b)$/;"	f
+fmin	lib/cgc_math.h	/^static inline double fmin(double a, double b)$/;"	f
+free_list	lib/cgc_malloc_private.h	/^    struct cgc_malloc_free *free_list[NUM_BINS];$/;"	m	struct:__anon3	typeref:struct:__anon3::cgc_malloc_free
+g_heap	lib/cgc_malloc_private.h	/^malloc_t g_heap;$/;"	v
+getSBoxInvert	../../shared/tsid/src/aes.c	/^static uint8_t getSBoxInvert(uint8_t num)$/;"	f	file:
+getSBoxValue	../../shared/tsid/src/aes.c	/^static uint8_t getSBoxValue(uint8_t num)$/;"	f	file:
+get_uint64	src/service.c	/^static int get_uint64(server_t *server, uint64 *out)$/;"	f	file:
+go	poller/for-release/machine.py	/^    def go(self):$/;"	m	class:TemplateGenerator
+hdr	lib/cgc_malloc_private.h	/^    malloc_hdr_t hdr;$/;"	m	struct:malloc_small_free
+heap	lib/cgc_malloc_private.h	/^        malloc_t *heap; \/* large allocations *\/$/;"	m	union:__anon4::__anon5
+idx	lib/cgc_stdio_private.h	/^    int idx;$/;"	m	struct:FILE
+ignore	poller/for-release/machine.py	/^    def ignore(self):$/;"	m	class:TemplateGenerator
+int16_t	lib/cgc_stdint.h	/^typedef short int int16_t;$/;"	t
+int32_t	lib/cgc_stdint.h	/^typedef int int32_t;$/;"	t
+int64_t	lib/cgc_stdint.h	/^typedef long long int int64_t;$/;"	t
+int8_t	lib/cgc_stdint.h	/^typedef signed char int8_t;$/;"	t
+intermediate	../../shared/tsid/include/ansi_x931_aes128.h	/^    uint8_t intermediate[BLOCK_SIZE];$/;"	m	struct:cgc_prng
+intmax_t	lib/cgc_stdint.h	/^typedef long long int intmax_t;$/;"	t
+intptr_t	lib/cgc_stdint.h	/^typedef int intptr_t;$/;"	t
+is_auth	src/service.c	/^    boolean is_auth;$/;"	m	struct:server	file:
+jmp_buf	../../shared/tsid/include/libcgc.h	/^typedef struct { long _b[8]; } jmp_buf[1];$/;"	t	typeref:struct:__anon11
+key	../../shared/tsid/include/ansi_x931_aes128.h	/^    uint8_t key[BLOCK_SIZE];$/;"	m	struct:cgc_aes_state
+length	lib/cgc_stdio_private.h	/^    int length;$/;"	m	struct:FILE
+magic_string	poller/for-release/machine.py	/^    def magic_string(self, max_n):$/;"	m	class:TemplateGenerator
+main	pov_1/pov.c	/^int main(int cgc_argc, char *cgc_argv[])$/;"	f
+main	src/service.c	/^int main(int secret_page_i,  char *unused[]) {$/;"	f
+malloc_free	lib/malloc_common.c	/^void malloc_free(malloc_t *heap, void *ptr)$/;"	f
+malloc_free_t	lib/cgc_malloc_private.h	/^} malloc_free_t;$/;"	t	typeref:struct:cgc_malloc_free
+malloc_hdr_t	lib/cgc_malloc_private.h	/^} malloc_hdr_t;$/;"	t	typeref:struct:__anon4
+malloc_small_free	lib/cgc_malloc_private.h	/^typedef struct malloc_small_free {$/;"	s
+malloc_small_free_t	lib/cgc_malloc_private.h	/^} malloc_small_free_t;$/;"	t	typeref:struct:malloc_small_free
+malloc_t	lib/cgc_malloc_private.h	/^} malloc_t;$/;"	t	typeref:struct:__anon3
+malloc_tiny_free	lib/cgc_malloc_private.h	/^typedef struct malloc_tiny_free {$/;"	s
+malloc_tiny_free_t	lib/cgc_malloc_private.h	/^} malloc_tiny_free_t;$/;"	t	typeref:struct:malloc_tiny_free
+mem_map	lib/cgc_malloc_private.h	/^    unsigned char mem_map[NUM_RUNS];$/;"	m	struct:__anon3
+next	lib/cgc_malloc_private.h	/^    struct malloc_small_free *prev, *next;$/;"	m	struct:malloc_small_free	typeref:struct:malloc_small_free::
+next	lib/cgc_malloc_private.h	/^    struct malloc_tiny_free *next;$/;"	m	struct:malloc_tiny_free	typeref:struct:malloc_tiny_free::malloc_tiny_free
+offset	lib/cgc_malloc_private.h	/^    unsigned short offset;$/;"	m	struct:tiny_page
+offsetof	../../shared/tsid/include/libcgc.h	38;"	d
+packet	src/service.c	/^    byte packet[PACKET_SIZE];$/;"	m	struct:server	file:
+packet_idx	src/service.c	/^    unsigned int packet_idx, packet_len;$/;"	m	struct:server	file:
+packet_len	src/service.c	/^    unsigned int packet_idx, packet_len;$/;"	m	struct:server	file:
+packet_seq	src/service.c	/^    unsigned int packet_seq;$/;"	m	struct:server	file:
+password	src/service.c	/^    char *password;$/;"	m	struct:__anon8	file:
+prev	lib/cgc_malloc_private.h	/^    struct malloc_small_free *prev, *next;$/;"	m	struct:malloc_small_free	typeref:struct:malloc_small_free::malloc_small_free
+prev_size	lib/cgc_malloc_private.h	/^        cgc_size_t prev_size; \/* small allocations *\/$/;"	m	union:__anon4::__anon5
+random_bytes	poller/for-release/machine.py	/^def random_bytes(n):$/;"	f
+random_data	../../shared/tsid/include/ansi_x931_aes128.h	/^    uint8_t random_data[BLOCK_SIZE];$/;"	m	struct:cgc_prng
+random_idx	../../shared/tsid/include/ansi_x931_aes128.h	/^    uint8_t random_idx;$/;"	m	struct:cgc_prng
+read_packet	poller/for-release/machine.py	/^    def read_packet(self, data):$/;"	m	class:TemplateGenerator
+rsbox	../../shared/tsid/src/aes.c	/^static const uint8_t rsbox[256] =$/;"	v	file:
+rw	lib/cgc_stdio_private.h	/^    int rw;$/;"	m	struct:FILE
+sbox	../../shared/tsid/src/aes.c	/^static const uint8_t sbox[256] =   {$/;"	v	file:
+server	src/service.c	/^typedef struct server {$/;"	s	file:
+server_t	src/service.c	/^} server_t;$/;"	t	typeref:struct:server	file:
+service_handler	src/service.c	/^    service_handler_t service_handler;$/;"	m	struct:server	file:
+service_handler_t	src/service.c	/^typedef int (*service_handler_t) (struct server *, byte);$/;"	t	file:
+service_request	poller/for-release/machine.py	/^    def service_request(self):$/;"	m	class:TemplateGenerator
+size	lib/cgc_malloc_private.h	/^    unsigned short size;$/;"	m	struct:tiny_page
+size_flags	lib/cgc_malloc_private.h	/^    cgc_size_t size_flags;$/;"	m	struct:__anon4
+small	lib/cgc_malloc_private.h	/^        malloc_small_free_t small;$/;"	m	union:cgc_malloc_free::__anon7
+small_run_t	lib/cgc_malloc_private.h	/^} small_run_t;$/;"	t	typeref:struct:__anon6
+start	poller/for-release/machine.py	/^    def start(self):$/;"	m	class:TemplateGenerator
+state	../../shared/tsid/include/ansi_x931_aes128.h	/^    cgc_aes_state state;$/;"	m	struct:cgc_prng
+state	../../shared/tsid/src/aes.c	/^static state_t* state;$/;"	v	file:
+state_t	../../shared/tsid/src/aes.c	/^typedef uint8_t state_t[4][4];$/;"	t	file:
+string	poller/for-release/machine.py	/^def string(x):$/;"	f
+tiny	lib/cgc_malloc_private.h	/^        malloc_tiny_free_t tiny;$/;"	m	union:cgc_malloc_free::__anon7
+tiny_offset	lib/cgc_malloc_private.h	/^    cgc_size_t tiny_offset;$/;"	m	struct:__anon3
+tiny_page	lib/cgc_malloc_private.h	/^typedef struct tiny_page {$/;"	s
+tiny_page_t	lib/cgc_malloc_private.h	/^} tiny_page_t;$/;"	t	typeref:struct:tiny_page
+tiny_pages	lib/cgc_malloc_private.h	/^    struct tiny_page *tiny_pages[NUM_TINY_BINS];$/;"	m	struct:__anon3	typeref:struct:__anon3::tiny_page
+tiny_run	lib/cgc_malloc_private.h	/^    void *tiny_run;$/;"	m	struct:__anon3
+tv_sec	../../shared/tsid/include/libcgc.h	/^    int tv_sec;$/;"	m	struct:cgc_timeval
+tv_usec	../../shared/tsid/include/libcgc.h	/^    int tv_usec;$/;"	m	struct:cgc_timeval
+uint16_t	lib/cgc_stdint.h	/^typedef unsigned short int uint16_t;$/;"	t
+uint32	poller/for-release/machine.py	/^def uint32(x):$/;"	f
+uint32	src/service.c	/^typedef uint32_t uint32;$/;"	t	file:
+uint32_t	lib/cgc_stdint.h	/^typedef unsigned int uint32_t;$/;"	t
+uint64	src/service.c	/^typedef uint64_t uint64;$/;"	t	file:
+uint64_t	lib/cgc_stdint.h	/^typedef unsigned long long int uint64_t;$/;"	t
+uint8_t	lib/cgc_stdint.h	/^typedef unsigned char uint8_t;$/;"	t
+uintmax_t	lib/cgc_stdint.h	/^typedef unsigned long long int uintmax_t;$/;"	t
+uintptr_t	lib/cgc_stdint.h	/^typedef unsigned int uintptr_t;$/;"	t
+unimplemented	poller/for-release/machine.py	/^    def unimplemented(self):$/;"	m	class:TemplateGenerator
+unused	lib/cgc_malloc_private.h	/^    int unused;$/;"	m	struct:__anon6
+userauth_request	poller/for-release/machine.py	/^    def userauth_request(self):$/;"	m	class:TemplateGenerator
+username	src/service.c	/^    char *username;$/;"	m	struct:__anon8	file:
+va_arg	lib/cgc_stdarg.h	10;"	d
+va_end	lib/cgc_stdarg.h	9;"	d
+va_list	lib/cgc_stdarg.h	/^typedef __builtin_va_list va_list;$/;"	t
+va_start	lib/cgc_stdarg.h	8;"	d
+vec	../../shared/tsid/include/ansi_x931_aes128.h	/^    uint8_t vec[BLOCK_SIZE];$/;"	m	struct:cgc_aes_state
+write_packet	poller/for-release/machine.py	/^    def write_packet(self, data):$/;"	m	class:TemplateGenerator
+write_uint64	src/service.c	/^static int write_uint64(server_t *server, uint64 x)$/;"	f	file:
+xlat_map	lib/cgc_stdio_private.h	/^    unsigned char *xlat_map;$/;"	m	struct:FILE
+xlat_map_inv	lib/cgc_stdio_private.h	/^    unsigned char *xlat_map_inv;$/;"	m	struct:FILE
+xtime	../../shared/tsid/src/aes.c	/^static uint8_t xtime(uint8_t x)$/;"	f	file:

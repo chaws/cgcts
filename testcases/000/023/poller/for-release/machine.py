@@ -1,234 +1,60 @@
 #!/usr/bin/env python
+#
+# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
 
 from generator.actions import Actions
-import random
 import string
+import random
+import itertools
+import math
+from struct import *
 
-types = ["Integer", "String", "Boolean"]
+class TemplateGenerator(Actions):
 
-class Calculator(Actions):
-    variables = []
+	def start(self):
+		
+		starting_balance = 10000
+		record_str = pack('HH', 0, starting_balance)
+		self.write(record_str)
 
-    def genOperand(self, otype):
-        if(otype == "String"):
-            return "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
-        if(otype == "Integer"):
-            return random.randint(0, 200000)
-        if(otype == "Boolean"):
-            return random.choice(["True", "False"])
+		dataset = {'sampleSize' : 0.0, 'mean' : 0.0, 'Q' : 0.0, 'variance' : 0.0, 'stdDev' : 0.0}
+		for i in range(0, 99):
+			while True:
+				record = [random.normalvariate(50.0, 10), random.normalvariate(50.0, 10)]
+				if (record[0] < 65000 and record[0] >= 1 and record[1] < 65000 and record[1] >= 1):
+					break
+			dataset['sampleSize'] += 1
+			priceRelative = record[0]/record[1]
+			oldMean = dataset['mean']
+			dataset['mean'] = oldMean + (priceRelative - oldMean) / dataset['sampleSize']
+			dataset['Q'] =  dataset['Q'] + (priceRelative - oldMean) * (priceRelative - dataset['mean'])
+			dataset['variance'] = dataset['Q'] / dataset['sampleSize']
+			dataset['stdDev'] = math.cgc_sqrt(dataset['variance'])
+			record_str = pack('HH', int(record[0]), int(record[1]))
+			self.write(record_str)
 
-    def start(self):
-        self.read(delim='> ')
-
-    def doSomething(self):
-        pass
-
-    def doLen(self):
-        want = ""
-        type1 = random.choice(types)
-        operand1 = self.genOperand(type1)
-        if(type1 == "String"):
-            self.write("len \"%s\"\n" % operand1)
-            want = operand1
-        elif(type1 == "Boolean"):
-            self.write("len %s\n" % operand1)
-            want = "1"
-        else:
-            self.write("len %s\n" % operand1)
-            want = str(operand1)
-        self.read(delim='\n', expect=str(len(want)))
-
-    def doMod(self):
-        type1, type2 = (random.choice(types), random.choice(types))
-
-        operand1, operand2 = (self.genOperand(type1), self.genOperand(type2))
-        if(type1 == "Integer" and type2 == "Integer"):
-            self.write("%s %s %s\n" % (operand1, random.choice(["%", "mod"]), operand2))
-            if(operand2 == "0"):
-                self.read(delim='\n', expect="Cannot mod by zero.")
-            else:
-                self.read(delim='\n', expect=str(operand1 % operand2))
-        else:
-            if type1 == "String":
-                operand1 = "\"%s\"" % operand1
-            if type2 == "String":
-                operand2 = "\"%s\"" % operand2
-            self.write("%s %s %s\n" % (operand1, random.choice(["%", "mod"]), operand2))
-            self.read(delim='\n', expect="Mod does not make sense on %s and %s" % (type1, type2))
-
-    def doNot(self):
-        type1 = random.choice(types)
-        operand1 = self.genOperand(type1)
-
-        if type1 == "String":
-            self.write("not \"%s\"\n" % operand1)
-            if(operand1 == "OMG"):
-                #Buy a lottery ticket.
-                self.read(delim='\n', expect="BBQ")
-            else:
-                self.read(delim='\n', expect="OMG")
-        elif type1 == "Integer":
-            self.write("not %s\n" % operand1)
-            self.read(delim="\n", expect=str(~operand1))
-        elif type1 == "Boolean":
-            self.write("not %s\n" % operand1)
-            if(operand1 == "True"):
-                self.read(delim="\n", expect="False")
-            else:
-                self.read(delim="\n", expect="True")
-
-    def doEquals(self):
-        type1, type2 = (random.choice(types), random.choice(types))
-        operand1, operand2 = (self.genOperand(type1), self.genOperand(type2))
-        match = random.randint(0, 1)
-
-        if(match):
-            if(type1 == "String"):
-                self.write("\"%s\" %s \"%s\"\n" % (operand1, random.choice(["==", "equals"]), operand1))
-            else:
-                self.write("%s %s %s\n" % (operand1, random.choice(["==", "equals"]), operand1))
-            self.read(delim="\n", expect="True")
-        else:
-            if(type1 == "String"):
-                operand1 = "\"%s\"" % operand1
-            if(type2 == "String"):
-                operand2 = "\"%s\"" % operand2
-            if(type1 == "Boolean" and type2 == "Boolean"):
-                if(operand1 == "True"):
-                    operand2 = "False"
-                else:
-                    operand2 = "True"
-            self.write("%s %s %s\n" % (operand1, random.choice(["==", "equals"]), operand2))
-            self.read(delim="\n", expect="False")
+		record_str = pack('hh', -1, -1)
+		self.write(record_str)
 
 
-    def doType(self):
-        type1 = random.choice(types)
-        operand1 = self.genOperand(type1)
-        if(type1 == "String"):
-            self.write("type \"%s\"\n" % operand1)
-        else:
-            self.write("type %s\n" % operand1)
-        self.read(delim="\n", expect=type1)
-
-    def doAdd(self):
-        type1, type2 = (random.choice(types), random.choice(types))
-
-        operand1, operand2 = (self.genOperand(type1), self.genOperand(type2))
-        if(type1 == "Integer" and type2 == "Integer"):
-            self.write("%s %s %s\n" % (operand1, random.choice(["+", "add"]), operand2))
-            self.read(delim='\n', expect=str(operand1 + operand2))
-        elif(type1 == "String" and type2 == "Integer"):
-            self.write("\"%s\" %s %s\n" % (operand1, random.choice(["+", "add"]), operand2))
-            self.read(delim='\n', expect=operand1 + str(operand2))
-        elif(type1 == "String" and type2 == "String"):
-            self.write("\"%s\" %s \"%s\"\n" % (operand1, random.choice(["+", "add"]), operand2))
-            self.read(delim='\n', expect=operand1 + operand2)
-        else:
-            if type1 == "String":
-                operand1 = "\"%s\"" % operand1
-            if type2 == "String":
-                operand2 = "\"%s\"" % operand2
-            self.write("%s %s %s\n" % (operand1, random.choice(["+", "add"]), operand2))
-            self.read(delim='\n', expect="Add doesn't make sense on %s and %s" % (type1, type2))
-
-
-    def doSub(self):
-        type1, type2 = (random.choice(types), random.choice(types))
-
-        operand1, operand2 = (self.genOperand(type1), self.genOperand(type2))
-        if(type1 == "Integer" and type2 == "Integer"):
-            self.write("%s %s %s\n" % (operand1, random.choice(["-", "sub"]), operand2))
-            self.read(delim='\n', expect=str(operand1 - operand2))
-        else:
-            if type1 == "String":
-                operand1 = "\"%s\"" % operand1
-            if type2 == "String":
-                operand2 = "\"%s\"" % operand2
-            self.write("%s %s %s\n" % (operand1, random.choice(["-", "sub"]), operand2))
-            self.read(delim='\n', expect="Sub does not make sense on %s and %s" % (type1, type2))
-
-    def doMul(self):
-        type1, type2 = (random.choice(types), random.choice(types))
-
-        operand1, operand2 = (self.genOperand(type1), self.genOperand(type2))
-        if(type1 == "Integer" and type2 == "Integer"):
-            operand1 = operand1 % 2048
-            operand2 = operand2 % 2048
-            self.write("%s %s %s\n" % (operand1, random.choice(["*", "mul"]), operand2))
-            total = (operand1 * operand2) & (cgc_pow(2,32)-1)
-            if (total > (cgc_pow(2,31)-1)):
-                total = total & (cgc_pow(2,31)-1)
-                total *= -1
-                self.read(delim='\n', expect=str(total))
-            else:
-                self.read(delim='\n', expect=str(total))
-        elif(type1 == "String" and type2 == "Integer"):
-            operand2 = random.randint(1, 20)
-            self.write("\"%s\" * %s\n" % (operand1, operand2))
-        else:
-            if type1 == "String":
-                operand1 = "\"%s\"" % operand1
-            if type2 == "String":
-                operand2 = "\"%s\"" % operand2
-            self.write("%s %s %s\n" % (operand1, random.choice(["*", "mul"]), operand2))
-            self.read(delim='\n', expect="Mul does not make sense with %s and %s" % (type1, type2))
-
-    def doInt(self):
-        type1 = random.choice(types)
-        operand1 = self.genOperand(type1)
-
-        if(type1 == "Integer"):
-            self.write("int %s\n" % operand1)
-            self.read(delim='\n', expect=str(operand1))
-
-        elif(type1 == "String"):
-            try:
-                operand1 = int(operand1)
-                self.write("int \"%s\"\n" % operand1)
-            except ValueError:
-                self.write("int \"%s\"\n")
-                self.read(delim='\n', expect="Could not convert argument to int")
-        elif(type1 == "Boolean"):
-            self.write("int %s\n" % operand1)
-            if operand1 == "True":
-                line = "1"
-            else:
-                line = "0"
-            self.read(delim='\n', expect=line)
-
-    def doDiv(self):
-        type1, type2 = (random.choice(types), random.choice(types))
-
-        operand1, operand2 = (self.genOperand(type1), self.genOperand(type2))
-        if(type1 == "Integer" and type2 == "Integer"):
-            self.write("%s %s %s\n" % (operand1, random.choice(["/", "div"]), operand2))
-            if(operand2 == "0"):
-                self.read(delim='\n', expect="Cannot divide by zero.")
-            else:
-                self.read(delim='\n', expect=str(operand1 / operand2))
-        else:
-            if type1 == "String":
-                operand1 = "\"%s\"" % operand1
-            if type2 == "String":
-                operand2 = "\"%s\"" % operand2
-            self.write("%s %s %s\n" % (operand1, random.choice(["/", "div"]), operand2))
-            self.read(delim='\n', expect="Division does not make sense on %s and %s" % (type1, type2))
-
-    def doVar(self):
-        type1 = random.choice(types)
-        varName = "".join(random.choice(string.ascii_uppercase + string.ascii_lowercase) for _ in range(10))
-
-        if(type1 == "String"):
-            varValue = "".join(random.choice(string.ascii_uppercase + string.ascii_lowercase) for _ in range(10))
-            self.write("var %s = \"%s\"\n" % (varName, varValue))
-            self.variables.append((varName, varValue, type1))
-        else:
-            varValue = self.genOperand(type1)
-            self.write("var %s = %s\n" % (varName, varValue))
-            self.variables.append((varName, varValue, type1))
-        self.write(varName + "\n")
-        self.read(delim="\n", expect="> " + str(varValue))
-
-    def end(self):
-        self.write("terminate\n")
+	def quit(self):
+		pass

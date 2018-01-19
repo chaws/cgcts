@@ -1,376 +1,261 @@
-#!/usr/bin/env python
-from __future__ import division
-
 from generator.actions import Actions
-
-from numpy import int32, uint16
-
-import copy
-import math
-import operator as op
 import random
-import re
+import string
+import struct
+import numpy as np
+import math
+import datetime as dt
 
+MAX_NAME = 20
+MAX_DESC = 200
 
-def trace(fn):
-    def wrapper(*args, **kwargs):
-        fn(*args, **kwargs)
-    return wrapper
+def random_word(max_size=7, min_size=3):
+    characters = string.letters
+    max_size = max_size if max_size >= min_size else min_size
+    max_size = random.randint(min_size, max_size)
+    return ("".join(random.choice(characters) for c in range(max_size))).lower()
 
+def random_text(max_words=32, min_words=3):
+    max_words = max_words if max_words >= min_words else min_words
+    text = ''
+    for x in xrange(random.randint(min_words, max_words)):
+        text += random_word() + ' '
+    return text
 
-class TemplateGenerator(Actions):
-    line_regex = re.compile(r'(\d+):\s+(\d+)?')
-    ERR_TOO_FEW_ARGS = "Error: Too few arguments for '{}' command"
-    ERR_INVALID_INPUT = "Error: Invalid input"
+def random_username(max_size=MAX_NAME, min_size=1):
+    return "Player"
+#return random_word(MAX_NAME, 1)
 
-    ADD_HISTORY = 1
-    NO_HISTORY = 2
+class Player:
+    def __init__(self, name, flair):
+        self.name = name
+        self.flair = flair
+        self.score = 0
+        self.num_rps_wins = 0
+        self.num_hi_lo_wins = 0
+        self.num_ttt_wins = 0
+        self.num_ttt_consecutive_draws = 0
+        self.ttt_go_first = True
+        self.num_ttt_moves = 0
 
-    class Stack(object):
-        def __init__(self):
-            self._storage = []
+    def print_stats(self, _read_fn):
+        _read_fn("---%s's stats---\n" % (self.name))
+        _read_fn("Current Score: %d\n" % (self.score))
+        _read_fn("Number of Three in a row draws: %d\n" % (self.num_ttt_consecutive_draws))
+        _read_fn("Number of Three in a row wins: %d\n" % (self.num_ttt_wins))
+        _read_fn("Number of Hammer, Sheet, Sheers wins: %d\n" % (self.num_rps_wins))
+        _read_fn("Number of Guess my number wins: %d\n" % (self.num_hi_lo_wins))
+        _read_fn("\n")
 
-        def pop(self):
-            return self._storage.pop()
+class WarGames(Actions):
+    def _read(self, data):
+        self.read(length=len(data), expect=data)
 
-        def peek(self,):
-            return self._storage[-1]
+    def _read_game_menu(self):
+        self.player.print_stats(self._read)
+        self.read("Choose a game to play:\n")
+        self.read("--Easy--\n")
+        self.read("1. Hammer, Sheet, Sheers\n")
+        self.read("--Medium--\n")
+        self.read("2. Guess my number\n")
+        self.read("--Impossible--\n")
+        self.read("3. Three in a row\n")
+        self.read("4. Give up\n\n")
+        self.read("Shall we play a game?\n")
+        self.read("Game # ")
 
-        def push(self, value):
-            return self._storage.append(value)
+    def _read_ttt_board(self):
+        self.read(expect='|[HC-]|[HC-]|[HC-]|', expect_format='pcre', delim='\n')
+        self.read(expect='|[HC-]|[HC-]|[HC-]|', expect_format='pcre', delim='\n')
+        self.read(expect='|[HC-]|[HC-]|[HC-]|', expect_format='pcre', delim='\n')
 
-        def invert(self):
-            self._storage.reverse()
-
-        def __len__(self):
-            return len(self._storage)
-
-        def copy(self):
-            return copy.deepcopy(self)
-
-    class CalcStack(Stack):
-        def pformat(self):
-            height = max(len(self._storage), 80)
-            padding = 80 - len(self._storage) if len(self._storage) < 80 else 0
-            return [
-                '{:03}:\t{}'.format(height - i - 1, v)
-                for i, v in enumerate(
-                    ([''] * padding) + self._storage
-                )
-            ]
-
-    def _readln(self, s):
-        return self.read(expect=s + '\n', delim='\n')
-
-    def _writeln(self, s):
-        return self.write(s + '\n')
-
-    def _parse_calc(self):
-        self.read(expect='\x1b[2J\x1b[H', length=len('\x1b[2J\x1b[H'))
-        # s = '\n'.join([line for line in self.state['calc'].pformat()]) + '\n'
-        # self.read(expect=s, length=len(s))
-        for line in self.state['calc'].pformat():
-            self._readln(line)
-
-        if self.state['err']:
-            self._readln(self.state['err'])
-        else:
-            self._readln('-' * 120)
+    def _ttt_move(self, y, x, display_twice=True):
+        self._read("Enter move [y,x]: ")
+        self.write('%d,%d\n' % (y,x))
+        self._read('\n')
+        self._read_ttt_board()
+        if display_twice:
+            self._read('\n')
+            self._read_ttt_board()
 
     def start(self):
         #self.delay(100)
-        self.state['calc'] = self.CalcStack()
-        self.state['hist'] = self.Stack()
-        self.state['err'] = ''
-        self.state['ret'] = self.ADD_HISTORY
-        self.state['prev_stack'] = self.state['calc'].copy()
+        self.player = None
+        self.hi_lo_idx = 0
+        self.rps_idx = 0
+        self.ttt_idx = 0
 
-        self.write(self.magic_page[:4])
-        self.read(length=0x1000, expect=self.magic_page)
+    def new_user_menu(self):
+        self._read("1. Register New Player\n")
+        self._read("2. Exit\n")
+        self._read("> ")
 
-        for _ in xrange(8):
-            self.command()
-            self.implicit_push()
+    def new_user(self):
+        self.write('1\n')
+        self._read("Flair 1 = Terminator\n")
+        self._read("Flair 2 = 2001\n")
+        self._read("Flair 3 = Collosus\n")
+        self._read("Enter player information: [name,flair]\n")
+        self.player = Player(random_username(8), random.randint(1,3))
+        self.write("%s, %d\n" % (self.player.name, self.player.flair))
+        self._read("\nWelcome to WarGames, %s. It's just you vs. me\n" % (self.player.name))
 
-    def command(self):
-        if not self.state['err'] and self.state['ret'] == self.ADD_HISTORY:
-            self.state['hist'].push(self.state['prev_stack'])
-        self.state['prev_stack'] = self.state['calc'].copy()
+    def game_menu(self):
+        self._read_game_menu()
 
-        self._parse_calc()
+    def play_rps(self):
+        self.write('1\n')
+        cchoice_idx = (struct.unpack('<B', self.magic_page[(self.rps_idx):(self.rps_idx + 1)])[0]) % 3
+        player_choice = ["HAMMER", "SHEET", "SHEERS"][random.randint(0,2)]
+        computer_choice = ["HAMMER", "SHEET", "SHEERS"][cchoice_idx]
+        self.rps_idx += 1
+        self.rps_idx %= 4096
 
-        self.state['err'] = ''
-        self.state['ret'] = self.ADD_HISTORY
+        self._read("Choose [HAMMER, SHEET, SHEERS]: ")
+        self.write("%s\n" % player_choice)
 
-    def _ensure_n(self, cmd, n):
-        if len(self.state['calc']) < n:
-            self.state['err'] = self.ERR_TOO_FEW_ARGS.format(cmd)
-            return False
+        self._read("%s v %s\n" % (player_choice, computer_choice))
+        if player_choice == computer_choice:
+            self._read("It's a tie!\n")
+            self.player.score += 0
+        elif player_choice == "HAMMER" and computer_choice == "SHEET":
+            self._read("You Lose.\n")
+        elif player_choice == "HAMMER" and computer_choice == "SHEERS":
+            self._read("You Win!\n")
+            self.player.score += 1000
+            self.player.num_rps_wins += 1
+        elif player_choice == "SHEET" and computer_choice == "SHEERS":
+            self._read("You Lose.\n")
+        elif player_choice == "SHEET" and computer_choice == "HAMMER":
+            self._read("You Win!\n")
+            self.player.score += 1000
+            self.player.num_rps_wins += 1
+        elif player_choice == "SHEERS" and computer_choice == "HAMMER":
+            self._read("You Lose.\n")
+        elif player_choice == "SHEERS" and computer_choice == "SHEET":
+            self._read("You Win!\n")
+            self.player.score += 1000
+            self.player.num_rps_wins += 1
+
+    def play_hi_lo(self):
+        self.write('2\n')
+        winner = struct.unpack('<I', self.magic_page[(self.hi_lo_idx):(self.hi_lo_idx + 4)])[0]
+        winner &= 0xFFFF
+        self.hi_lo_idx += 4
+        self.hi_lo_idx %= 4096
+        num_guesses = 16
+        self._read("Enter max value (Default=65535): ")
+        self.write('\n')
+        while num_guesses:
+            self._read("Guess the number [%d guesses left]: " % (num_guesses))
+            if random.randint(0,99) == 0:
+                self.write('%d\n' % winner)
+                self._read("You won!\n")
+                self.player.score += 1000
+                self.player.num_hi_lo_wins += 1
+                return
+            else:
+                guess = random.randint(0, 65534)
+                guess = guess +1 if guess == winner else guess
+                self.write('%d\n' % guess)
+                if guess > winner:
+                    self._read("Too High\n")
+                elif guess < winner:
+                    self._read("Too Low\n")
+                num_guesses -= 1
+        self._read("Sorry, you lost. Try practicing with a lower max value.\n")
+        #self._read("The number was: %d\n" % winner)
+
+    def play_ttt(self):
+        self.write('3\n')
+        self._read("You're playing 3 in a row. Good luck!\n")
+        if self.player.ttt_go_first:
+            self._read_ttt_board()
+            if random.randint(0,1):
+                self._ttt_move(0,0)
+                self._ttt_move(1,2)
+                self._ttt_move(2,2)
+                self._read("You lost.\n")
+                self.player.num_ttt_consecutive_draws = 0
+            else:
+                self._ttt_move(2,0)
+                self._ttt_move(2,1)
+                self._ttt_move(0,0)
+                self._ttt_move(1,2)
+                self._ttt_move(0,2, False)
+                self._read("It's a tie!\n")
+                self.player.num_ttt_consecutive_draws += 1
+            self.player.ttt_go_first = False
         else:
-            return True
+            corner = (struct.unpack('<I', self.magic_page[(self.ttt_idx):(self.ttt_idx + 4)])[0]) % 4
+            self.ttt_idx += 4
+            self.ttt_idx %= 4096
+            self._read("\n")
+            self._read_ttt_board()
+            tie = random.randint(0,1)
+            if corner == 0:
+                if tie:
+                    self._ttt_move(1,1)
+                    self._ttt_move(0,2)
+                    self._ttt_move(1,0)
+                    self._ttt_move(2,2)
+                    self.player.num_ttt_consecutive_draws += 1
+                    self._read("It's a tie!\n")
+                else:
+                    self._ttt_move(0,1)
+                    self._ttt_move(0,2)
+                    self._read("You lost.\n")
+                    self.player.num_ttt_consecutive_draws = 0
+            elif corner == 1:
+                if tie:
+                    self._ttt_move(1,1)
+                    self._ttt_move(0,1)
+                    self._ttt_move(1,0)
+                    self._ttt_move(2,2)
+                    self.player.num_ttt_consecutive_draws += 1
+                    self._read("It's a tie!\n")
+                else:
+                    self._ttt_move(2,1)
+                    self._ttt_move(0,1)
+                    self._ttt_move(2,2)
+                    self._read("You lost.\n")
+                    self.player.num_ttt_consecutive_draws = 0
+            elif corner == 2:
+                if tie:
+                    self._ttt_move(1,1)
+                    self._ttt_move(1,0)
+                    self._ttt_move(2,2)
+                    self._ttt_move(0,2)
+                    self.player.num_ttt_consecutive_draws += 1
+                    self._read("It's a tie!\n")
+                else:
+                    self._ttt_move(1,1)
+                    self._ttt_move(0,1)
+                    self._read("You lost.\n")
+                    self.player.num_ttt_consecutive_draws = 0
+            elif corner == 3: #
+                if tie:
+                    self._ttt_move(1,1)
+                    self._ttt_move(2,1)
+                    self._ttt_move(0,2)
+                    self._ttt_move(1,0)
+                    self.player.num_ttt_consecutive_draws += 1
+                    self._read("It's a tie!\n")
+                else:
+                    self._ttt_move(0,1)
+                    self._ttt_move(1,2)
+                    self._ttt_move(2,0)
+                    self._read("You lost.\n")
+                    self.player.num_ttt_consecutive_draws = 0
+            self.player.ttt_go_first = True
+
+
+    def player_give_up(self):
+        self.write('4\n')
+        self._read("See you next time, %s\n" % (self.player.name))
+        self.player = None
+
+    def exit(self):
+        self.write('2\n')
+        self._read("Exited\n")
 
-    def _unop(self, name, oper):
-        cmd = name
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 1):
-            return
-
-        self.state['calc'].push(int32(oper(self.state['calc'].pop())))
-
-    def _binop(self, name, oper, rev_args=False):
-        cmd = name
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 2):
-            return
-
-        v1, v2 = self.state['calc'].pop(), self.state['calc'].pop()
-        if rev_args:
-            self.state['calc'].push(int32(oper(v2, v1)))
-        else:
-            self.state['calc'].push(int32(oper(v1, v2)))
-
-    def implicit_push(self):
-        value = int32(random.randint(-(2 ** 31), 2 ** 31 - 1))
-        self._writeln(str(value))
-        self.state['calc'].push(value)
-
-    def explicit_push(self):
-        value = int32(random.randint(-(2 ** 31), 2 ** 31 - 1))
-        self._writeln("push {}".format(value))
-        self.state['calc'].push(value)
-
-    def add(self):
-        self._binop('+', op.add)
-
-    def sub(self):
-        self._binop('-', op.sub, True)
-
-    def mul(self):
-        self._binop('*', op.mul)
-
-    def div(self):
-        cmd = '/'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 2):
-            return
-
-        v1, v2 = self.state['calc'].pop(), self.state['calc'].pop()
-        if v1 == 0:
-            self.state['err'] = self.ERR_INVALID_INPUT
-            self.state['calc'].push(v2)
-            self.state['calc'].push(v1)
-            return
-
-        self.state['calc'].push((int32(v2 / v1)))
-
-    def fact(self):
-        cmd = '!'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 1):
-            return
-
-        v = self.state['calc'].pop()
-
-        if v < 0 or v > 1000:
-            self.state['err'] = self.ERR_INVALID_INPUT
-            self.state['calc'].push(v)
-            return
-
-        r = int32(1)
-        while v > 0:
-            r = int32(r * int32(v))
-            v -= 1
-        self.state['calc'].push(r)
-
-    def neg(self):
-        self._unop('neg', op.neg)
-
-    def abs(self):
-        self._unop('abs', op.abs)
-
-    def mod_(self):
-        cmd = 'mod'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 2):
-            return
-
-        v1, v2 = self.state['calc'].pop(), self.state['calc'].pop()
-        if v1 == 0:
-            self.state['err'] = self.ERR_INVALID_INPUT
-            self.state['calc'].push(v2)
-            self.state['calc'].push(v1)
-            return
-
-        self.state['calc'].push((int32(math.fmod(int32(v2), int32(v1)))))
-
-    def xor(self):
-        self._binop('^', op.xor)
-
-    def or_(self):
-        self._binop('|', op.or_)
-
-    def and_(self):
-        self._binop('&', op.and_)
-
-    def not_(self):
-        self._unop('~', lambda x: int32(~x))
-
-    def sum_(self):
-        cmd = 'sum'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 1):
-            return
-
-        n = self.state['calc'].pop()
-
-        if len(self.state['calc']) < n or n < 0:
-            self.state['err'] = self.ERR_TOO_FEW_ARGS.format(cmd)
-            self.state['calc'].push(n)
-            return
-
-        s = int32(0)
-        for _ in xrange(n):
-            v = self.state['calc'].pop()
-            s = int32(int32(s) + int32(v))
-
-        self.state['calc'].push(s)
-
-    def avg(self):
-        cmd = 'avg'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 1):
-            return
-
-        n = self.state['calc'].pop()
-        if n == 0:
-            self.state['err'] = self.ERR_INVALID_INPUT
-            self.state['calc'].push(n)
-            return
-
-        if len(self.state['calc']) < n or n < 0:
-            self.state['err'] = self.ERR_TOO_FEW_ARGS.format(cmd)
-            self.state['calc'].push(n)
-            return
-
-        s = int32(0)
-        for _ in xrange(n):
-            v = self.state['calc'].pop()
-            s = int32(int32(s) + int32(v))
-
-        self.state['calc'].push(int32(s / n))
-
-    def dup(self):
-        cmd = 'dup'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 1):
-            return
-
-        self.state['calc'].push(self.state['calc'].peek())
-
-    def dupn(self):
-        cmd = 'dupn'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 1):
-            return
-
-        n = self.state['calc'].pop()
-
-        if len(self.state['calc']) < n or n <= 0:
-            self.state['err'] = self.ERR_TOO_FEW_ARGS.format(cmd)
-            self.state['calc'].push(n)
-            return
-
-        if n > 0:
-            self.state['calc']._storage.extend(self.state['calc']._storage[-n:])
-
-    def dupr(self):
-        cmd = 'dupr'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 2):
-            return
-
-        len_ = self.state['calc'].pop()
-        pos = self.state['calc'].pop()
-
-        if (
-                len(self.state['calc']) < uint16(pos) or
-                len(self.state['calc']) < uint16(len_) or
-                len(self.state['calc']) < uint16(pos + len_)
-        ):
-            self.state['err'] = self.ERR_INVALID_INPUT
-            self.state['calc'].push(pos)
-            self.state['calc'].push(len_)
-            return
-
-        self.state['calc']._storage.extend(self.state['calc']._storage[-pos:-pos + len_])
-
-        self.state['ret'] = self.NO_HISTORY
-
-    def drop(self):
-        cmd = 'drop'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 1):
-            return
-
-        self.state['calc'].pop()
-
-    def dropn(self):
-        cmd = 'dropn'
-        self._writeln(cmd)
-
-        if not self._ensure_n(cmd, 1):
-            return
-
-        n = self.state['calc'].pop()
-
-        if len(self.state['calc']) < n or n < 0:
-            self.state['err'] = self.ERR_TOO_FEW_ARGS.format(cmd)
-            self.state['calc'].push(n)
-            return
-
-        for _ in xrange(n):
-            self.state['calc'].pop()
-
-    def min(self):
-        self._binop('min', min)
-
-    def max(self):
-        self._binop('max', max)
-
-    def depth(self):
-        cmd = 'depth'
-        self._writeln(cmd)
-
-        self.state['calc'].push(int32(len(self.state['calc'])))
-
-    def invert(self):
-        cmd = 'ivrt'
-        self._writeln(cmd)
-
-        self.state['calc'].invert()
-
-    def undo(self):
-        cmd = 'undo'
-        self._writeln(cmd)
-
-        if len(self.state['hist']) < 2:
-            self.state['err'] = self.ERR_INVALID_INPUT
-            return
-
-        self.state['calc'] = self.state['hist'].pop()
-        self.state['ret'] = self.NO_HISTORY
-
-    def quit(self):
-        self._writeln('quit')
-        self._readln('Bye bye')

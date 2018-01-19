@@ -1,51 +1,46 @@
-# CROMU-00031 Board Game
+# REMATCH_1--Hat_Trick--Morris_Worm
 
 ## Author Information
 
-“Joe Rogers” <joe@cromulence.co>
+debbie@cromulence.com
 
 ### DARPA performer group
-Cromulence (CROMU)
+Cromulence LLC (CROMU)
 
 ## Description
 
-This is a service that mimics a chess board and pieces. Each piece on the board moves similarly to its respective chess piece. Unlike chess, however, collisions on the board result in a swap of location rather than the opponent's piece being removed from the board. The user must find the combination of valid moves that will prove the vulnerability.
+This challenge set contains 3 binaries that closely mimic the behavior of three services: fingerd, sendmail, and rsh and an additional 'front door' binary that provides access to the others. These services were involved in the propagation of the original Internet Worm written by Robert Morris. The fingerd service was vulnerable to a simple stack buffer overflow, originally caused by use of the gets() function. The sendmail service was vulnerable to a logic bug that existed in debug mode which allowed the shell interpreter to be the recipient of the message. The rsh service was inherently vulnerable by using a naive trust model and is vulnerable to password brute force attacks.  
+
+The services in this challenge set are lookupd, inspired by fingerd, mailsender, inspired by sendmail, and ish, inspired by rsh. Each contains similar functionality to the original services and the same original bugs. 
 
 ### Feature List
 
-The game opens by printing the state of the board:
+This is a multi binary challenge set. The first binary acts as the front door, handling the initial connection and directing input to one of three services (lookupd, mailsender, and ish). 
 
-        jhilkihj
-        gggggggg
-        ........
-        ........
-        ........
-        ........
-        aaaaaaaa
-        dbcfecbd
+Lookupd is a lookup service that provides name and contact info for users. This service is randomly populated with fake user data on startup. It allows querying for a particular user or listing all users on the system. 
 
-The user must take turns entering moves as both the white and black player. Each move must follow the chess piece's valid move: pawn, rook, knight, bishop, king, and queen.
+ISH is an internet shell service. It requires a login and password and implements a dummy shell with a limited command set. It contains one set of static credentials and then generates random additional credentials on startup. 
 
-The user may print the current board layout, make a move, or quit the game.
-
-The game accepts input in the form of source coordinates and destionation coordinates x,y x,y
-
-If a piece is located at the source coordinates the game will attempt to move it to the destination. It will check to see if the move is a valid one for that particular piece (following standard chess rules) and to make sure the path is clear from source to destination. If an opponent's piece is located at the destionation and it is an otherwise legal move, the game will swap the pieces.
-
-Play continues until the user exits the game (or the vulnerable condition is achieved).
+Mailsender is a mail server. It allows listing known addresses, dumping mail queues, reading messages, and posting new messages. 
 
 ## Vulnerability
-There is a one-byte overflow in the buffer used to read in the player's next move.  It overflows into the string which is used to determine the valid input characters for a given board x,y coordinate.  Under normal circumstances, the only valid characters are 0-7 since the board is 8x8.  However, with the one byte overflow, the CRS can change the allowed input characters.  
 
-The coordinate digit is calculated using an offset from '0'.  So, with a different allowed character set, the coordinate digit's value can be set to an 8-bit value allowing a chess piece to be moved off of the board.  However, the game rules for piece moves still apply.  The destination coordinate must be empty or must not contain a character which represents the current player's pieces.  Also, the path between the source and destination coordinates must be clear (must be all '\0' as that character is used to represent an empty space in the game board array).  
+The vulnerability in lookupd is equivalent to a gets() call. This function reads input from the user onto the stack with no bounds checking. This allows a very straightforward buffer overflow. It should be easy to find, easy to prove, and easy to patch. 
 
-Given the board array's close proximity to the return address of main() and the excess of '\0' values between the board array and that address, the CRS can overwrite that return address with any game piece character value.  Then, by choosing to end the game, control is transferred to that address.
+The vulnerability in ISH contains two elements. One is the existence of static credentials that would allow the CRS to login and execute commands. The second is that one of the shell commands allows arbitrary reads from memory, thus enabling a memory leak (type 2 POV). The CRS could eliminate this vulnerability by either deactivating the compromised account credentials or preventing the shell command from accessing the sensitive memory region. This bug should be easy to find, easy to prove, and easy to patch.  
+
+The vulnerability in mailsender is patterned after CVE-1999-0095 which allowed a remote user to access the root shell through a debug command. In this case if the CRS connects to mailsender using the -d flag and submits a message with the correct recipient, it can access a command shell that allows arbitrary read of memory. This vulnerability can be patched by either deactivating the -d debug mode or by restricting the shell from accessing the sensitive memory region. It should be easy to find, easy to prove, and easy to patch. 
 
 ### Generic class of vulnerability
-Out-of-bounds write resulting in improper input validation
+The lookupd vulnerability is a stack buffer overflow. 
+The ISH vulnerability is a logic bug leading to an arbitrary memory read. 
+The mailsender vulnerability is also a logic bug leading to an arbitrary memory read. 
 
 ### CWE classification
-CWE-787 Out-of-bounds write
+
+CWE-120 Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+CWE-798 Hard Coded Credentials
+CWE-215 Information Exposure Through Debug Information
 
 ## Challenges
-Overwriting the first byte of the input validation string must be carefully coordinated with the use of that new valid character as an x,y coordinate.  And, the piece which is being moved, must make valid chess moves over a field which is free of other 'pieces'.  Otherwise, the move is simply rejected.  Only then can the CRS successfully overwrite some useful value in the program.  Given the size of the board, limitations on the valid moves and complexity of the memory layout, identifying a successful pattern of piece moves will be difficult.
+These vulnerabilities are patterned after very basic and outdated vulnerabilities so they should be straightforward to find, prove, and patch. One potential complicating matter is that there are four binaries in this system and some communication travels between them rather than directly to/from the user. Since most challenge sets are not designed in this manner it may prove difficult for some analysis systems. 

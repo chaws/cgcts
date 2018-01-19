@@ -9,7 +9,6 @@ typedef long int ptrdiff_t;
     typedef long unsigned int cgc_size_t;
     typedef long int cgc_ssize_t;
 
-    #undef NULL
     #define NULL 0
 #endif
 

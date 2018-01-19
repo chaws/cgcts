@@ -1,5 +1,0 @@
-../../shared/tsid//libcgc.a(ansi_x931_aes128.c.o): In function `cgc_init_prng':
-/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/shared/tsid/src/ansi_x931_aes128.c:16: multiple definition of `cgc_init_prng'
-src/service.c.o:/home/cdo/work/sard/imported_testsuites/import_cgc_testsuite/testcases/000/153/src/service.c:40: first defined here
-collect2: error: ld returned 1 exit status
-make: *** [patched] Error 1

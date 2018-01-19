@@ -1,8 +1,8 @@
 /*
 
-Copyright (c) 2015 Cromulence LLC
+Author: Debbie Nuttall <debbie@cromulence.co>
 
-Authors: Cromulence <cgc@cromulence.com>
+Copyright (c) 2014 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,14 +23,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
-#ifndef __PRNG_H__
-#define __PRNG_H__
+
+#ifndef PRNG_H
+#define PRNG_H
 
 #include "cgc_stdint.h"
 
-void cgc_seed_prng_array( uint32_t *array_data, uint32_t array_size );
-void cgc_seed_prng( uint32_t seed_value );
-uint32_t cgc_prng( void );
-uint32_t cgc_random_in_range( uint32_t min, uint32_t max );
+void cgc_sprng(uint64_t seed);
+uint64_t cgc_prng();
+uint32_t cgc_random_in_range(uint32_t min, uint32_t max);
 
-#endif // __PRNG_H__
+// Coefficients chosen from "An Experimental Exploration of 
+// Marsaglia's Xorshift Generators, Scrambled" by Sebastiano Vigna. 
+#define COEFFICIENT_A_64 12
+#define COEFFICIENT_B_64 25
+#define COEFFICIENT_C_64 27
+
+#define COEFFICIENT_A_1024 27
+#define COEFFICIENT_B_1024 13
+#define COEFFICIENT_C_1024 46
+
+// Multipliers chosen from "Tables of Linear Congruetial Generators of 
+// Different Sizes and Good Lattice Structure" by Pierre L'Ecuyer. 
+#define MULTIPLIER_1024 1865811235122147685LL
+#define MULTIPLIER_64	1803442709493370165LL
+
+#endif // PRNG_H

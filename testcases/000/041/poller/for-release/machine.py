@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+ #!/usr/bin/env python
 #
 # Copyright (C) 2014 Narf Industries <info@narfindustries.com>
 #
@@ -26,265 +26,171 @@ from random import choice, randint
 from os.path import dirname, abspath, join
 import sys
 
+
 sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
 import support as sp
-from common import DEBUG, CONFIG
-from resort import Resort, Decider, Rider, Trail, Lift
-
-class TemplatePoller(Actions):
-
-    LOAD_DIGRAPH          =   '\xd0\xd1\xd2\xd3'
-    LOAD_RIDER_GROUP      =   '\x40\x41\x42\x43'
-    LOAD_RIDER_SINGLE     =   '\xe0\xe1\xe2\xe3'
-    UNLOAD_RIDERS         =   '\xf0\xf1\xf2\xf3'
-    START                 =   '\x10\x11\x12\x13'
-    RESET                 =   '\x11\x22\x33\x11'
-    LIFT_STATS            =   '\x11\x43\x34\x11'
-    TRAIL_STATS           =   '\x77\x11\xee\x55'
-    RIDER_STATS           =   '\x44\x11\x33\x55'
-
-    OK      = ''
-    ERR     = ''
+import ais
+from common import CONFIG
 
 
-    def _gen_status_msgs(self):
-        ok = [0,0,0,0]
-        err = [0,0,0,0]
-        for idx in [c for c in range(len(self.magic_page)) if c % 2 == 0]:
-            ok[idx % 4] ^= ord(self.magic_page[idx])
-            err[(idx+1) % 4] ^= ord(self.magic_page[idx+1])
-        self.OK  = ''.join([chr(c) for c in ok])
-        self.ERR = ''.join([chr(c) for c in err])
+class AisToEnglish(Actions):
 
-    def _gen_random_rider(self):
-        r_id = randint(0, 100000)
-        while r_id in self.rider_ids:
-            r_id = randint(0, 100000)
-        self.rider_ids.add(r_id)
-        rider = Rider(r_id)
-        rider.gen_stats()
-        return rider
+	DEBUG = False
+	DEBUG_ERR = DEBUG or False
+	DEBUG_FUNC = DEBUG or False
+	DEBUG_FUNC2 = DEBUG or False
+	FAIL_CHANCE = 0.0001
+	INVALID_SENTENCE = "INVALID SENTENCE."
+	INVALID_MSG = "INVALID MESSAGE."
+	PARTIAL_MSG = "PARTIAL AIS MESSAGE."
 
-    def start(self):
-        #self.delay(100)
-        if DEBUG:
-            print "------- start -----------"
-        self._gen_status_msgs()
-        self.resort = Resort(flag_page=self.magic_page)
-        self.rider_ids = set()
+	def start(self):
+		pass
 
-    def load_resort_digraph(self):
-        '''
-        Load a new resort digraph.
-        '''
-        if DEBUG:
-            print "cmd: load resort digraph -----------"
+	def type_one(self):
+		'''
+		Send type 1 message.
+		'''
+		m1 = ais.MsgType1()
+		s1 = ais.Sentence(m1)
+		[s] = s1.get_sentences()
+		self.write("{0}\x07".format(s))
+		eng = m1.get_engl_str()
+		self.read(length=len(eng), expect=eng)
 
-        self.resort_size = 3
-        self.resort_min_altitude = 5000
-        self.resort_max_altitude = 15000
+	def type_one_bad(self):
+		'''
+		Send a malformed type 1 message.
+		'''
+		m1 = ais.MsgType1()
+		s1 = ais.Sentence(m1)
+		[s] = s1.get_sentences()
+		eng = self.INVALID_SENTENCE
 
-        # trash old digraph, but save and reset the riders
-        self.resort.resort_reset()
-        riders = self.resort.riders
-        self.resort = Resort(self.resort_size, self.resort_min_altitude, self.resort_max_altitude, self.magic_page)
-        self.resort.riders = riders
+		# bad checksum
+		if self.chance(self.FAIL_CHANCE):
+			cs = s[-2:]
+			cs = int(cs, 16) + 1
+			cs = '{0:0>2}'.format(hex(cs)[2:].upper())
+			s = "{0}{1}".format(s[:-2], cs)
+		# invalid msg
+		elif self.chance(self.FAIL_CHANCE):
+			s = s[15:]
+		# invalid start chars
+		else:
+			rest = s[6:]
+			s = "{0}{1}".format(sp.random_alpha(3,6), rest)
 
-        self.resort.generate_random_layout()
-        buf = self.LOAD_DIGRAPH + self.resort.generate_load_digraph_buffer()
+		self.write(s + '\x07')
+		self.read(length=len(eng), expect=eng)
 
+	def type_four(self):
+		'''
+		Send a type 4 message
+		'''
+		m4 = ais.MsgType4()
+		s4 = ais.Sentence(m4)
+		[s] = s4.get_sentences()
+		self.write("{0}\x07".format(s))
+		eng = m4.get_engl_str()
+		self.read(length=len(eng), expect=eng)
 
-        self.write(buf)
-        self.read(length=len(self.OK), expect=self.OK)
-        return 0
+	def type_four_bad(self):
+		'''
+		Send a malformed type 4 message.
+		'''
+		m4 = ais.MsgType4()
+		s4 = ais.Sentence(m4)
+		[s] = s4.get_sentences()
+		eng = self.INVALID_SENTENCE
 
-    def load_rider_group(self):
-        '''
-        Load a group of riders.
-        '''
-        if DEBUG:
-            print "cmd: load rider group -----------"
+		# bad checksum
+		if self.chance(self.FAIL_CHANCE):
+			cs = s[-2:]
+			cs = int(cs, 16) + 1
+			cs = '{0:0>2}'.format(hex(cs)[2:].upper())
+			s = "{0}{1}".format(s[:-2], cs)
+		# invalid msg
+		elif self.chance(self.FAIL_CHANCE):
+			s = s[15:]
+		# invalid start chars
+		else:
+			rest = s[6:]
+			s = "{0}{1}".format(sp.random_alpha(3,6), rest)
 
-        riders = []        
-        count = randint(10,200)
-        # count = 20
-        rider_buf = self.LOAD_RIDER_GROUP + sp.pack_single_uint32(count)
-        for _ in range(count):
-            r = self._gen_random_rider()
-            riders.append(r)
-            rider_buf += r.generate_load_buffer()
+		self.write("{0}\x07".format(s))
+		self.read(length=len(eng), expect=eng)
 
-        self.resort.riders += riders
-        self.resort.rider_count += len(riders)
+	def type_five(self):
+		'''
+		Send a type 5 message.
+		'''
+		m5 = ais.MsgType5()
+		s5 = ais.Sentence(m5)
+		[s_p1, s_p2] = s5.get_sentences()
+		# print "5 p1: '{0}'".format(s_p1)
+		self.write("{0}\x07".format(s_p1))
+		# print "read '{0}'".format(self.PARTIAL_MSG)
+		self.read(length=len(self.PARTIAL_MSG), expect=self.PARTIAL_MSG)
+		# print "5 p2: '{0}'".format(s_p2)
+		self.write("{0}\x07".format(s_p2))
 
-        if DEBUG:
-            print "Adding {0} riders".format(len(riders))
-            for r in riders:
-                print " [r{0}] added".format(r.id)
+		eng = m5.get_engl_str()
+		# print "read '{0}'".format(eng)
+		self.read(length=len(eng), expect=eng)
 
-        self.write(rider_buf)
-        self.read(length=len(self.OK), expect=self.OK)
+	def type_five_bad(self):
+		'''
+		Send a malformed type 5 message.
+		'''
+		m5 = ais.MsgType5()
+		s5 = ais.Sentence(m5)
+		[s_p1, s_p2] = s5.get_sentences()
+		eng = self.INVALID_SENTENCE
 
-        return 0
+		if self.chance(self.FAIL_CHANCE): # invaild part 1
+			# bad checksum
+			if self.chance(self.FAIL_CHANCE):
+				cs = s_p1[-2:]
+				cs = int(cs, 16) + 1
+				cs = '{0:0>2}'.format(hex(cs)[2:].upper())
+				s_p1 = "{0}{1}".format(s_p1[:-2], cs)
 
-    def load_rider_single(self):
-        '''
-        Load one rider.
-        '''
-        if DEBUG:
-            print "cmd: load rider single -----------"
+			# invalid msg
+			elif self.chance(self.FAIL_CHANCE):
+				s_p1 = s_p1[15:]
+			# invalid start chars
+			else:
+				rest = s_p1[6:]
+				s_p1 = "{0}{1}".format(sp.random_alpha(3,5), rest)
 
-        riders = []        
-        count = 1
-        rider_buf = self.LOAD_RIDER_SINGLE + sp.pack_single_uint32(count)
-        for _ in range(count):
-            r = self._gen_random_rider()
-            riders.append(r)
-            rider_buf += r.generate_load_buffer()
+			self.write("{0}\x07".format(s_p1))
+			self.read(length=len(eng), expect=eng)
 
-        self.resort.riders += riders
-        self.resort.rider_count += len(riders)
+		else: # invalid part 2
+			# bad checksum
+			if self.chance(self.FAIL_CHANCE):
+				cs = s_p2[-2:]
+				cs = int(cs, 16) + 1
+				cs = '{0:0>2}'.format(hex(cs)[2:].upper())
+				s_p2 = "{0}{1}".format(s_p2[:-2], cs)
+			# invalid msg
+			elif self.chance(self.FAIL_CHANCE):
+				s_p2 = s_p2[15:]
+			# invalid start chars
+			else:
+				rest = s_p2[6:]
+				s_p2 = "{0}{1}".format(sp.random_alpha(3,5), rest)
 
-        if DEBUG:
-            print " [r{0}] added".format(riders[0].id)
+			self.write("{0}\x07".format(s_p1))
+			self.read(length=len(self.PARTIAL_MSG), expect=self.PARTIAL_MSG)
 
-        self.write(rider_buf)
-        self.read(length=len(self.OK), expect=self.OK)
+			self.write("{0}\x07".format(s_p2))
+			self.read(length=len(eng), expect=eng)
 
-        return 0
+	def exit(self):
+		'''
+		End the poller. This node is terminal.
+		'''
+		return -1
 
-    def unload_riders(self):
-        '''
-        Reset simulation and delete all riders.
-        '''
-        if DEBUG:
-            print "cmd: unload riders -----------"
-
-        self.resort.resort_reset()
-        self.resort.riders = []
-        self.resort.rider_count = 0
-
-        buf = self.UNLOAD_RIDERS
-        self.write(buf)
-        self.read(length=len(self.OK), expect=self.OK)
-
-        return 0
-
-    def start_simulation(self):
-        '''
-        Run the simulation for steps iterations.
-        '''
-        if DEBUG:
-            print "cmd: start simulation -----------"
-
-        steps = randint(1000, 2000)
-        # steps = 10
-        self.resort.run_sim(steps)
-
-        self.write(self.START + sp.pack_single_uint32(steps))
-
-        if 0 == self.resort.rider_count:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-
-        self.read(length=len(self.OK), expect=self.OK)
-        return 0
-
-    def reset_simulation(self):
-        '''
-        Reset simulation, but do not delete any riders.
-        '''
-        if DEBUG:
-            print "cmd: reset simulation -----------"
-
-        self.resort.resort_reset()
-
-        self.write(self.RESET)
-        self.read(length=len(self.OK), expect=self.OK)
-
-        return 0
-
-    def lift_stats(self):
-        '''
-        Get the stats from the lifts (ID, rider_total)
-        '''
-        if DEBUG:
-            print "cmd: lift stats -----------"
-
-        self.write(self.LIFT_STATS)
-        ls_buf = self.resort.lift_stats_buffer()
-        if '' == ls_buf:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-        else:
-            self.read(length=len(ls_buf + self.OK), expect=ls_buf + self.OK)
-
-        return 0
-
-    def trail_stats(self):
-        '''
-        Get the stats from the trails (ID, rider_total)
-        '''
-        if DEBUG:
-            print "cmd: trail stats -----------"
-
-        self.write(self.TRAIL_STATS)
-        s_buf = self.resort.trail_stats_buffer()
-        if '' == s_buf:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-        else:
-            self.read(length=len(s_buf + self.OK), expect=s_buf + self.OK)
-
-        return 0
-
-    def rider_stats(self):
-        '''
-        Get the stats from the riders (ID, energy_level)
-        '''
-        if DEBUG:
-            print "cmd: rider stats -----------"
-
-        self.write(self.RIDER_STATS)
-        s_buf = self.resort.rider_stats_buffer()
-        if '' == s_buf:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-        else:
-            self.read(length=len(s_buf + self.OK), expect=s_buf + self.OK)
-
-        return 0
-
-    def full_set(self):
-        self.load_resort_digraph()
-        self.load_rider_group()
-        if self.chance(0.7):
-            self.start_simulation()
-        if self.chance(0.6):
-            fn = choice( [self.lift_stats, self.rider_stats, self.trail_stats] )
-            fn()
-
-        if self.chance(0.3):
-            fn = choice( [self.reset_simulation, self.unload_riders] )
-            fn()
-
-            if self.chance(0.5):
-                fn = choice( [self.lift_stats, self.rider_stats, self.trail_stats] )
-                fn()
-
-        return 0
-
-    def quit(self):
-        '''
-        Quit cleanly
-        '''
-        if DEBUG:
-            print "cmd: quit -----------"
-
-        return -1
-
-    def broker(self):
-        '''
-        Branching node for all nodes
-        '''
-        return 0

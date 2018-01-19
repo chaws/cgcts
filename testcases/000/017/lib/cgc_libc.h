@@ -19,116 +19,27 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
-#ifndef LIBC_H
-#define LIBC_H 1
-
-/*
- This libc implementation is based on NRFIN CQE libc code plus some new code.
- It is ok to release publicly for CFE
-*/
-
 #include "libcgc.h"
-#include "cgc_stdint.h"
-#include "cgc_errno.h"
-#include "cgc_recv_all.h"
 
-#define FLAG_PAGE 0x4347C000
+#ifndef NARF_LIBC_H
+#define NARF_LIBC_H
 
-#define EXIT_SUCCESS 0
-#define EXIT_FAILURE -1
-#define MALLOC_OK(p) do {if (NULL == p) {cgc__terminate(ERRNO_ALLOC);}} while(0);
+typedef signed char int8_t;
+typedef signed int int32_t;
+typedef unsigned int uint32_t;
+typedef unsigned char uint8_t;
 
-#define PAGE_SIZE (1 << 12)
-
-#define RECV(buf, sz) do {if (sz != cgc_recv_all((char *)buf, sz)) {cgc__terminate(ERRNO_RECV);}} while(0);
+#define SUCCESS 0
+#define ERRNO_ALLOC 505
 
 
+// libc libs borrowed from EAGLE_00004
 
-/**
- * If e doesn't return SUCCESS, return ret;
- *
- * @param e An expression to compare with SUCCESS
- * @return An error condition if exp doesn't return SUCCESS
- */
-#define FAILBAIL(e) do {if (SUCCESS != (ret = e)) {return ret;}} while(0);
+int cgc_send(const char *buf, const cgc_size_t size);
+int cgc_transmit_all(int fd, const char *buf, const cgc_size_t size);
+unsigned int cgc_recv_all(char *res_buf, cgc_size_t res_buf_size);
+unsigned int cgc_read_all(int fd, char *buf, unsigned int size);
 
-/**
- * Return the lesser of a and b
- * 
- * @param a The first value
- * @param b The second value
- * @return a if a < b else b
- */
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-
-/**
- * Return the greater of a and b
- *
- * @param a The first value
- * @param b The second value
- * @return a if a > b else b
- */
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
-/**
- * Find the offset of a struct member
- *
- * @param type The struct type to examine
- * @param member The member to calculate the offset of
- * @return The offset of member in type
- */
-#define OFFSETOF(type, member) ((cgc_size_t)(&((type *)NULL)->member))
-
-/**
- * Find the container structure from a pointer to a member.
- *
- * @param type The struct type to examine
- * @param member The member ptr points to
- * @param ptr A pointer to a member
- * @return A pointer to the containing structure
- */
-#define CONTAINEROF(type, member, ptr) ({                               \
-    char *__ptr = (char *)(ptr);                                        \
-    __ptr ? ((type *)(__ptr - OFFSETOF(type, member))) : NULL;          \
-})
-
-
-/**
- * Allocate a chunk of memory on the heap.
- *
- * @param size The size of the chunk to allocate
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_malloc(cgc_size_t size);
-
-/**
- * Free a chunk of memory allocated with malloc().
- *
- * @param ptr The chunk to free
- */
-void cgc_free(void *ptr);
-
-/**
- * Allocate a zeroed chunk of memory on the heap.
- *
- * Note: This differs from standard libc malloc by taking the full size of the
- *      chunk to allocate as its only parameter.
- *
- * @param size The size of the chunk to allocate
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_calloc(cgc_size_t size);
-
-/**
- * Resize a chunk of memory allocated with malloc().
- *
- * @param ptr The chunk to resize
- * @param size The new size of the chunk
- * @return A pointer to the new chunk, or NULL if allocation failed
- */
-void *cgc_realloc(void *ptr, cgc_size_t size);
-
-
+void *cgc_memset(void *dst, int c, unsigned int n);
 
 #endif

@@ -52,7 +52,7 @@ static inline void xlat(const unsigned char *map, void *buf, cgc_size_t count)
         cbuf[i] = map[cbuf[i]];
 }
 
-static inline int cgc_transmit_all(int fd, const void *buf, cgc_size_t count)
+static inline int transmit_all(int fd, const void *buf, cgc_size_t count)
 {
     const char *cbuf = (const char *)buf;
     cgc_size_t i;
@@ -81,7 +81,7 @@ static inline int transmit_xlat(int fd,  const unsigned char *map, const void *b
 
         cgc_memcpy(tmp, cbuf + i, cnt);
         xlat(map, tmp, cnt);
-        if (cgc_transmit_all(fd, tmp, cnt) != 0)
+        if (transmit_all(fd, tmp, cnt) != 0)
             return -1;
         i += cnt;
     }

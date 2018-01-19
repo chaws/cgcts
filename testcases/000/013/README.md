@@ -1,33 +1,46 @@
-# KPRCA-00024
+# Recipe_and_Pantry_Manager
 
 ## Author Information
 
-"Andrew Wesie" <andrew.wesie@kapricasecurity.com>
+"John Berry" <hj@cromulence.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+Cromulence
 
-## Description:
+## Description
 
-This service implements a simple commerce site that allows users to buy and sell products. The service utilizes a database service that serves as the backend. The protocol between the two servers is a form of RPC. The RPC code was mostly generated automatically from a specification file.
+The user can add and remove recipes as well as pantries containing ingredients.
 
 ### Feature List
 
-The basic features are: list products, buy a product, and sell a new product. A product has an inventory count and a price. Products are identified by their name which is a standard null-terminated string. The backend database is based on a self-balancing binary search tree, which guarantees good performance.
+The main menu presents the user with the option to go into the Recipe, Pantry or Query menu.
+
+The Recipe menu allows a user to add and remove recipes, list all or just a single recipe or print the cost of each recipe.
+
+The Pantry menu allows a user to create and delete pantries, print all or just a single pantry or modify items in the grocery list.
+
+The Query menu allows a user to select a pantry and print all recipes that can be made with items in that list. They can also query for recipes that they can make given an amount of money. Finally, they can print the cheapest and most expensive recipe.
 
 ## Vulnerability
 
-The vulnerability is triggered in the list products functionality (cb_1/src/main.c:58). The output is buffered into a stack buffer of fixed length (4096 bytes) and the length is not checked. This allows for arbitrary control of the contents of the stack, except for null bytes and line terminator bytes.
+When printing an individual recipe the user is prompted to enter the index. This value is not validated and can be negative. Since each pantry structure has a 4 byte cookieand the array of pantries is stored at a lower address than the array of recipes, a user can provide a negative index to begin reading the data from the pantry structures. 
 
-The second vulnerability is lack of verification of the return value of _checked_calloc; this results in the same memory being used by multiple objects.
+There is some error checking done and the data that is read must be aligned properly so some setup of the pantry array is required to succeed.
 
 ### Generic class of vulnerability
-Stack-based Buffer Overflow
+
+The CB fails to correcly validate the array index.
 
 ### CWE classification
-CWE-121: Stack-based Buffer Overflow
-CWE-252: Unchecked Return Value
+CWE-129: Improper Validation of Array Index
 
 ## Challenges
 
-The primary challenge is following the data flow between the two services. In order to crash the frontend service, you must first load enough data into the backend. It is probably a lot easier to solve this challenge with a fuzzer, because the protocol is not complicated and reasoning about the flow of data may be difficult. In order to make this more fair, only one sample poll is released to the challengers.
+Discovery:
+Locating the vulnerability is not too difficult. If the CRS can detect the bounds of the global recipe array using the usage of the bzero() function then they should be able to detect an out of bounds indexing. 
+
+PoV Generation:
+This is going to be relatively difficult because the chances of correctly creating pantries and then correctly indexing the recipe array in a way that passes the error checks is a little complex.
+
+Patching:
+Once discovered, patching is a matter of changing the data to unsigned or correctly adding in bounds checks, neither of which are too difficult.

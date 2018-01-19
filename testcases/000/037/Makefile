@@ -1,4 +1,4 @@
-CHAL=REMATCH_1--Hat_Trick--Morris_Worm
+CHAL=SCUBA_Dive_Logging
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,97 +20,47 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/malloc.c.o -c cb_1/lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/ctype.c.o -c cb_1/lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/math.c.o -c cb_1/lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/stdlib.c.o -c cb_1/lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/libc.c.o -c cb_1/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/stdio.c.o -c cb_1/lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/string.c.o -c cb_1/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/frontdoor.c.o -c cb_1/src/frontdoor.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/shell.c.o -c cb_3/lib/shell.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/malloc.c.o -c cb_3/lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/ctype.c.o -c cb_3/lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/math.c.o -c cb_3/lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/stdlib.c.o -c cb_3/lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/libc.c.o -c cb_3/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/stdio.c.o -c cb_3/lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/string.c.o -c cb_3/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/ish.c.o -c cb_3/src/ish.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/malloc.c.o -c cb_2/lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/ctype.c.o -c cb_2/lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/math.c.o -c cb_2/lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/stdlib.c.o -c cb_2/lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/libc.c.o -c cb_2/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/stdio.c.o -c cb_2/lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/string.c.o -c cb_2/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/lookupd.c.o -c cb_2/src/lookupd.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/lookup.c.o -c cb_2/src/lookup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/shell.c.o -c cb_4/lib/shell.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/malloc.c.o -c cb_4/lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/ctype.c.o -c cb_4/lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/math.c.o -c cb_4/lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/stdlib.c.o -c cb_4/lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/libc.c.o -c cb_4/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/stdio.c.o -c cb_4/lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/string.c.o -c cb_4/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -DPATCHED_3 -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/src/mailsender.c.o -c cb_4/src/mailsender.c
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_4_patched cb_4/lib/shell.c.o cb_4/lib/malloc.c.o cb_4/lib/ctype.c.o cb_4/lib/math.c.o cb_4/lib/stdlib.c.o cb_4/lib/libc.c.o cb_4/lib/stdio.c.o cb_4/lib/string.c.o cb_4/src/mailsender.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_3_patched cb_3/lib/shell.c.o cb_3/lib/malloc.c.o cb_3/lib/ctype.c.o cb_3/lib/math.c.o cb_3/lib/stdlib.c.o cb_3/lib/libc.c.o cb_3/lib/stdio.c.o cb_3/lib/string.c.o cb_3/src/ish.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_2_patched cb_2/lib/malloc.c.o cb_2/lib/ctype.c.o cb_2/lib/math.c.o cb_2/lib/stdlib.c.o cb_2/lib/libc.c.o cb_2/lib/stdio.c.o cb_2/lib/string.c.o cb_2/src/lookupd.c.o cb_2/src/lookup.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_1_patched cb_1/lib/malloc.c.o cb_1/lib/ctype.c.o cb_1/lib/math.c.o cb_1/lib/stdlib.c.o cb_1/lib/libc.c.o cb_1/lib/stdio.c.o cb_1/lib/string.c.o cb_1/src/frontdoor.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/log_dive.c.o -c src/log_dive.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/edit_dives.c.o -c src/edit_dives.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/dates.c.o -c src/dates.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/print_dives.c.o -c src/print_dives.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/remove_dives.c.o -c src/remove_dives.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/download_dive.c.o -c src/download_dive.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/edit_diver.c.o -c src/edit_diver.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/menu.c.o -c src/menu.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/dive_statistics.c.o -c src/dive_statistics.c
+	$(CXX) $(FLAGS) -o SCUBA_Dive_Logging_patched lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/log_dive.c.o src/edit_dives.c.o src/dates.c.o src/print_dives.c.o src/remove_dives.c.o src/service.c.o src/download_dive.c.o src/edit_diver.c.o src/menu.c.o src/dive_statistics.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/malloc.c.o -c cb_2/lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/ctype.c.o -c cb_2/lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/math.c.o -c cb_2/lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/stdlib.c.o -c cb_2/lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/libc.c.o -c cb_2/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/stdio.c.o -c cb_2/lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/string.c.o -c cb_2/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/lookupd.c.o -c cb_2/src/lookupd.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/lookup.c.o -c cb_2/src/lookup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/shell.c.o -c cb_4/lib/shell.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/malloc.c.o -c cb_4/lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/ctype.c.o -c cb_4/lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/math.c.o -c cb_4/lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/stdlib.c.o -c cb_4/lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/libc.c.o -c cb_4/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/stdio.c.o -c cb_4/lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/string.c.o -c cb_4/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/src/mailsender.c.o -c cb_4/src/mailsender.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/shell.c.o -c cb_3/lib/shell.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/malloc.c.o -c cb_3/lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/ctype.c.o -c cb_3/lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/math.c.o -c cb_3/lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/stdlib.c.o -c cb_3/lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/libc.c.o -c cb_3/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/stdio.c.o -c cb_3/lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/string.c.o -c cb_3/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/ish.c.o -c cb_3/src/ish.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/malloc.c.o -c cb_1/lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/ctype.c.o -c cb_1/lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/math.c.o -c cb_1/lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/stdlib.c.o -c cb_1/lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/libc.c.o -c cb_1/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/stdio.c.o -c cb_1/lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/string.c.o -c cb_1/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/frontdoor.c.o -c cb_1/src/frontdoor.c
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_4 cb_4/lib/shell.c.o cb_4/lib/malloc.c.o cb_4/lib/ctype.c.o cb_4/lib/math.c.o cb_4/lib/stdlib.c.o cb_4/lib/libc.c.o cb_4/lib/stdio.c.o cb_4/lib/string.c.o cb_4/src/mailsender.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_3 cb_3/lib/shell.c.o cb_3/lib/malloc.c.o cb_3/lib/ctype.c.o cb_3/lib/math.c.o cb_3/lib/stdlib.c.o cb_3/lib/libc.c.o cb_3/lib/stdio.c.o cb_3/lib/string.c.o cb_3/src/ish.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_2 cb_2/lib/malloc.c.o cb_2/lib/ctype.c.o cb_2/lib/math.c.o cb_2/lib/stdlib.c.o cb_2/lib/libc.c.o cb_2/lib/stdio.c.o cb_2/lib/string.c.o cb_2/src/lookupd.c.o cb_2/src/lookup.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_1 cb_1/lib/malloc.c.o cb_1/lib/ctype.c.o cb_1/lib/math.c.o cb_1/lib/stdlib.c.o cb_1/lib/libc.c.o cb_1/lib/stdio.c.o cb_1/lib/string.c.o cb_1/src/frontdoor.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/log_dive.c.o -c src/log_dive.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/edit_dives.c.o -c src/edit_dives.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/dates.c.o -c src/dates.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/print_dives.c.o -c src/print_dives.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/remove_dives.c.o -c src/remove_dives.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/download_dive.c.o -c src/download_dive.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/edit_diver.c.o -c src/edit_diver.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/menu.c.o -c src/menu.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/dive_statistics.c.o -c src/dive_statistics.c
+	$(CXX) $(FLAGS) -o SCUBA_Dive_Logging lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/log_dive.c.o src/edit_dives.c.o src/dates.c.o src/print_dives.c.o src/remove_dives.c.o src/service.c.o src/download_dive.c.o src/edit_diver.c.o src/menu.c.o src/dive_statistics.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_pov_3 pov_3/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o REMATCH_1--Hat_Trick--Morris_Worm_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o SCUBA_Dive_Logging_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o SCUBA_Dive_Logging_pov_2 pov_2/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_3/pov.c.o cb_1/lib/malloc.c.o cb_1/lib/ctype.c.o cb_1/lib/math.c.o cb_1/lib/stdlib.c.o cb_1/lib/libc.c.o cb_1/lib/stdio.c.o cb_1/lib/string.c.o cb_1/src/frontdoor.c.o pov_1/pov.c.o pov_2/pov.c.o cb_2/lib/malloc.c.o cb_2/lib/ctype.c.o cb_2/lib/math.c.o cb_2/lib/stdlib.c.o cb_2/lib/libc.c.o cb_2/lib/stdio.c.o cb_2/lib/string.c.o cb_2/src/lookupd.c.o cb_2/src/lookup.c.o cb_3/lib/shell.c.o cb_3/lib/malloc.c.o cb_3/lib/ctype.c.o cb_3/lib/math.c.o cb_3/lib/stdlib.c.o cb_3/lib/libc.c.o cb_3/lib/stdio.c.o cb_3/lib/string.c.o cb_3/src/ish.c.o cb_4/lib/shell.c.o cb_4/lib/malloc.c.o cb_4/lib/ctype.c.o cb_4/lib/math.c.o cb_4/lib/stdlib.c.o cb_4/lib/libc.c.o cb_4/lib/stdio.c.o cb_4/lib/string.c.o cb_4/src/mailsender.c.o cb_2/lib/malloc.c.o cb_2/lib/ctype.c.o cb_2/lib/math.c.o cb_2/lib/stdlib.c.o cb_2/lib/libc.c.o cb_2/lib/stdio.c.o cb_2/lib/string.c.o cb_2/src/lookupd.c.o cb_2/src/lookup.c.o cb_3/lib/shell.c.o cb_3/lib/malloc.c.o cb_3/lib/ctype.c.o cb_3/lib/math.c.o cb_3/lib/stdlib.c.o cb_3/lib/libc.c.o cb_3/lib/stdio.c.o cb_3/lib/string.c.o cb_3/src/ish.c.o cb_1/lib/malloc.c.o cb_1/lib/ctype.c.o cb_1/lib/math.c.o cb_1/lib/stdlib.c.o cb_1/lib/libc.c.o cb_1/lib/stdio.c.o cb_1/lib/string.c.o cb_1/src/frontdoor.c.o cb_4/lib/shell.c.o cb_4/lib/malloc.c.o cb_4/lib/ctype.c.o cb_4/lib/math.c.o cb_4/lib/stdlib.c.o cb_4/lib/libc.c.o cb_4/lib/stdio.c.o cb_4/lib/string.c.o cb_4/src/mailsender.c.o REMATCH_1--Hat_Trick--Morris_Worm_pov_3 REMATCH_1--Hat_Trick--Morris_Worm_1_patched REMATCH_1--Hat_Trick--Morris_Worm_pov_1 REMATCH_1--Hat_Trick--Morris_Worm_pov_2 REMATCH_1--Hat_Trick--Morris_Worm_2 REMATCH_1--Hat_Trick--Morris_Worm_3_patched REMATCH_1--Hat_Trick--Morris_Worm_4 REMATCH_1--Hat_Trick--Morris_Worm_2_patched REMATCH_1--Hat_Trick--Morris_Worm_3 REMATCH_1--Hat_Trick--Morris_Worm_1 REMATCH_1--Hat_Trick--Morris_Worm_4_patched
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/log_dive.c.o src/edit_dives.c.o src/dates.c.o src/print_dives.c.o src/remove_dives.c.o src/service.c.o src/download_dive.c.o src/edit_diver.c.o src/menu.c.o src/dive_statistics.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/log_dive.c.o src/edit_dives.c.o src/dates.c.o src/print_dives.c.o src/remove_dives.c.o src/service.c.o src/download_dive.c.o src/edit_diver.c.o src/menu.c.o src/dive_statistics.c.o SCUBA_Dive_Logging_pov_2 SCUBA_Dive_Logging_pov_1 SCUBA_Dive_Logging_patched SCUBA_Dive_Logging

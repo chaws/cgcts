@@ -22,496 +22,331 @@
 
 #include "libcgc.h"
 #include "cgc_libc.h"
+//#define DEBUG
 
-bool cgc_heapinit_done = false;
-heap_chunk_t cgc_freedc = {0};
-heap_chunk_t cgc_allocatedc = {0};
-heap_chunk_t *cgc_freed = NULL;
-heap_chunk_t *cgc_allocated = NULL;
 
-uint8_t *cgc_lastpage = NULL;
-uint32_t cgc_curleft = 0;
+typedef struct MALLOC_AR_E {
 
-uint32_t cgc___cookie = 0;
+    void *allocation;
+    cgc_size_t size;
 
-void cgc_promptc(char *buf, uint16_t  size, char *prompt) {
+} MALLOC_E;
 
-    SSEND(cgc_strlen(prompt), prompt);
+struct MALLOC_AR {
+    MALLOC_E *head;
+};
 
-    SRECV((uint32_t)size, buf);
+static struct MALLOC_AR malloc_array;
+
+unsigned int cgc_pos_ceil(double num){
+    unsigned int trunc_num = (unsigned int) num;
+    if((double) trunc_num == num)
+        return trunc_num;
+
+    return trunc_num + 1;
 }
 
-int cgc_sendall(int fd, const char *buf, cgc_size_t size) {
-    cgc_size_t sent = 0;
-    cgc_size_t total = 0;
+int cgc_malloc_init(){
+    int ret =  cgc_allocate(MAX_ALLOCATIONS*sizeof(MALLOC_E), 0, (void **) &malloc_array.head);
+    if(ret != 0){
+        cgc__terminate(ret);
+    }
+    assert(malloc_array.head != NULL);
+    return 0;
+}
 
-    if (!buf)
-        return -1;
 
-    if (!size)
-        return 0;
 
-    while (size) {
-        if (cgc_transmit(fd, buf, size, &sent)) {
-            return -1;
+int cgc_buf_is_numeric(char *buf){
+    for(int i = 0; i < cgc_strlen(buf); ++i){
+        if((buf[i] < '0' || buf[i] > '9') && buf[i] != '-'){
+            return 0;
         }
-
-        buf += sent;
-        total += sent;
-        size -= sent;
     }
-
-    return total;
+    return 1;
 }
 
-int cgc_sendline(int fd, const char *buf, cgc_size_t size) {
+int cgc_atoi(char *buf){
+    int dir = 1;
+    int start = 0;
+    if(buf[start] == '-')
+        dir = -1;
+
+    int final = 0;
+    for(int i = start; i < cgc_strlen(buf); ++i ){
+        final = final * 10 + buf[i] - '0';
+    }
+    final *= dir;
+
+    return final;
+}
+
+
+cgc_size_t cgc_read_ascii_line(int fd, char *data, cgc_size_t len){
+    cgc_size_t tot_rx = 0;
+
+    for(int i = 0; i < len && i < MAX_LINE_SZ-1; ++i){
+        cgc_size_t this_recv = 0;
+        int recv_ret = cgc_receive(fd, &(data[i]), 1, &this_recv);
+        if(recv_ret == 0 && this_recv == 1){
+            tot_rx += 1;
+            // todo check if its ascii and not binary
+            if(data[i] == 0x0a || data[i] == 0x00){
+                data[i] = 0x00;
+                break;
+            }
+            
+        // todo we still modify the buf even if we have an error condition part way through
+        }else{
+            return 0;
+        }
+    }
+    data[MAX_LINE_SZ-1] = 0x00;
+
+    return tot_rx;
+
+}
+
+char *STRTOK = "";
+
+char *cgc_strtok(char *str, const char delim){
+    if(str == NULL){
+        str = STRTOK;
+    }else{
+        STRTOK = "";
+    }
+    int sl = cgc_strlen(str);
+    if(sl == 0){
+
+        return NULL;
+    }
+    for(int i = 0; i < sl; ++i){
+        if(str[i] == delim){
+            // null terminate
+            str[i] = 0x00;
+            STRTOK = &(str[i+1]);
+            return str;
+        } else if(str[i] == 0x00 && i != 0){
+
+            return str;
+        }
+    }
+    
+    return str;
+}
+
+
+void * cgc_calloc(cgc_size_t nmemb, cgc_size_t s){
+    cgc_size_t sz = nmemb * s;
+
+
+
+    char *x = (char *) cgc_malloc(sz);
+    if(x == NULL){
+
+        return NULL;
+    }
+
+    for(int i = 0; i < sz; i++){
+        x[i] = 0x00;
+    }
+
+    return  x;
+}
+int cgc_recv_until(int fd, char *buf, const cgc_size_t buf_sz, const char delim){
+    cgc_size_t size_recvd =0;
+    int ret = cgc_receive(fd, (void *) buf, buf_sz, &size_recvd);
+    if(ret != 0)
+        return -1;
+    
+
+    for(int i =0; i < size_recvd; ++i){
+        if(delim == buf[i])
+            return i;
+
+    }
+    return -2;
+
+}
+
+int cgc_transmit_all(int fd, const char *buf, const cgc_size_t size) {
+    cgc_size_t sent = 0;
+    cgc_size_t sent_now = 0;
     int ret;
-    ret = cgc_sendall(fd, buf, size);
-    if (ret < 0) {
-        return ret;
-    } else {
-        if (cgc_transmit(fd, "\n", 1, &size))
-            return -1;
-        else
-            return ++ret;
-    }
-}
 
-int cgc_recv(int fd, char *buf, cgc_size_t size) {
-    cgc_size_t bytes_read = 0;
-    cgc_size_t total_read = 0;
 
     if (!size)
-        return 0;
+        return 2;
 
-    if (!buf)
-        return -1;
-
-    while (size) {
-        if (cgc_receive(fd, buf++, 1, &bytes_read))
-            return -1;
-        
-        total_read++;
-        size--;
+    while (sent < size) {
+        ret = cgc_transmit(fd, buf + sent, size - sent, &sent_now);
+        if (ret != 0) {
+            return 3;
+        }
+        sent += sent_now;
     }
 
-    return total_read;
-
+    return 0;
 }
-int cgc_recvline(int fd, char *buf, cgc_size_t size) {
-    cgc_size_t bytes_read = 0;
-    cgc_size_t total_read = 0;
 
-    if (!size)
-        return 0;
+cgc_size_t cgc_strlen(const char *s){
+    int i = 0;
+    const char *p;
+    for(p = s; *p; ++p){
 
-    if (!buf)
-        return -1;
 
-    while (size) {
-        if (cgc_receive(fd, buf++, 1, &bytes_read))
-            return -1;
-        
-        total_read++;
-        size--;
-        
-        if (*(buf-1) == '\n')
-            break;
     }
-
-    if (*(buf-1) != '\n')
-        return -2;
-    else
-        *(buf-1) = '\0';
-
-    return total_read;
+    return p-s;
 }
 
-//non-standard convention, returns num bytes copied instead of s1
-cgc_size_t cgc_strcpy(char *s1, char *s2) {
-    char *tmp = s1;
-    while (*s2) {
-        *tmp = *s2;
-        tmp++;
-        s2++;
-    }
-    *(tmp++)='\0';
-    return tmp-s1-1;
-}
+#ifdef DEBUG
+void err(char *m){
 
-//non-standard convention, returns num bytes copied instead of s1
-cgc_size_t cgc_strncpy(char *s1, char *s2, cgc_size_t n) {
-    char *tmp = s1;
-    while ((tmp-s1 < n) && *s2) {
-        *tmp = *s2;
-        tmp++;
-        s2++;
-    }
-    *(tmp++)='\0';
-    return tmp-s1-1;
+    transmit_all(STDOUT, m, cgc_strlen(m)); 
+    transmit_all(STDOUT, "\n", cgc_strlen("\n"));      
 }
+#endif
 
-char * cgc_strcat(char *s1, char *s2) {
-    char *tmp = s1;
-    while (*tmp) tmp++;
-    cgc_strcpy(tmp,s2);
+char *cgc_strcat(char * s1, char *s2){
+    cgc_size_t n = cgc_strlen(s1);
+    cgc_memcpy(&(s1[n]), s2, cgc_strlen(s2));
+
     return s1;
 }
 
-cgc_size_t cgc_strlen(char *s) {
-    char *tmp = s;
-    while (*tmp) tmp++;
-    return (cgc_size_t)(tmp-s);
-}
+void * cgc_malloc(cgc_size_t s){
+    // todo check size incoming and limit it.
 
-int cgc_streq(char *s1, char *s2) {
-    while (*s1 && *s2){
-        if (*s1 != *s2)
-            return 0;
-	    s1++;
-	    s2++;
-    }
-    return (*s1 == '\0') && (*s2 == '\0');
-}
+    for(int i = 0; i < MAX_ALLOCATIONS; i++){
+        MALLOC_E *mm = malloc_array.head+i;
+        if(mm->allocation == NULL){
 
-int cgc_startswith(char *s1, char *s2) {
-    while (*s1 && *s2) {
-        if (*s1 != *s2)
-            return 0;
-	    s1++;
-	    s2++;
-    }
-    return *s2 == '\0';
-}
-
-// takes a uint32 and converts it to a string saved in str_buf
-// str_buf must be large enough to fit the number(s) and '\0'
-// returns 0 on success, -1 if error due to buf_size
-int cgc_uint2str(char* str_buf, int buf_size, uint32_t i) {
-
-    int idx = 0;
-    uint32_t tmp;
-    int digit;
-
-    // at least fits 1 digit and '\0'
-    if (buf_size < 2) {
-        return -1;
-    }
-
-    tmp = i;
-
-    // increment index in str_buf to where rightmost digit goes
-    do {
-        idx++;
-        tmp = tmp/10;
-    } while (tmp > 0);
-
-    // see if this number will fit in the buffer
-    if (idx >= buf_size)
-        return -1;
-
-    //testing
-    // str_buf[0] = '0' - i;
-    // str_buf[1] = '\0';
-
-    // insert '\0'
-    str_buf[idx--] = '\0';
-
-    // move left through string, writing digits along the way
-    do {
-        digit = i % 10;
-        str_buf[idx--] = '0' + digit;
-        i /= 10;
-    } while (i > 0);
-
-    return 0;
-}
-
-// takes an int32 and converts it to a string saved in str_buf
-// str_buf must be large enough to fit the sign, number(s), and '\0'
-// returns 0 on success, -1 if error due to buf_size
-int cgc_int2str(char* str_buf, int buf_size, int i) {
-
-    int idx = 0;
-    int tmp;
-    int digit;
-
-    // at least fits 1 digit and '\0'
-    if (buf_size < 2) {
-        return -1;
-    }
-
-    if (i < 0) {
-        if (buf_size < 3)
-            return -1;
-        str_buf[idx++] = '-';
-    } else {
-        i *= -1; // make i negative
-    }
-
-    // i is always 0 or negative at this point.
-    tmp = i;
-
-    // increment index in str_buf to where rightmost digit goes
-    do {
-        idx++;
-        tmp = tmp/10;
-    } while (tmp < 0);
-
-    // see if this number will fit in the buffer
-    if (idx >= buf_size)
-        return -1;
-
-    //testing
-    // str_buf[0] = '0' - i;
-    // str_buf[1] = '\0';
-
-    // insert '\0'
-    str_buf[idx--] = '\0';
-
-    // move left through string, writing digits along the way
-    do {
-        digit = -1 * (i % 10);
-        str_buf[idx--] = '0' + digit;
-        i /= 10;
-    } while (i < 0);
-
-    return 0;
-}
-
-// takes a string and converts it to an uint32
-// MAX uint32 is +/- 2^31-1 (2,147,483,647) which is 10 digits
-// returns 0 if str_buf is "0" or has no digits.
-uint32_t cgc_str2uint(const char* str_buf) {
-    int result = 0;
-    int max_chars = 10; // max number of chars cgc_read from str_buf
-    int i = 0;
-
-    if (str_buf == NULL)
-        return result;
-
-    for (; i < max_chars; i++) {
-        if ( str_buf[i] >= '0' && str_buf[i] <= '9') {
-            result *= 10;
-            result += str_buf[i] - '0';
-
-        } else {
-            break;
-        }
-    }
-
-    return result;
-}
-
-void * cgc_memset(void *dst, char c, cgc_size_t n) {
-    cgc_size_t i;
-    for (i=0; i<n; i++) {
-        *((uint8_t*)dst+i) = c;
-    }
-    return dst;
-}
-
-void * cgc_memcpy(void *dst, void *src, cgc_size_t n) {
-    cgc_size_t i;
-    for (i=0; i<n; i++) {
-        *((uint8_t*)dst+i) = *((uint8_t*)src+i);
-    }
-    return dst;
-}
-
-char * cgc_b2hex(uint8_t b, char *h) {
-    if (b>>4 < 10)
-        h[0] = (b>>4)+0x30;
-    else
-        h[0] = (b>>4)+0x41-10;
-
-    if ((b&0xf) < 10)
-        h[1] = (b&0xf)+0x30;
-    else
-        h[1] = (b&0xf)+0x41-10;
-    h[2] = '\0';
-    return h;
-}
-
-char * cgc_strchr(char *str, char c) {
-    char *tmp = str;
-    while (*tmp) {
-        if (*tmp == c)
-            return tmp;
-        tmp++;
-    }
-    return 0;
-}
-
-//modulus
-int cgc___umoddi3(int a, int b) {
-    return a-(a/b*b);
-}
-
-void cgc_sleep(int s) {
-    struct cgc_timeval tv;
-    tv.tv_sec = s;
-    tv.tv_usec = 0;
-    cgc_fdwait(0, NULL, NULL, &tv, NULL);
-}
-
-int cgc_memcmp(void *a, void *b, cgc_size_t n) {
-    cgc_size_t i;
-    for (i=0; i < n; i++)
-        if ( *(uint8_t*)(a+i) != *(uint8_t*)(b+i))
-            return -1;
-    return 0;
-}
-
-static void cgc_heapinit() {
-    cgc_allocated = &cgc_allocatedc;
-    cgc_freed = &cgc_freedc;
-    cgc_allocated->next = cgc_allocated;
-    cgc_allocated->prev = cgc_allocated;
-    cgc_freed->next = cgc_freed;
-    cgc_freed->prev = cgc_freed;
-    cgc_heapinit_done = true;
-}
-
-static void cgc_insert(heap_chunk_t *head, heap_chunk_t *node) {
-    node->next = head;
-    node->prev = head->prev;
-    node->prev->next = node;
-    head->prev = node;
-}
-
-static void cgc_remove(heap_chunk_t *node) {
-    node->prev->next = node->next;
-    node->next->prev = node->prev;
-    node->next = NULL;
-    node->prev = NULL;
-}
-
-void cgc_checkheap() {
-    /*
-     * Verify that there is no overlap between freed and allocated lists.
-     */
-    heap_chunk_t *fchunk = cgc_freed;
-    heap_chunk_t *achunk;
-    while (fchunk->next != cgc_freed) {
-        achunk = cgc_allocated;
-        while (achunk->next != cgc_allocated) {
-            if ((uint32_t)fchunk < (uint32_t)(((uint8_t*)achunk)+achunk->size) &&
-                (uint32_t)achunk < (uint32_t)(((uint8_t*)fchunk)+fchunk->size)) {
-                LOG("corrupt");
-                cgc__terminate(283);
+            int ret = cgc_allocate(s, 0, (void **)  &(mm->allocation));
+            if(ret != 0){
+#ifdef DEBUG                
+                if(ret == EINVAL)
+                    err("Alloc returns inval");
+                if(ret == EFAULT)
+                    err("invalid dest addr specd");
+                err("Other error");
+#endif
+                return NULL;
             }
-            achunk = achunk->next;
+            mm->size = s;
+            // todo remove once we get whole page size
+            // for(int j = 0; j < 4096; ++j)
+            //     ((char *) (mm->allocation))[j] = 0xc;
+            return mm->allocation;
+
         }
-        fchunk = fchunk->next;
     }
+    
+
+    return NULL;
 }
 
-void *cgc_malloc(cgc_size_t size) {
-    /*
-     * A very stupid malloc implementation, meant to be simple.
-     * Keeps a list of allocated and freed chunks
-     * Alloc walks list of freed chunks to see if any are large enough
-     * If not, it allocates space large enough to store
-     * Oh, and we never actually free pages. It's quality software.
-     *
-     */
-    if (!cgc_heapinit_done) 
-        cgc_heapinit();
-
-    if (size == 0)
-        return NULL;
-
-    heap_chunk_t *chunk = cgc_freed;
-    //need space for inline metadata
-    size += sizeof(heap_chunk_t);
-
-    //walk freed list to see if we can find match
-    while (chunk->size < size && chunk->next != cgc_freed) {
-        chunk = chunk->next;
-    }
-
-    if (chunk->size >= size) {
-        //found a match, remove from freed list, add to allocated list, and return
-        //SSSENDL("found free chunk");
-        cgc_remove(chunk);
-        cgc_insert(cgc_allocated,chunk);
-        return ((uint8_t*)chunk)+sizeof(heap_chunk_t);
-    }
-
-    //see if free space in last allocated page is enough
-    if (size <= cgc_curleft) {
-        //SSSENDL("had enough left in current page");
-        chunk = (heap_chunk_t*)cgc_lastpage;
-        chunk->size = size;
-        cgc_lastpage += size;
-        cgc_curleft -= size;
-        cgc_insert(cgc_allocated,chunk);
-        return ((uint8_t*)chunk)+sizeof(heap_chunk_t);
-    }
-
-    //need to allocate new page
-
-    //SSSENDL("allocating new page");
-    //first add the remaining page to our freed list as a lazy hack
-    //if there's not enough left, we just let it leak
-    if (cgc_curleft > sizeof(heap_chunk_t)) {
-        //SSSENDL("adding remainder to free list");
-        chunk = (heap_chunk_t*)cgc_lastpage;
-        chunk->size = cgc_curleft;
-        cgc_insert(cgc_freed,chunk);
-    }
-
-    if (cgc_allocate(size,0,(void**)&chunk) != 0)
-        return NULL;
-
-    chunk->size = size;
-    cgc_insert(cgc_allocated,chunk);
-
-    cgc_lastpage = ((uint8_t*)chunk)+size;
-    //this is bad.
-    if ((size & 0xfff) != 0)
-        cgc_curleft = PAGE_SIZE-(size&(PAGE_SIZE-1));
-    else
-        cgc_curleft = 0;
-    return ((uint8_t*)chunk)+sizeof(heap_chunk_t);
-}
-
-void *cgc_calloc(cgc_size_t size) {
-    void *ptr;
-
-    if (!(ptr = cgc_malloc(size)))
-        return NULL;
-
-    cgc_memset(ptr,'\0',size);
-    return ptr;
-}
-
-void cgc_free(void *p) {
-    /*
-     * A very stupid free for a very stupid malloc
-     * Simply moves pointer from allocated to free list
-     * With no checking of anything, obviously
-     *
-     */
-    if (!p)
+void cgc_free(void *p){
+    // traverse from the rear just to throw off identification
+    if(p == NULL){
+#ifdef DEBUG
+        err("Can't free null!");
+#endif
         return;
 
-    heap_chunk_t *chunk = (heap_chunk_t*)((uint8_t*)p - sizeof(heap_chunk_t));
+    }
 
-    //fix allocated list
-    cgc_remove(chunk);
 
-    //add chunk to the freed list
-    cgc_insert(cgc_freed,chunk);
-    return;
+    for(int i = MAX_ALLOCATIONS-1; i >= 0; i--){
+        MALLOC_E *mm = malloc_array.head+i;
+        if(mm != NULL && p == mm->allocation){
+            int x = cgc_deallocate(mm->allocation, mm->size);
+#ifdef DEBUG            
+            if(x != 0)
+                err("Deallocate problem");
+#endif
+            mm->allocation = NULL;
+            mm->size = 0;
+            return;
+        }
+    }
+#ifdef DEBUG
+    err("Failed to deallocate");
+#endif
 }
 
-void cgc___stack_cookie_init() {
-    RAND(&cgc___cookie, sizeof(cgc___cookie), NULL);
+void cgc_memcpy(void *d, const void *s, cgc_size_t size){
+    char *dc = (char *)d;
+    char *sc = (char *)s;
+
+    for(int j = 0; j < size; j++ ){
+        *(dc+j) = *(sc+j);
+    }
 }
 
-void cgc___stack_cookie_fail() {
-    SSENDL(sizeof(COOKIEFAIL)-1,COOKIEFAIL);
-    cgc__terminate(66);
+// todo not true memcmp in positive results
+int cgc_memcmp(void *d, const void *s, cgc_size_t size){
+    char *dc = (char *)d;
+    char *sc = (char *)s;
+
+
+    for(int j = 0; j < size; j++ ){
+        if(*(dc+j) != *(sc+j))
+            return 1;
+
+    }
+    return 0;
+}
+
+char * cgc_itoaB10(int value){
+    int max_width = 12;
+    char *s = cgc_malloc(max_width); // max len of 2**32 + negative to be paranoid
+    if(s == NULL)
+        return NULL;
+    int tmp = value;
+    
+    if(value == 0){
+        cgc_memcpy(s, "0\x00", 2);
+        return s;
+    }
+    int neg = 0;
+    if(value < 0){
+        neg = 1;
+        tmp = -tmp;
+    }
+    int i = 0;
+    for(; i < max_width && tmp != 0; ++i){
+        int r = tmp % 10;
+        if(r > 9)
+            s[i] = (r - 10) + 'a';
+        else
+            s[i] = r + '0';
+        tmp = tmp/10;
+    }
+
+    if(neg == 1)
+        s[i+1] = '-';
+
+    char *f = cgc_malloc(max_width);
+    int final_len = cgc_strlen(s);
+    for(int j =0; j < final_len; ++j){
+        f[j] = s[final_len-j-1];
+    }
+    cgc_free(s);
+    return f;
+}
+
+void cgc_malloc_reset(){
+    for(int i = MAX_ALLOCATIONS-1; i >= 0; i--){
+        MALLOC_E *mm = malloc_array.head+i;
+        if(mm != NULL && mm->allocation != NULL){
+            int x = cgc_deallocate(mm->allocation, mm->size);
+#ifdef DEBUG
+            if(x != 0)
+                err("Deallocate problem");
+#endif
+            mm->allocation = NULL;
+            mm->size = 0;
+            
+        }
+    }
 }

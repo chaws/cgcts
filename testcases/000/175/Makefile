@@ -1,4 +1,4 @@
-CHAL=Water_Treatment_Facility_Simulator
+CHAL=Diophantine_Password_Wallet
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,37 +20,29 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o src/plant.c.o -c src/plant.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o src/menu.c.o -c src/menu.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -mstack-alignment=3 -o src/sim.c.o -c src/sim.c
-	$(CC) $(FLAGS) -o Water_Treatment_Facility_Simulator_patched lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/plant.c.o src/service.c.o src/menu.c.o src/sim.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fno-rtti -o lib/mylibc.c.o -c lib/mylibc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fno-rtti -o src/main.c.o -c src/main.c
+	$(CXX) $(FLAGS) -o Diophantine_Password_Wallet_patched lib/mylibc.c.o src/main.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o src/plant.c.o -c src/plant.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o src/menu.c.o -c src/menu.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mstack-alignment=3 -o src/sim.c.o -c src/sim.c
-	$(CC) $(FLAGS) -o Water_Treatment_Facility_Simulator lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/plant.c.o src/service.c.o src/menu.c.o src/sim.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fno-rtti -o lib/mylibc.c.o -c lib/mylibc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fno-rtti -o src/main.c.o -c src/main.c
+	$(CXX) $(FLAGS) -o Diophantine_Password_Wallet lib/mylibc.c.o src/main.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -mstack-alignment=3 -pedantic -o pov_1/service.c.o -c pov_1/service.c
-	$(CC) $(FLAGS) -o Water_Treatment_Facility_Simulator_pov_1 pov_1/service.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -fno-rtti -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -fno-rtti -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -fno-rtti -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_5 -I include -I lib -I src -O0 -g -fno-rtti -pedantic -o pov_5/pov.c.o -c pov_5/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fno-rtti -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o Diophantine_Password_Wallet_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Diophantine_Password_Wallet_pov_3 pov_3/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Diophantine_Password_Wallet_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Diophantine_Password_Wallet_pov_5 pov_5/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Diophantine_Password_Wallet_pov_4 pov_4/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/service.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/plant.c.o src/service.c.o src/menu.c.o src/sim.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/plant.c.o src/service.c.o src/menu.c.o src/sim.c.o Water_Treatment_Facility_Simulator_pov_1 Water_Treatment_Facility_Simulator_patched Water_Treatment_Facility_Simulator
+	rm -f pov_4/pov.c.o pov_3/pov.c.o pov_2/pov.c.o pov_5/pov.c.o pov_1/pov.c.o lib/mylibc.c.o src/main.c.o lib/mylibc.c.o src/main.c.o Diophantine_Password_Wallet_pov_4 Diophantine_Password_Wallet_pov_3 Diophantine_Password_Wallet_pov_2 Diophantine_Password_Wallet_pov_5 Diophantine_Password_Wallet_pov_1 Diophantine_Password_Wallet_patched Diophantine_Password_Wallet

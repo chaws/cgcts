@@ -2,299 +2,750 @@
 
 from generator.actions import Actions
 import random
-import string
-import struct
-from struct import pack, unpack
-import ctypes 
+from struct import pack
 
 
-class MorrisGenerator(Actions):
+class ProposalGenerator(Actions):
+
+
     def start(self):
-        #self.delay(100)
-        self.count = 0
 
-    def gen_random_str(self, min, max):
-        length = self.random_in_range(min, max)
-        s = ''.join(chr(self.random_in_range(0x30, 0x7e)) for _ in range(length-2))
-        return s
+        self.DiverFirstName = ''
+        self.DiverLastName = ''
+        self.DiverAddress = ''
+        self.DiverCity = ''
+        self.DiverState = ''
+        self.DiverZip = ''
+        self.DiverPhone = ''
+        self.DiverPadiNum = ''
+        self.DiverPadiDate = ''
+        self.dive_entries_count = 0;
+        self.dive_entries=[]
 
-    def gen_random_user(self):
-        user = {}
-        user['name'] = self.gen_random_str(5, 32)
-        user['hostname'] = self.gen_random_str(5,32)
-        user['idletime'] = self.call_prng() & 0xffffff
-        user['realname'] = self.gen_random_str(5,64)
-        user['phone'] = self.gen_random_str(9,9)
-        user['online'] = self.random_in_range(0,1)
-        return user
+        self.dive_site_name = ''
+        self.dive_date = ''
+        self.dive_time = ''
+        self.dive_location = ''
+        self.dive_max_depth = 0
+        self.dive_avg_depth = 0
+        self.dive_duration = 0
+        self.dive_o2 = 0
+        self.dive_pressure_in = 0
+        self.dive_pressure_out = 0
+        self.dive_bincount = 0
 
-    def init_prng(self):
-        #setup prng
-        self.prng_offset = 0
-        self.random_state = []
-        for i in range(512):
-          self.random_state.append(unpack("<Q", self.magic_page[i*8: i*8 + 8])[0])
-        self.a = 12
-        self.b = 25 
-        self.c = 27
-        self.mult = unpack("<Q", self.magic_page[4:12])[0] 
-        self.randomIndex = 0
+        self.read_main_menu_text()
+
+    def read_main_menu_text(self):
+
+
+        self.read(delim='\n', expect='\n')
+        self.read(delim='\n', expect='C - Change Diver Info')
+        self.read(delim='\n', expect='L - Log a New Dive')
+        self.read(delim='\n', expect='D - Download Dive Data')
+        self.read(delim='\n', expect='E - Edit Dives')
+        self.read(delim='\n', expect='P - Print Dive Logs')
+        self.read(delim='\n', expect='R - Remove Dives')
+        self.read(delim='\n', expect='S - Diver Statistics')
+        self.read(delim='\n', expect='X - Exit Application')
+
+    def menu(self):
+
+        pass
+
+    def exit(self):
+
+        self.read(delim=':', expect=':')
+        self.write(random.choice('xX') + '\n')
+
+    def enter_a_dive(self):
+
+        mydate = DateTime()
+        mydate.set_datetime(1388534400 + random.randint(1, 86400*365))
+
+        self.read(length=1, expect=':')
+        self.write(random.choice('lL') + '\n')
+        self.read(delim='\n', expect='\n')
+  
+
+        dive_site = ''.join(random.choice('abcdefghijklmnop') for _ in range(10))
+        dive_date = mydate.print_date()
+        dive_time = mydate.print_time()
+        dive_location = ''.join(random.choice('abcdefghijklmnop') for _ in range(10))
+
+        max_depth = random.randint(20, 130)
+        avg_depth = max_depth/2;
+        duration = random.randint(20, 55)
+        dive_o2 = random.randint(21, 50)
+        psi_in = random.randint(3000, 3200)
+        psi_out = random.randint(400, 1000)
+
+
+        self.read(length=11, expect='Dive Site: ')
+        self.write(dive_site + '\n')
+
+        self.read(length=6, expect='Date: ')
+        self.write(dive_date+'\n')
+
+        self.read(length=6, expect='Time: ')
+
+        self.write(dive_time+'\n')
+
+        self.read(length=22, expect='Location (area/city): ')
+
+        self.write(dive_location+ '\n')
+
+        self.read(length=17, expect='Max Depth in ft: ')
+        self.write('{}'.format(max_depth)+'\n')
+
+        self.read(length=17, expect='Avg Depth in ft: ')
+        self.write('{}'.format(avg_depth)+'\n')
+
+        self.read(length=22, expect='Dive Duration (mins): ')
+        self.write('{}'.format(duration)+'\n')
+
+        self.read(length=15, expect='O2 Percentage: ')
+        self.write('{}'.format(dive_o2)+'\n')
+ 
+        self.read(length=19, expect='Pressure In (psi): ')
+        self.write('{}'.format(psi_in)+'\n')        
+
+        self.read(length=20, expect='Pressure Out (psi): ')
+        self.write('{}'.format(psi_out)+'\n')
+
+        self.dive_entries.append((dive_site, dive_date, dive_time, dive_location, max_depth, avg_depth, duration, dive_o2, psi_in, psi_out, 0))
+        self.dive_entries_count+=1
         
-        
-    def call_prng(self):
-        r = self.random_state[self.randomIndex] 
-        r = r ^ (r >> self.a) & 0xffffffffffffffff
-        r = r ^ (r << self.b) & 0xffffffffffffffff
-        r = r ^ (r >> self.c) & 0xffffffffffffffff
-        self.random_state[self.randomIndex] = r & 0xffffffffffffffff
-        self.randomIndex = (self.randomIndex + 1) % 512
-        big = r * self.mult
-        return ((big >> 32) & 0xffffffff)
 
-    def random_in_range(self, min, max):
-        if (min > max):
-          return 0
-        if (min == max):
-          return min
-        delta = max - min
-        scale = 0xffffffff / delta
-        value = self.call_prng()
-        return min + (value / scale)
+        self.read_main_menu_text()
 
 
-    def init_lookupd(self):
-        self.lookupd_brief = random.choice([True, False])
-        self.lookupd_quick = random.choice([True, False])
-        self.lookupd_users = []
-        self.lookupd_shortlist = []
-        self.init_prng()
+    def read_dive_list(self):
 
-        self.lookupd_users.append(self.gen_random_user())
-        for i in range(10):
-            self.lookupd_users.append(self.gen_random_user())
+        self.read(delim='\n', expect='\n')
 
+        if self.dive_entries_count==0:
 
-    def lookupd(self):     
+            self.read(delim='\n', expect='Dive Log is empty\n')
+            return
 
-        self.init_lookupd()
-        self.read(delim=':', expect="frontdoor:")
-        command = "lookupd "
-        if random.choice([True, False]):
-            command += "/W "
+        expect_string = 'Dive# {:<10} {:<8} {:<25} {:<25}\n'.format('Date', 'Time', 'Dive Site', 'Location')
+        self.read(delim='\n', expect=expect_string) 
 
-        self.write("%s\n" % command)
-        command = "lookup "
-        if self.lookupd_brief:
-            command += '-s '
-        else:
-            if random.choice([True, False]):
-                command += '-l '
-        
-        
-        user = None
-
-        if (self.chance() > 0.2):
-            user = random.choice(self.lookupd_users)
-            command += user['name']
-
-        self.write(command + '\n')
-
-        if user:
-            self.lookupd_read_user(user)
-        else:
-            # read all users
-            for user in self.lookupd_users:
-                self.lookupd_read_user(user)
-
-
-    def lookupd_read_user(self, user):
-        if (self.lookupd_brief):
-            self.read(delim='\n', expect="Username: %s\n" % user['name'])
-            self.read(delim='\n', expect="Real name: %s\n" % user['realname'])
-            self.read(delim='\n', expect="Phone #:%s\n" % user['phone'])
-            self.read(delim='\n', expect='\n')
-        else:
-            result = "Username: %s\n" % user['name']
-            result += "Real name: %s\n" % user['realname']
-            result += "Host name: %s\n" % user['hostname']
-            result += "Idle for: %d seconds\n" % user['idletime']
-            self.read(length=len(result), expect=result)
-            if (user['online'] == 1):
-                self.read(delim='\n', expect="User is online\n");
-            else:
-                self.read(delim='\n', expect="User is offline\n");
-            self.read(delim='\n\n', expect="Phone #:%s\n\n" % user['phone'])
-
-    def ish(self):
-        self.read(delim=':', expect="frontdoor:")
-        self.init_prng()
-        command = "ish "
-        options = " "
-        flags = set(['+n ', '+L ', '+e ', '+9 ', '+8 '])
-        pick_flags = random.sample(flags, random.randint(0, len(flags)))
-        for each in pick_flags:
-            options += each
-
-
-        #setup internal state
-        self.ish_userlist = []
-        self.ish_hostlist = []
-        for i in range(31):
-            newuser = {}
-            newuser['username'] = self.gen_random_str(5, 32)
-            newuser['password'] = self.gen_random_str(5, 32)
-            self.ish_userlist.append(newuser)
-        for i in range(31):
-            newhost = {}
-            newhost['hostname'] = self.gen_random_str(5, 32)
-            index = self.random_in_range(1, 31) - 1
-            newhost['username'] = self.ish_userlist[index]['username']
-            self.ish_hostlist.append(newhost)
-
-        valid = True
-
-        #pick a user + pw
-        ish_user = random.choice(self.ish_userlist)
-
-        #pick a hostname
-        hostname = None
-        for host in self.ish_hostlist:
-            if host['username'] == ish_user['username']:
-                hostname = host['hostname']
-        if not hostname:
-            valid = False
-            hostname = random.choice(self.ish_hostlist)['hostname']
-
-
-        command += hostname + options + ' +p ' + ish_user['password'] + ' +l ' + ish_user['username'] + ' '
-
-        #pick a command
-        self.ish_command = random.choice(['list', 'pwd', 'dump', 'help', 'info', 'exec'])
-        command += self.ish_command 
-        if self.ish_command == 'dump':
-            self.ish_values = [0]
-            #pick an address where we know the contents
-            address = 0xb7ffd004 + (random.randint(0, 1023) * 4)
-            command += ' %d' % address
-
-        self.write(command + '\n')
-        if not valid:
-            self.read(delim='\n', expect="Access Denied\n")
-        else:
-            if self.ish_command == 'list':
-                self.read(delim='\n', expect='one two three key')
-            elif self.ish_command == 'pwd':
-                self.read(delim='\n', expect='.')
-            elif self.ish_command == 'dump':
-                byte = struct.unpack('<L', self.magic_page[address - 0xb7ffd004:address - 0xb7ffd004+4])[0] & 0xff000000
-                self.read(length=4, expect=struct.pack('<L', byte))
-            elif self.ish_command == 'help':
-                self.read(delim='\n', expect='Here is no help')
-            elif self.ish_command == 'info':
-                self.read(delim='\n', expect='Here is no info')
-            elif self.ish_command == 'exec':
-                self.read(delim='\n', expect='Command not supported')
-
-    def pick_address(self):
-        count = len(self.address_book)
-        return self.address_book[self.random_in_range(0, count - 1)]
-
-    def gen_random_msg(self):
-        msg = {}
-        msg['sender'] = self.pick_address()
-        msg['recipient'] = self.pick_address()
-        msg['subject'] = self.gen_random_str(5, 32)
-        msg['data'] = self.gen_random_str(5, 256)
-        msg['data_length'] = len(msg['data'])
-        return msg
-
-
-    def mailsend(self):
-        self.read(delim=':', expect="frontdoor:")
-        self.write("mailsend\n")
-        self.address_book = []
-        self.init_prng()
-        for i in range(10):
-            address = {}
-            address['index'] = i + 1
-            address['name'] = self.gen_random_str(5,32)
-            address['home_server'] = self.gen_random_str(5,32)
-            address['mode'] = self.random_in_range(0,1)
-            self.address_book.append(address)
-        self.mail_queues = []
-        for i in range(15):
-            mq = {}
-            sender = self.pick_address()
-            mq['name'] = sender['name']
-            mq['messages'] = []
-            mq['messages'].append(self.gen_random_msg())
-            self.mail_queues.append(mq)
-
-    def mailsend_read_queue(self, mq):
         i = 0
-        for msg in mq['messages'][0:10]:
-            self.read(delim='\n', expect='%d) From:%s To: %s SUBJECT:%s' % (i, msg['sender']['name'], msg['recipient']['name'], msg['subject']))
-            i += 1
+        while (i < self.dive_entries_count): 
+            expect_string = '{:4}: {:<10} {:<8} {:<25} {:<25}\n'.format(i+1, self.dive_entries[i][1],
+                                        self.dive_entries[i][2] , self.dive_entries[i][0],
+                                        self.dive_entries[i][3])
+            self.read(delim='\n', expect=expect_string)
+            i+=1
 
-    def find_queue(self, name):
-        for mq in self.mail_queues:
-            if mq['name'] == name:
-                return mq
-        return None
 
-    def mailsend_loop(self):
-        self.count += 1
-        if self.count >= 5:
-            self.mailsend_quit()
-            self.quit()
-            return -1
-    
-    def mailsend_ADDRESSBOOK(self):
-        self.write("ADDRESSBOOK\n")
-        self.count += 3
-        self.read(delim='\n', expect="Address Book:")
-        for each in self.address_book:
-            self.read(delim='\n', expect="%d) %s@%s [%d]" % (each['index'], each['name'], each['home_server'], each['mode']))
+    def print_dives (self):
 
-    def mailsend_LIST(self):
-        mq = random.choice(self.mail_queues)
-        self.write("LIST %s\n" % mq['name'])
-        self.mailsend_read_queue(self.find_queue(mq['name']))
+        self.read(length=1, expect=':')
+        self.write(random.choice('pP') + '\n')
+        self.read(delim='\n', expect='\n')
 
-    def mailsend_LISTALL(self):
-        self.write("LISTALL\n")
-        self.count = 5
-        for mq in self.mail_queues[0:10]:
-            self.read(delim='\n', expect='QUEUE: %s\n' % mq['name'])
-            self.mailsend_read_queue(mq)
+        self.read_dive_list()
+
+        if self.dive_entries_count == 0:
+            self.read_main_menu_text()
+            return
+
+        self.read(delim='\n', expect='\n')
+        expect_string='Enter Dive # to display: '
+
+        self.read(length=len(expect_string), expect=expect_string)
+
+        dive_to_show = random.randint(1, self.dive_entries_count)
+
+        self.write('{}'.format(dive_to_show) + '\n')
+
+        dive_to_show-=1
+
+        self.read(delim='\n', expect='\n')
+        self.read(delim='\n', expect='          Date: ' + self.dive_entries[dive_to_show][1]+ '\n')
+        self.read(delim='\n', expect='          Time: ' + self.dive_entries[dive_to_show][2]+ '\n')
+        self.read(delim='\n', expect='     Dive Site: ' + self.dive_entries[dive_to_show][0] + '\n')
+        self.read(delim='\n', expect='      Location: ' + self.dive_entries[dive_to_show][3] + '\n')
+        self.read(delim='\n', expect='     Max Depth: ' + '{}'.format(self.dive_entries[dive_to_show][4]) + '\n')
+        self.read(delim='\n', expect='     Avg Depth: ' + '{}'.format(self.dive_entries[dive_to_show][5])+ '\n')
+        self.read(delim='\n', expect='      Duration: ' + '{}'.format(self.dive_entries[dive_to_show][6]) + '\n')
+        self.read(delim='\n', expect='    O2 Percent: ' + '{}'.format(self.dive_entries[dive_to_show][7]) + '\n')
+        self.read(delim='\n', expect='Start Pressure: ' + '{}'.format(self.dive_entries[dive_to_show][8]) + '\n')
+        self.read(delim='\n', expect='  End Pressure: ' + '{}'.format(self.dive_entries[dive_to_show][9]) + '\n')
+        self.read(delim='\n', expect='     Bin Count: ' + '{}'.format(self.dive_entries[dive_to_show][10]) + '\n')
+        self.read(delim='\n', expect='\n')
+
+        self.read_main_menu_text()
+
+    def remove_dive(self):
+
+        self.read(length=1, expect=':')
+        self.write(random.choice('rR') + '\n')
+        self.read(delim='\n', expect='\n')
+
+        self.read_dive_list()
+
+        if self.dive_entries_count == 0:
+            self.read_main_menu_text()
+            return
+
+        self.read(delim='\n', expect='\n')
+        expect_string='Enter Dive # to delete or blank to abort: '
+
+        self.read(length=len(expect_string), expect=expect_string)
+
+        dive_to_edit = random.randint(1, self.dive_entries_count)
+
+        self.write('{}'.format(dive_to_edit) + '\n')
+
+        del self.dive_entries[dive_to_edit-1]
+
+        self.dive_entries_count-=1
+
+        self.read_main_menu_text()
+
+    def download_dive(self):
+
+        rand_time_t = 1388534400 + random.randint(1, 86400*365)
+        mydate = DateTime()
+        mydate.set_datetime(rand_time_t)
+
+        dive_site = ''.join(random.choice('abcdefghijklmnop') for _ in range(10))
+        dive_date = mydate.print_date()
+        dive_time = mydate.print_time()
+        dive_location = ''.join(random.choice('abcdefghijklmnop') for _ in range(10))
+
+        max_depth = 0
+        avg_depth = 0
+        sum_samples = 0
+        count_samples = 0
+        duration = random.randint(3, 30)
+        dive_o2 = random.randint(21, 50)
+        psi_in = random.randint(3000, 3200)
+        psi_out = random.randint(400, 1000)
+
+        self.read(length=1, expect=':')
+        self.write(random.choice('dD') + '\n')
+        self.read(delim='\n', expect='\n')
+
+        counter = 0
+
+        while counter <= duration:
+
+            mydate.set_datetime(rand_time_t)
+            depth = random.randint(1, 130)
+
+            sum_samples+=depth
+            count_samples+=1
+
+            if depth > max_depth:
+                max_depth=depth
+
+            self.write(pack('<L', mydate.time_t))
+
+            self.write(pack('<L', depth))
+
+            rand_time_t+=60
+            counter+=1
+
+
+        self.write(pack('<L', 0))
+
+        avg_depth=sum_samples/count_samples
+
+
+        self.read(length=11, expect='Dive Site: ')
+        self.write(dive_site + '\n')
+
+        expect_string= 'Date ('+ dive_date +'): '
+
+        self.read(length=len(expect_string), expect=expect_string)
+
+        self.write(dive_date+'\n')
+
+        expect_string= 'Time ('+ dive_time +'): '
+        self.read(length=len(expect_string), expect=expect_string)
+
+        self.write(dive_time+'\n')
+
+        self.read(length=22, expect='Location (area/city): ')
+
+        self.write(dive_location+ '\n')
+
+        expect_string= 'Max Depth in ft ('+ '{}'.format(max_depth)+'): '
+
+        self.read(length=len(expect_string), expect=expect_string)
+
+        self.write('\n')
+
+        expect_string= 'Avg Depth in ft ('+ '{}'.format(avg_depth)+'): '
+
+        self.read(length=len(expect_string), expect=expect_string)
+
+        self.write('\n')
+
+        expect_string= 'Dive Duration (mins) ('+ '{}'.format(duration)+'): '
+
+        self.read(length=len(expect_string), expect=expect_string)
+
+        self.write('\n')
+
+        self.read(length=15, expect='O2 Percentage: ')
+        self.write('{}'.format(dive_o2)+'\n')
+ 
+        self.read(length=19, expect='Pressure In (psi): ')
+        self.write('{}'.format(psi_in)+'\n')        
+
+        self.read(length=20, expect='Pressure Out (psi): ')
+        self.write('{}'.format(psi_out)+'\n')
+
+        self.dive_entries.append((dive_site, dive_date, dive_time, dive_location, max_depth, avg_depth, duration, dive_o2, psi_in, psi_out, duration+1))
+        self.dive_entries_count+=1
+        
+
+        self.read_main_menu_text()
+
+
+    def edit_dive(self):
+
+        mydate = DateTime()
+        mydate.set_datetime(1388534400 + random.randint(1, 86400*365))
+
+
+        dive_site = ''.join(random.choice('abcdefghijklmnop') for _ in range(10))
+        dive_date = mydate.print_date()
+        dive_time = mydate.print_time()
+        dive_location = ''.join(random.choice('abcdefghijklmnop') for _ in range(10))
+
+        max_depth = random.randint(20, 130)
+        avg_depth = max_depth/2
+        duration = random.randint(20, 55)
+        dive_o2 = random.randint(21, 50)
+        psi_in = random.randint(3000, 3200)
+        psi_out = random.randint(400, 1000)
+
+        self.read(length=1, expect=':')
+        self.write(random.choice('eE') + '\n')
+        self.read(delim='\n', expect='\n')
+
+        self.read_dive_list()
+
+        if self.dive_entries_count == 0:
+            self.read_main_menu_text()
+            return
+      
+        self.read(delim='\n', expect='\n')
+        expect_string='Enter Dive # to edit: '
+
+        self.read(length=len(expect_string), expect=expect_string)
+
+        dive_to_edit = random.randint(1, self.dive_entries_count+1)
+
+        self.write('{}'.format(dive_to_edit) + '\n')
+
+        if dive_to_edit > self.dive_entries_count:
+            self.read(delim='\n', expect='Invalid dive number entered\n')
+            self.read_main_menu_text()
+            return 0
+        else:
             self.read(delim='\n')
 
-    def mailsend_POST(self):
-        msg = self.gen_random_msg()
-        command = "POST sender:%s!recipient:%s!body:%s!subject:%s!\n" % (msg['sender']['name'], msg['recipient']['name'], msg['data'], msg['subject'])
-        mq = self.find_queue(msg['sender']['name'])
-        if mq == None:
-            mq = {}
-            mq['name'] = msg['sender']['name']
-            mq['messages'] = []
-            mq['messages'].append(msg)
-            self.mail_queues.append(mq)
+            expect_string= 'Dive Site ('+self.dive_entries[dive_to_edit-1][0]+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write(dive_site+'\n')
+
+            expect_string= 'Date ('+self.dive_entries[dive_to_edit-1][1]+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write(dive_date+'\n')
+
+            expect_string= 'Time ('+self.dive_entries[dive_to_edit-1][2]+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write(dive_time+'\n')
+
+            expect_string= 'Location (area/city) ('+self.dive_entries[dive_to_edit-1][3]+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write(dive_location+'\n')
+
+            expect_string= 'Max Depth in ft ('+ '{}'.format(self.dive_entries[dive_to_edit-1][4])+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('{}'.format(max_depth)+'\n')
+
+            expect_string= 'Avg Depth in ft ('+ '{}'.format(self.dive_entries[dive_to_edit-1][5])+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('{}'.format(avg_depth)+'\n')
+
+            expect_string= 'Dive Duration (mins) ('+ '{}'.format(self.dive_entries[dive_to_edit-1][6])+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('{}'.format(duration)+'\n')
+
+            expect_string= 'O2 Percentage ('+ '{}'.format(self.dive_entries[dive_to_edit-1][7])+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('{}'.format(dive_o2)+'\n')
+
+            expect_string= 'Pressure In (psi) ('+ '{}'.format(self.dive_entries[dive_to_edit-1][8])+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('{}'.format(psi_in)+'\n')
+
+            expect_string= 'Pressure Out (psi) ('+ '{}'.format(self.dive_entries[dive_to_edit-1][9])+'): '
+
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('{}'.format(psi_out)+'\n')
+
+
+            self.dive_entries[dive_to_edit-1]=(dive_site, dive_date, dive_time, dive_location, max_depth, avg_depth, duration, dive_o2, psi_in, psi_out, self.dive_entries[dive_to_edit-1][10])
+
+            self.read_main_menu_text()
+
+
+    def enter_diver_info (self):
+
+
+        self.read(length=1, expect=':')
+        self.write(random.choice('cC') + '\n')
+        self.read(delim='\n', expect='\n')
+
+        if self.DiverFirstName == '':
+            self.read(length=12, expect='First Name: ')
+            self.DiverFirstName = ''.join(random.choice('abcdefghijklmnop') for _ in range(15))
+            self.write(self.DiverFirstName+ '\n')
         else:
-            mq['messages'].append(msg)
-        self.write(command)
-        self.read(delim='\n', expect='Message Received')
+            self.read(length=15+len(self.DiverFirstName), expect='First Name (' + self.DiverFirstName + '): ')
+            self.write('\n')
 
-    def mailsend_READ(self):
-        mq = random.choice(self.mail_queues)
-        mq = self.find_queue(mq['name'])
-        msg_num = random.randint(0, len(mq['messages'])-1)
-        self.write("READ %s %d\n" % (mq['name'], msg_num))
-        self.read(delim='\n', expect="%d) Subject:%s Body:%s\n" % (msg_num, mq['messages'][msg_num]['subject'], mq['messages'][msg_num]['data']))
+        if self.DiverLastName == '':
+            self.read(length=11, expect='Last Name: ')
+            self.DiverLastName = ''.join(random.choice('abcdefghijklmnop') for _ in range(15))
+            self.write(self.DiverLastName+ '\n')
+        else:
+            self.read(length=14+len(self.DiverLastName), expect='Last Name (' + self.DiverLastName + '): ')
+            self.write('\n')
 
-    def mailsend_quit(self):
-        self.write("QUIT\n")
-        self.read(delim='\n', expect="Goodbye.")
+        if self.DiverAddress == '':
+            self.read(length=8, expect='Street: ')
+            self.DiverAddress = ''.join(random.choice('abcdefghijklmnop') for _ in range(25))
+            self.write(self.DiverAddress+ '\n')
+        else:
+            self.read(length=11+len(self.DiverAddress), expect='Street (' + self.DiverAddress + '): ')
+            self.write('\n')
 
-    def quit(self):
-        self.write("quit\n")
-        self.read(delim='\n', expect="frontdoor:Goodbye\n")
+        if self.DiverCity== '':
+            expect_string = 'City: '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.DiverCity = ''.join(random.choice('abcdefghijklmnop') for _ in range(10))
+            self.write(self.DiverCity+ '\n')
+        else:
+            expect_string= 'City ('+self.DiverCity+'): '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('\n')
+
+        if self.DiverState== '':
+            expect_string = 'State: '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.DiverState = ''.join(random.choice('abcdefghijklmnop') for _ in range(2))
+            self.write(self.DiverState+ '\n')
+        else:
+            expect_string= 'State ('+self.DiverState+'): '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('\n')
+
+        if self.DiverZip== '':
+            expect_string = 'Zip Code: '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.DiverZip = ''.join(random.choice('1234567890') for _ in range(5))
+            self.write(self.DiverZip + '\n')
+        else:
+            expect_string= 'Zip Code ('+self.DiverZip+'): '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('\n')
+
+        if self.DiverPhone== '':
+            expect_string = 'Phone Number: '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.DiverPhone = ''.join(random.choice('1234567890') for _ in range(10))
+            self.write(self.DiverPhone + '\n')
+        else:
+            expect_string= 'Phone Number ('+self.DiverPhone+'): '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('\n')
+
+        if self.DiverPadiNum== '':
+            expect_string = 'PADI Diver Number: '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.DiverPadiNum = ''.join(random.choice('1234567890') for _ in range(10))
+            self.write(self.DiverPadiNum + '\n')
+        else:
+            expect_string= 'PADI Diver Number ('+self.DiverPadiNum+'): '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('\n')
+
+        if self.DiverPadiDate== '':
+            expect_string = 'PADI Cert Date: '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.DiverPadiDate = ''.join(random.choice('1234567890') for _ in range(10))
+            self.write(self.DiverPadiDate + '\n')
+        else:
+            expect_string= 'PADI Cert Date ('+self.DiverPadiDate+'): '
+            self.read(length=len(expect_string), expect=expect_string)
+            self.write('\n')      
+
+
+        self.read(delim='\n', expect='\n')
+        self.read(delim='\n', expect='     Name: '+ self.DiverFirstName + ' ' + self.DiverLastName + '\n')
+        self.read(delim='\n', expect='  Address: ' + self.DiverAddress+ '\n')
+        self.read(delim='\n', expect='     City: ' + self.DiverCity + '\n')
+        self.read(delim='\n', expect='    State: ' + self.DiverState + '\n')
+        self.read(delim='\n', expect=' Zip Code: ' + self.DiverZip + '\n')
+        self.read(delim='\n', expect='    Phone: ' + self.DiverPhone+ '\n')
+        self.read(delim='\n', expect=' PADI Num: ' + self.DiverPadiNum + '\n')
+        self.read(delim='\n', expect='Cert Date: ' + self.DiverPadiDate + '\n')
+        self.read(delim='\n', expect='\n')
+
+        self.read_main_menu_text()
+
+    def dive_statistics(self):
+
+        sum_avg_depth = 0
+        avg_depth_count = 0
+        sum_length = 0
+        avg_length_count = 0
+
+        self.read(length=1, expect=':')
+        self.write(random.choice('sS') + '\n')
+        self.read(delim='\n', expect='\n')
+
+        if self.dive_entries_count==0:
+
+            self.read(delim='\n', expect='\n')
+            self.read(delim='\n', expect='No dives are logged\n')
+
+            self.read_main_menu_text()
+            return
+
+        i = 0
+        while (i < self.dive_entries_count): 
+
+            if self.dive_entries[i][4] != 0:
+                sum_avg_depth+= self.dive_entries[i][4];
+                avg_depth_count+=1
+
+            if self.dive_entries[i][6] != 0:
+                sum_length += self.dive_entries[i][6]
+                avg_length_count += 1
+
+    
+            i+=1
+
+        avg_depth = sum_avg_depth/avg_depth_count;
+        avg_length = sum_length/avg_length_count;
+
+        self.read(delim='\n', expect='\n')
+
+        expect_string = 'Dives logged: '+ '{}'.format(self.dive_entries_count)
+
+        self.read(delim='\n', expect=expect_string)
+
+        expect_string = 'Average Max Depth: ' + '{}'.format(avg_depth)
+        self.read(delim='\n', expect=expect_string)
+
+        expect_string = 'Average Dive Length: ' + '{}'.format(avg_length)
+        self.read(delim='\n', expect=expect_string)
+
+        self.read_main_menu_text()
+
+class DateTime():
+
+    def __init__ (self, year=0, month=0, day=0, hour=0, min=0, sec=0):
+        self.year = year
+        self.month = month
+        self.day = day
+        self.hour=hour
+        self.min=min
+        self.sec=sec
+        self.time_t = 0
+
+        count = 1970
+        days_since_epoch = 0
+        cumulative_days= [ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 ]
+
+        if (year > 1969):
+            while count < self.year:
+                days_since_epoch+= 365+ self.leap_year(count)
+
+            days_since_epoch+= cum_days_by_month[self.month-1]
+
+            if self.month > 2:
+                days_since_epoch+= self.leap_year(self.year)
+
+            days_since_epoch+=self.day
+
+            seconds_since_epoch = days_since_epoch * 86400
+
+            seconds_since_epoch+= self.hour * 3600
+            seconds_since_epoch+= self.min * 60
+            seconds_since_epoch+= self.sec
+           
+            self.time_t = seconds_since_epoch
+
+
+    def set_datetime(self, year, month, day, hour, min, sec):
+        self.year=year
+        self.month=month
+        self.day=day
+        self.hour=hour
+        self.min=min
+        self.sec=sec
+       # self.day_of_year()
+
+    def leap_year(self, year):
+        if ((year%400==0 or year%100!=0) and (year%4==0)):
+            return 1
+        else:
+            return 0
+
+
+    def set_datetime(self, time_t):
+
+        day_seconds = 0
+        num_days_since_epoch = 0
+        cum_days_since_epoch = 0
+        day_of_year = 0
+
+        cum_days_by_month = [ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 ]
+
+
+        self.time_t = time_t
+        day_seconds = time_t % 86400
+        self.hour = day_seconds / 3600
+        self.min = day_seconds / 60 % 60
+        self.sec = day_seconds % 60
+
+        num_days_since_epoch = time_t / 86400
+        cum_days_since_epoch = 0
+
+        counter = 1970
+
+        while (cum_days_since_epoch <= num_days_since_epoch):
+            cum_days_since_epoch+=(365 + self.leap_year(counter))
+            counter+=1
+
+        self.year = counter - 1
+
+        cum_days_since_epoch -= (365 + self.leap_year(self.year))
+
+        day_of_year = num_days_since_epoch - cum_days_since_epoch + 1
+
+        counter = 0
+
+        while cum_days_by_month[counter] + ((counter>1) * self.leap_year(self.year)) < day_of_year:
+            counter+=1
+
+        self.month = counter
+
+        self.day = day_of_year - cum_days_by_month[counter-1] - ((counter > 2) * self.leap_year(self.year))
+
+    def print_date(self):
+
+        return '{}/{}/{}'.format(self.month, self.day, self.year)
+
+    def print_time(self):
+
+        return '{:02d}:{:02d}:{:02d}'.format(self.hour, self.min, self.sec)
+
+class Dates():
+
+    def __init__ (self, year=0, month=0, day=0):
+        self.year = year
+        self.month = month
+        self.day = day
+        self.day_of_year()
+
+    def set_date(self, year, month, day):
+        self.year=year
+        self.month=month
+        self.day=day
+
+
+    def print_date(self):
+
+        if self.year > 0:
+            return '{}/{}/{}'.format(self.month, self.day, self.year)
+        else:
+            return ''
+
+    def is_leap_year(self):
+        if ((self.year%400==0 or self.year%100!=0) and (self.year%4==0)):
+            return 1
+        else:
+            return 0
+
+    def day_of_year(self):
+
+        cumulative_days= [ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 ]
+        self.DOY=cumulative_days[self.month-1] + self.day;
+
+        if self.month > 2:
+            self.DOY+=self.is_leap_year()
+
+        return self.DOY
+
+    def date_from_doy(self, year, doy):
+        pass
+
+
+    def remaining_days(self):
+
+
+        if (self.is_leap_year()):
+            return (366-self.DOY);
+        else:
+            return (365-self.DOY)
+
+
+    def compare_dates(x, y):
+
+        if x.year > y.year:
+            return 1
+        elif x.year < y.year:
+            return -1
+        else:
+            if x.month > y.month:
+                return 1
+            elif x.month < y.month:
+                return -1
+            else:
+                if x.day > y.day:
+                    return 1
+                elif x.day < y.day:
+                    return -1
+                else:
+                    return 0
+
+    @classmethod
+    def random_date(cls):
+
+        tmpyear=random.randint(2015, 2019)
+        tmpmonth=random.randint(1, 12)
+        tmpday=random.randint(1, 28)    # cheat by picking an upper day of month that will be safe for Feb
+        return cls(tmpyear, tmpmonth, tmpday)
+
+    @classmethod
+    def random_date_from_range(cls, start_year, end_year):
+
+        tmpyear=random.randint(start_year, end_year)
+        tmpmonth=random.randint(1, 12)
+        tmpday=random.randint(1, 28)
+        return cls(tmpyear, tmpmonth, tmpday)
+
+

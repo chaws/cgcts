@@ -50,7 +50,8 @@ void *cgc_memset( void *ptr, int value, cgc_size_t num )
 
 	while ( num >= 4 )
 	{
-		*((uint32_t*)ptr++) = set_value_dword;	
+		*((uint32_t*)ptr) = set_value_dword;	
+		ptr+=4;
 		num-=4;	
 	}
 
@@ -132,4 +133,67 @@ char *cgc_strtok(char *str, char *sep) {
 	// made it to the end of the string without any new tokens
 	cgc_StrtokNext = NULL;
 	return(str);
+}
+
+int cgc_strcmp(const char *s1, const char *s2) {
+
+	if (s1 && !s2) {
+		return(1);
+	}
+	if (!s1 && s2) {
+		return(-1);
+	}
+	if (!s1 && !s2) {
+		return(0);
+	}
+
+	while (*s1 != '\0' && *s2 != '\0') {
+		if (*s1 > *s2) {
+			return(1);
+		}
+		if (*s1 < *s2) {
+			return(-1);
+		}
+		s1++;
+		s2++;
+	}
+	if (*s1 != '\0' && *s2 == '\0') {
+		return(1);
+	}
+	if (*s1 == '\0' && *s2 != '\0') {
+		return(-1);
+	}
+	return(0);
+
+}
+
+char *cgc_strcat(char *restrict s1, const char *restrict s2) {
+	uint32_t i,j;
+
+	if (!s1 || !s2) {
+		return(NULL);
+	}
+
+	for (i = cgc_strlen(s1), j = 0; j < cgc_strlen(s2); i++, j++) {
+		s1[i] = s2[j];
+	}
+	s1[i] = '\0';
+
+	return(s1);
+}
+
+int cgc_memcmp( const void *s1, const void *s2, cgc_size_t n )
+{
+	for ( cgc_size_t pos = 0; pos < n; pos++ )
+	{
+		uint8_t val1 = ((uint8_t*)s1)[pos];
+		uint8_t val2 = ((uint8_t*)s2)[pos];
+
+		if ( val1 < val2 )
+			return (-1);
+		else if ( val1 > val2 )
+			return (1);
+	}
+
+	return (0);
 }

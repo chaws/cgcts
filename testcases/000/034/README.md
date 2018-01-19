@@ -1,55 +1,50 @@
-# KPRCA-00049
+# CGC Challenge Binary Template
+
+## Author Information
+
+"Jason Rogers" <info@narfindustries.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+Narf Industries (NRFIN)
 
-## Description:
+## Description
+This service is a simple stack-based virtual machine for your programming pleasure. Using the commands PUSH, POP, ADD, PRINT and COPY you can construct simple programs that the virtual machine will execute on your behalf. 
 
-This service implements a simple note taking program.
 
 ### Feature List
+The service accepts commands that allow you to create and execute programs. After instructing the service to create a new program of a specific size, the service will accept up to that many lines of code and store it for you. Once you are all done submitting programs, you can specify the program number of the program you want to execute.
 
-The following commands are supported by the server.
-
-  * new-note $NAME $CONTENT: Create a new note named $NAME and store $CONTENT in it.
-
-  * append-note $NAME $CONTENT: If a note with name $NAME exists then append $CONTENT to its content.
-
-  * delete-note $NAME: If a note with name $NAME exists then delete it.
-
-  * get-note $NAME: If a note with name $NAME exists then return its contents.
-
-In order to provide a responsive interface this service delays the running of
-both the delete and append actions until they are necessarily needed by the
-result of some other command. This cuts down on processing time and provides
-the user with a fluid and intuitive experience.
+PUSH pushes the value on top of the stack
+POP removes the top value from the stack
+ADD will remove the top two values from the stack, adds them together and pushes the result on top top of the stack
+PRINT will remove the top value from the stack and send it to STDOUT
+COPY will remove the top value from the stack and push a requested number of copies of the value on top of the stack
 
 ## Vulnerability
+This service has two vulnerabilities.
 
-The first vulnerability is a result of that when processing delayed actions the
-call stack grows with the order of delayed actions. It is therefore possible
-for an attacker to create a pathological usage case where number of delayed
-actions grows exceptionally large and the stack space is exhausted during
-runtime.
+The first one allows the client to try and execute a program with a negative program number due to a missing check for negative program numbers. This results in an out-of-bounds read.
 
-The second vulnerability is a result of that when appending to a note the
-amount that a note's data buffer is grown is a fixed ratio which can result in
-a heap overflow if the data being appended is larger than this ratio.
+The second vulnerability is an off-by-one error that allows the VM's stack to overflow by one value. By overflowing the stack one can overwrite the 'size' attribute of a program. The 'size' attribute stipulates how many lines are in the program. This will cause the program to continue advancing line numbers until it attempts to read a portion of memory that is out-of-bounds. 
 
 ### Generic class of vulnerability
-
-  * Recursion
-  * Excessive nested function calls
-  * Overflow
+Off-by-one Error
+Stack-based Buffer Overflow
+Heap-based Buffer Overflow
+Out-of-bounds Read
 
 ### CWE classification
+Off-by-one Error
+CWE-193
+Stack-based Buffer Overflow
+CWE-121
+Heap-based Buffer Overflow
+CWE-122
+Out-of-bounds Read
+CWE-125
 
-  * CWE-122: Heap-based Buffer Overflow
-  * CWE-674: Uncontrolled Recursion
 
 ## Challenges
-
-The challenge binary poses tests the following abilities of a system:
-
-  * Ability to detect issues due to excessive stack space usage
-  * Ability to construct control flows that result in excessive stack space usage
+* Must determine how the interpreter works in order to construct a valid program.
+* Must understand how the stack used when executing a program is stored relative to the program being executed on the heap.
+* Must construct a program that causes the stack to overflow and overwrite the 'size' attribute of the executing program.

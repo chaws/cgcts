@@ -1,84 +1,57 @@
-# KPRCA-00048
-
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
-## Description:
+## Description
 
-This service implements and command-line client challenge binary and server
-challenge binary for a simple key-value store. The client reads input from the
-users, performs some perfunctory validity checks on the user issued command,
-encodes the command, passes it via IPC to the server challenge binary, and
-finally displays the result to the user. If the command entered by the user is
-unknown the user is adequately admonished and an error is returned. The keys
-are stored in a binary search tree which allows for easy and efficient in-order
-traversal, removal, and insertion.
+This program is a small blogging site. It allows users to create content, add friends, and like posts. 
+Once a user has accumlulated enough friends, and likes, he or she is upgraded to a full user and may
+upload files to the blog post.
 
 ### Feature List
 
-The following commands are supported by the server.
+Unregistered users may:
+1. Register
+2. Log in
+3. View a user's posts
+4. View a user's profile
+5. Quit
 
-  * append: Append a value to a key.
-
-  * auth: Authorize the client to the server, this must be done before any
-    other commands can be issued.
-
-  * bitcount: Return the number of bits set in the value store at a key.
-
-  * bitop: Perform XOR, OR, AND, or NOT between 2 or 1 keys, depending on the
-    action, and store the result in another key.
-
-  * decr: Convert the value at a key to an integer if it is not already one and
-    decrease its value by 1.
-
-  * del: Delete a key from the server if it exists.
-
-  * exists: Return a boolean value that states whether or not a key exists in the server.
-
-  * get: Return the value stored at a key.
-
-  * incr: Convert the value at a key to an integer if it is not already one and
-    increase its value by 1.
-
-  * keys: Return a list of the keys currently stored in the server.
-
-  * rename: Move the value stored at one key to another key.
-
-  * set: Set the value of a key.
+And once registered a user can add content, friends, or remove his or her content.
+1. Add new blog post
+2. Delete blog post
+3. Update profile
+4. Add a friend
+5. View my friends
+6. Unfriend someone
+7. View my posts
+8. View my profile
+9. View a user's posts
+10. View a user's profi
+11. Log out.
 
 ## Vulnerability
 
-The first vulnerability for this service occurs in the server. When generating the
-current list keys stored in the server the code that resizes the working-data
-buffer when it grows to it's capacity incorrectly calculates the required size
-that the buffer must grow to. The incorrect size is 4 bytes too small. Under
-the right circumstances this can cause heap corruption and result in
-a segmentation fault, i.e. if our `malloc()` implementation returns a block
-that is exactly the requested size or if the black is later split.
+The vulnerability is triggered by assigning a file to an extension that doesn't match the magic number.
+The AsciiArtFile uses multiple inheritance, and by type casting it as a PictureFile it's possible to
+overwrite the second inherited class' vtable. 
 
-The second vulnerability for this service occurs in the server. When performing
-a bitop of type 'AND' to two keys, if one of the keys referenced by the command
-given by the user does not exist as a key within the server then a null pointer
-dereference will occur.
-
+The second vulnerability is due to a order of operations error. It's possible to overwrite a byte during the 
+input text function. The buffer size has a max of 4096 bytes, but can accept up to 4097.
 
 ### Generic class of vulnerability
 
-  * Buffer overflow
-  * In correct buffer size calculation
-  * Heap overflow
-  * NULL pointer dereference
+Buffer Overflow
+Incorrect Type Conversion
 
 ### CWE classification
 
-  * CWE-122: Heap-based Buffer Overflow
-  * CWE-131: Incorrect Calculation of Buffer Size
-  * CWE-788: Access of Memory Location After End of Buffer
-  * CWE-476: NULL Pointer Dereference
+Operator Precedence Logic Error (CWE-783)
+Incorrect Type Conversion or Cast (CWE-704)
 
 ## Challenges
 
-The challenge binary poses tests the following abilities of a system:
+The goal of this program is to have challengers test their system against code using polymorphism.
+Understanding how C++ sets up polymophic classes will be important in finding this vulnerability.
 
-  * Ability to handle and reason about client-server modeled IPC.
-  * Ability to handle nuanced dynamic memory allocation issues
+The buffer overflow is meant to test how large a team's input testing scales. In order for this bug to be triggered
+it requires a buffer of exactly 4097 bytes to be sent 20+ times.

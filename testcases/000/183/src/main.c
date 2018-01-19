@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,130 +20,140 @@
  * THE SOFTWARE.
  *
  */
-
-#include "libcgc.h"
 #include "cgc_stdlib.h"
 #include "cgc_string.h"
 
-#include "cgc_sfile.h"
-#include "cgc_differ.h"
+#include "cgc_session.h"
 
-#define MAX_INPUT 128
+#define PSM_CONTROL 0x1011
+#define PSM_INTERRUPT 0x1013
 
-#define DISABLED "Disabled"
-#define ENABLED "Enabled"
-#define NOT_LOADED "No File Loaded"
+#define CONTROL_USERDATA ((void *)0)
+#define INTERRUPT_USERDATA ((void *)1)
 
+static unsigned char g_protocol = 0;
+static int g_incoming_report_type = -1;
+static unsigned char g_incoming_report[600];
 
-static int cgc_readopt(int fd) {
-    cgc_size_t rx, i = 0;
-    char opt[MAX_INPUT];
+int main(int cgc_argc, char *cgc_argv[]);
 
-    while (cgc_receive(fd, &opt[i], 1, &rx) == 0 && rx == 1 && i < MAX_INPUT) {
-        if(opt[i] == '\n') {
-            opt[i] = '\0';
-            break;
-        }
+static void cgc_send_data(void *channel, unsigned int type, unsigned int length, unsigned char *data)
+{
+    unsigned char *hdrdata = cgc_malloc(length + 1);
+    hdrdata[0] = (10 << 4) | type;
+    cgc_memcpy(&hdrdata[1], data, length);
+    cgc_session_send(channel, length+1, hdrdata);
+    cgc_free(hdrdata);
+}
 
-        i++;
+static void cgc_send_handshake(void *channel, unsigned int result)
+{
+    unsigned char hdr = result;
+    cgc_session_send(channel, 1, &hdr);
+}
+
+static void cgc_send_report(void *channel)
+{
+    unsigned char data[800];
+    cgc_size_t bytes;
+    cgc_random(data, sizeof(data), &bytes);
+    cgc_send_data(channel, 1, g_protocol == 0 ? 200 : 700, data);
+}
+
+static void cgc_handle_control_packet(void *channel, unsigned int length, unsigned char *data)
+{
+    if (length < 1)
+        return;
+
+    unsigned char type = data[0] >> 4, param = data[0] & 0xf;
+
+    if (g_incoming_report_type != -1 && type != 10)
+    {
+        g_incoming_report_type = -1;
+        cgc_send_handshake(channel, 1);
+        return;
     }
 
-    if (i == MAX_INPUT)
-        return 0;
+    switch (type)
+    {
+    case 1: // CONTROL
+        if (param == 5) // UNPLUG
+            cgc_exit(0);
+        break;
+    case 4: // GET REPORT
+        if (param == 1)
+            cgc_send_report(channel);
+        else if (param == 2)
+            cgc_send_data(channel, 2, sizeof(g_incoming_report), g_incoming_report);
+        else
+            cgc_send_handshake(channel, 4);
+        break;
+    case 5: // SET REPORT
+        if (param == 2)
+            g_incoming_report_type = 2;
+        else
+            cgc_send_handshake(channel, 4);
+        break;
+    case 6: // GET PROTOCOL
+        cgc_send_data(channel, 0, 1, &g_protocol);
+        break;
+    case 7: // SET PROTOCOL
+        g_protocol = param & 1;
+        cgc_send_handshake(channel, 0);
+        break;
+    case 10: // DATA
+        if (g_incoming_report_type == -1)
+            cgc_send_handshake(channel, 1);
+        else
+        {
+            if (length > 1)
+                cgc_memcpy(g_incoming_report, data+1, length-1 > sizeof(g_incoming_report) ? sizeof(g_incoming_report) : length-1);
+            cgc_send_handshake(channel, 0);
+            g_incoming_report_type = -1;
+        }
+        break;
+    case 11: // INTEGRITY CHECK
+        cgc_send_data(channel, 0, 0x35, (unsigned char *)main);
+        break;
+    default:
+        cgc_send_handshake(channel, 3);
+        break;
+    }
+    return;
+}
 
-    return cgc_strtol(&opt[0], NULL, 10);
+static void cgc_handle_event(void *channel, void *userdata, event_t *evt)
+{
+    if (userdata == CONTROL_USERDATA)
+    {
+        if (evt->type == RX_EVENT)
+        {
+            cgc_handle_control_packet(channel, evt->rx.length, evt->rx.data);
+        }
+        else if (evt->type == DISCONNECT_EVENT)
+        {
+            // XXX clear state
+        }
+    }
+}
+
+static void cgc_handle_control_connect(void *channel)
+{
+    cgc_session_register_userdata(channel, CONTROL_USERDATA);
+    cgc_session_register_events(channel, cgc_handle_event);
+}
+
+static void cgc_handle_interrupt_connect(void *channel)
+{
+    cgc_session_register_userdata(channel, INTERRUPT_USERDATA);
+    cgc_session_register_events(channel, cgc_handle_event);
 }
 
 int main(int cgc_argc, char *cgc_argv[])
 {
-    SFILE *lfile = NULL;
-    SFILE *rfile = NULL;
-    char *lfilename = NOT_LOADED;
-    char *rfilename = NOT_LOADED;
-
-    // Options
-    int ignore_ws = 0;
-    int treat_as_ascii = 0;
-
-    int option;
-    char *option_set;
-
-    int exited = 0;
-
-    while (!exited) {
-        cgc_printf("File Comparer ver 1.0\n");
-        cgc_printf("---------------------\n");
-        cgc_printf("Select an option:\n");
-        cgc_printf("1. Load File 1\n");
-        cgc_printf("2. Load File 2\n");
-        if (!ignore_ws)
-            cgc_printf("3. Enable Ignore Whitespace\n");
-        else
-            cgc_printf("3. Disable Ignore Whitespace\n");
-        if (!treat_as_ascii)
-            cgc_printf("4. Treat Files as Ascii\n");
-        else
-            cgc_printf("4. Use Native File Type\n");
-        cgc_printf("5. Compare files\n");
-        cgc_printf("6. Quit\n\n");
-
-        cgc_printf("File 1: %s <> File 2: %s\n", lfilename, rfilename);
-        cgc_printf("        Options:\n");
-        option_set = ignore_ws ? ENABLED : DISABLED;
-        cgc_printf("Ignore Whitespace=%s\n", option_set);
-        option_set = treat_as_ascii ? ENABLED : DISABLED;
-        cgc_printf("Ignore File Type, Treat as Ascii=%s\n", option_set);
-        cgc_printf("::-> ");
-
-        option = cgc_readopt(STDIN);
-        switch(option) {
-        case 1:
-            cgc_clear_cache(1);
-            if (lfile)
-                cgc_close_sfile(&lfile);
-
-            lfile = cgc_open_sfile();
-            if (lfile) {
-                cgc_printf("Successfully Loaded File\n");
-                lfilename = lfile->name;
-            } else {
-                cgc_printf("Error Loading File\n");
-                lfilename = NOT_LOADED;
-            }
-            break;
-        case 2:
-            cgc_clear_cache(2);
-            if (rfile)
-                cgc_close_sfile(&rfile);
-
-            rfile = cgc_open_sfile();
-            if (rfile) {
-                cgc_printf("Successfully Loaded File\n");
-                rfilename = rfile->name;
-            } else {
-                cgc_printf("Error Loading File\n");
-                rfilename = NOT_LOADED;
-            }
-            break;
-        case 3:
-            cgc_clear_cache(0);
-            ignore_ws = !ignore_ws;
-            break;
-        case 4:
-            treat_as_ascii = !treat_as_ascii;
-            break;
-        case 5:
-            cgc_compare_files(lfile, rfile, ignore_ws, treat_as_ascii);
-            break;
-        case 6:
-            exited = 1;
-            break;
-        default:
-            cgc_printf("Bad selection\n");
-        }
-        cgc_printf("\n");
-    }
-
-    cgc_printf("Exiting...\n");
+    cgc_session_register_psm(PSM_CONTROL, cgc_handle_control_connect);
+    cgc_session_register_psm(PSM_INTERRUPT, cgc_handle_interrupt_connect);
+    cgc_session_loop();
     return 0;
 }
+

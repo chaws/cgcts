@@ -1,0 +1,16 @@
+src/service.c:57 # req is declared
+src/service.c:59 # req is heap-allocated: req->recv[1044] and req->resp[1024]
+src/service.c:62 # rearrange req to stay at the end of the memory page
+src/service.c:67 # reads input from user into req->recv
+src/service.c:71 # checks if the input starts with William's identifier
+src/service.c:72 # process input according to William's strategy
+src/members.c:112 # checks if req->recv for the string '<3'
+src/members.c:113 # calls matching function
+src/members.c:70 # dst is pointing to req->resp
+src/members.c:80:CWE122 # writes the string `thy' at dst, which is a cursor pointing to req->resp, without boundries check
+src/members.c:87:CWE122 # writes the string `hath' at dst, which is a cursor pointing to req->resp, without boundries check
+lib/libc.c:95 # the string is passed as s2 and req->resp(dst) as s1, which is pointed to tmp
+lib/libc.c:97:CWE122 # writes to an address that might be far from the 1024th position of req->resp(dst)
+src/members.c:82:CWE122:fix # the copy now is done with strncpy, preventing it from writing outside of req->resp boundries
+src/members.c:89:CWE122:fix # the copy now is done with strncpy, preventing it from writing outside of req->resp boundries
+

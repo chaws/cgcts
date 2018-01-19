@@ -1,6 +1,5 @@
 /*
  * Copyright (C) Narf Industries <info@narfindustries.com>
- * Copyright (C) Chris Eagle at Naval Postgraduate School
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,64 +19,49 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+#pragma once
+#include "libcgc.h"
+#include "cgc_errno.h"
+#include "cgc_stdint.h"
+#include "cgc_recv_bytes.h"
+#include "cgc_send_bytes.h"
+// #include "cgc_xxprintf.h"
+// #include "cgc_ipc.h"
 
-/*
-This libc consists of functions that are all available for release
-in sample CB's and scored events.
-*/
+#define MY_ID 0
+// #define MY_NAME "cb1"
 
-#ifndef NARF_LIBC_H
-#define NARF_LIBC_H
-
-// libc libs for public release and scored events
-
-typedef signed int int32_t;
-typedef unsigned int uint32_t;
-typedef unsigned char uint8_t;
-
-#define SUCCESS 0
-#define ERRNO_ALLOC 5
-
-typedef struct node {
-	void * data;
-	struct node *next;
-	struct node *prev;
-} node_t;
-
-// function to compare nodes
-typedef int(*node_compare_f)(node_t *, node_t *);
-
-// doubly-linked list
-typedef struct list {
-	node_t *head;
-	node_t *tail;
-	uint32_t count;
-} list_t;
-
-// List related
-list_t * cgc_list_create_dup();
-int cgc_list_append(list_t *lst, node_t *nd);
-int cgc_list_insert_sort(list_t *lst, node_t *nd, node_compare_f node_compare_impl);
-
-// Node related
-node_t * cgc_node_create(void * data);
-node_t * cgc_get_list_head(list_t * lst);
-node_t * cgc_get_list_tail(list_t * lst);
-node_t * cgc_get_first_node(list_t * lst);
-node_t * cgc_get_last_node(list_t * lst);
-
-int cgc_rand(char *buf, cgc_size_t sz);
-
-// libc libs borrowed from EAGLE_00004
-
-// I/O
-int cgc_send(const char *buf, const cgc_size_t size);
-int cgc_transmit_all(int fd, const char *buf, const cgc_size_t size);
-unsigned int cgc_recv_all(char *res_buf, cgc_size_t res_buf_size);
-unsigned int cgc_read_all(int fd, char *buf, unsigned int size);
-
-// stdlib
-void *cgc_memset(void *dst, int c, unsigned int n);
+#define READ_FD 			MY_ID
+// #define READ_FD 			IPC_READ_FD(MY_ID)
+// #define WRITE_FD(dst_id) 	IPC_WRITE_FD(dst_id)
 
 
-#endif
+// #define DEBUG 1
+
+#define FLAG_PAGE 0x4347C000
+
+#define SEND(f,b,s) if(s != cgc_send_bytes(f,b,s)) cgc__terminate(ERRNO_SEND)
+// #define RECV_DELIM(f,t,b,s)	if(0 > recv_until_delim_n(f,t,b,s)) cgc__terminate(ERRNO_RECV)
+#define RECV(f,b,s) if(0 > cgc_recv_bytes(f,b,s)) cgc__terminate(ERRNO_RECV)
+
+#define FAIL_BAIL_RET(e) if (SUCCESS != (ret = e)) return ret;
+#define NEG_BAIL_RET(e) if (0 > (ret = e)) return ret
+#define MALLOC_OK(p) if (NULL == p) cgc__terminate(ERRNO_ALLOC)
+
+// #ifdef DEBUG
+// #define DBG(args...) \
+//  	do { \
+// 	 	fdprintf(STDERR, '%', '\0', "[%S] %S:%U @ %S | ", MY_NAME, __FILE__, __LINE__, __func__); \
+// 	 	fdprintf(STDERR, '%', '\0', args); \
+// 	 } while (0);
+// // #define err(args...) \
+// // 	fprintf(cgc_stderr, "[E] %s:%d @ %s | ", __FILE__, __LINE__, __func__);\
+// // 	fprintf(cgc_stderr, args);\
+// // 	if(SUCCESS == ret) { ret = -1; }\
+// // 	goto bail;
+// #else
+// #define DBG(args...) do { } while (0);
+// // #define err(args...) goto bail;
+// #endif
+
+ 

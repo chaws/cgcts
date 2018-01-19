@@ -1,285 +1,576 @@
 #!/usr/bin/env python
 
+
+# this will make polls
+
+# polls to remember:
+# 9 - will display board
+# 666 - will exit
+# make a valid move
+# make an invalid move on the board
+# make an invalid move off the board
+
+# keep a table of piece locations
+# track moves
+
 from generator.actions import Actions
-import random, string, struct
+import random
 
-def random_string_n(size=20):
-    return ''.join([random.choice(string.ascii_letters) for x in xrange(size)])
-def random_string(size=20):
-    return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
-def random_bytes_n(size=20):
-    return ''.join([chr(random.randint(0,255)) for x in xrange(size)])
-def strlen(s):
-    return s.index('\x00')
+LOG_ENABLED = False
 
-class BIO(object):
+class location():
+	x = 0
+	y = 0
 
-    def __init__(self, data):
-        self.data = data
-        self.didx = 0
-        self.bidx = 0
+	def __init__(self, x=None, y=None):
+		self.x = x
+		self.y = y
 
-    def read(self, n):
-        b = ord(self.data[self.didx])
-        r = 0
-        for i in xrange(n):
-            if self.bidx == 8:
-                self.didx += 1
-                b = ord(self.data[self.didx])
-                self.bidx = 0
-            c = (b & (1 << (8 - self.bidx - 1))) >> (8 - self.bidx - 1)
-            r |= (c << (n - i - 1))
-            self.bidx += 1
-        return r & 0xFF
+	# returns good random location on board
+	def getRandGoodLocation(self):
+		# return 0-7, 0-7
+		x = random.randrange(0, 7)
+		y = random.randrange(0, 7)
 
-    def write(self, data, n):
-        b = ord(self.data[self.didx])
-        for i in xrange(n):
-            if self.bidx == 8:
-                self.data = self.data[:self.didx] + chr(b) + self.data[self.didx+1:]
-                self.didx += 1
-                b = ord(self.data[self.didx])
-                self.bidx = 0
-            c = (ord(data) & (1 << (8 - i - 1))) >> (8 - i - 1)
-            b |= (c << (8 - self.bidx - 1))
-            self.bidx += 1
-        self.data = self.data[:self.didx] + chr(b) + self.data[self.didx+1:]
+		return (x,y)
 
-key = None
-def _cmp(s1, s2):
-    global key
-    for i in xrange(len(s1)):
-        if s1[i] != s2[i]:
-            i1 = key.find(s1[i])
-            i2 = key.find(s2[i])
-            if i1 == -1 or i2 == -1:
-                return s1[i] - s2[i]
-            return i1 - i2
-    return 0
+	# returns location outside of board
+	def getRandBadLocation(self):
+		c = random.choice("yn")
+		x = 0
+		if (c == 'y'):
+			x = random.randrange(-10, -1)
+		else:
+			x = random.randrange(8, 20)
+
+		y = 0
+		c = random.choice("yn")
+		if (c == 'y'):
+			y = random.randrange(-10, -1)
+		else:
+			y = random.randrange(8, 20)
+
+		return (x,y)
+
+# functions with underscore ('_') are internal only
+class Chesser(Actions):
+	board = []
+	current_turn = 'white'
+
+	def _getPieceByLocation(self, loc):
+		# return the piece from the board that is located at position x,y
+		for a in self.board:
+			if (a[2] == loc[0] and a[3] == loc[1]):
+				return a
+
+	# for testing only
+	def _printBoard(self):
+		cnt = 0
+		ss = ""
+		for a in self.board:
+			ss += a[0] + ' '
+			cnt += 1
+			if (cnt == 8):
+				cnt = 0
+				ss += "\n"
+
+		print(ss)
+
+	def _genInitialBoard(self):
+		self.board = [('rook', 'black', 0, 7),('knight', 'black', 1,7),('bishop', 'black', 2,7),('queen','black',3,7), \
+		  ('king', 'black', 4, 7),('bishop', 'black', 5,7),('knight', 'black', 6,7),('rook','black',7,7), \
+		  ('pawn', 'black', 0, 6),('pawn', 'black', 1, 6),('pawn', 'black', 2, 6),('pawn', 'black', 3, 6), \
+		  ('pawn', 'black', 4, 6),('pawn', 'black', 5, 6),('pawn', 'black', 6, 6),('pawn', 'black', 7, 6), \
+		  ('blank', '', 0, 5),('blank', '', 1, 5),('blank', '', 2, 5),('blank', '', 3, 5), \
+		  ('blank', '', 4, 5),('blank', '', 5, 5),('blank', '', 6, 5),('blank', '', 7, 5), \
+		  ('blank', '', 0, 4),('blank', '', 1, 4),('blank', '', 2, 4),('blank', '', 3, 4), \
+		  ('blank', '', 4, 4),('blank', '', 5, 4),('blank', '', 6, 4),('blank', '', 7, 4), \
+		  ('blank', '', 0, 3),('blank', '', 1, 3),('blank', '', 2, 3),('blank', '', 3, 3), \
+		  ('blank', '', 4, 3),('blank', '', 5, 3),('blank', '', 6, 3),('blank', '', 7, 3), \
+		  ('blank', '', 0, 2),('blank', '', 1, 2),('blank', '', 2, 2),('blank', '', 3, 2), \
+		  ('blank', '', 4, 2),('blank', '', 5, 2),('blank', '', 6, 2),('blank', '', 7, 2), \
+		  ('pawn', 'white', 0, 1),('pawn', 'white', 1, 1),('pawn', 'white', 2, 1),('pawn', 'white', 3, 1), \
+		  ('pawn', 'white', 4, 1),('pawn', 'white', 5, 1),('pawn', 'white', 6, 1),('pawn', 'white', 7, 1), \
+		  ('rook', 'white', 0, 0),('knight', 'white', 1, 0),('bishop', 'white', 2, 0),('queen', 'white', 3, 0), \
+		  ('king', 'white', 4, 0),('bishop', 'white', 5, 0),('knight', 'white', 6, 0),('rook', 'white', 7, 0)]
+
+	def _assignBoardLocation(self, newPiece):
+		loc = 0
+		for a in self.board:
+			if (a[2] == newPiece[2] and a[3] == newPiece[3]):
+				found = loc
+			loc += 1
+		self.board[found] = newPiece
+
+	# swap positions of two pieces
+	def _movePieceOnBoard(self, src, dst):
+		pce_src = self._getPieceByLocation(src)
+		pce_dst = self._getPieceByLocation(dst)
+		new_src = (pce_dst[0], pce_dst[1], pce_src[2],pce_src[3])
+		new_dst = (pce_src[0], pce_src[1], pce_dst[2],pce_dst[3])
+		self._assignBoardLocation(new_src)
+		self._assignBoardLocation(new_dst)
+
+	def _selectGoodPiece(self):
+		real_pieces = []
+		
+		for a in self.board:
+			if ((a[0] != 'blank') and (a[1] == self.current_turn)):
+				# add to the list of possible pieces
+				real_pieces.append(a)
+
+		num = len(real_pieces)
+		c = random.randrange(0, num - 1)
+		return real_pieces[c]
+
+	def displayBoard(self):
+		#print('printer')
+		self.write("9")
+		self.read(length =79, expect=r"^\x00?([.abcdefghijkl]{8}\n){8}", expect_format="pcre")
+
+	def leaveTheGame(self):
+		#print('exiting')
+		self.write("666")
+		self.read(length=9, expect=r"good game")
+
+	def keepPlaying(self):
+		pass
+
+	def start(self):
+		self.read(delim ="WHITE: ", expect=r"^\x00?([.abcdefghijkl]{8}\n){8}", expect_format="pcre")
+		self._genInitialBoard()
+		self.current_turn = 'white'
+
+	def _move_king(self, src):
+		# move a king located at 'src'
+		# get possible moves
+		#  check if on board
+		#  check if blank and not not own color
+		# pick a move and make it
+		# list of possible moves
+		# check each one 
+		# choose random spot from remaining spots
+
+		x = src[0]
+		y = src[1]
+
+		moves = []
+		poss_moves = []
+		poss_moves.append((x,y+1))
+		poss_moves.append((x+1,y+1))
+		poss_moves.append((x,y-1))
+		poss_moves.append((x-1,y-1))
+		poss_moves.append((x+1,y))
+		poss_moves.append((x+1,y-1))
+		poss_moves.append((x-1,y))
+		poss_moves.append((x-1,y+1))
+
+		my_color = self.current_turn
+		for a in poss_moves:
+			ret = self._isValidMove((a[0], a[1]), my_color)
+			if (ret == 2):
+				# yes, blank
+				moves.append(a)
+			elif (ret == 1):
+				# yes, take
+				moves.append(a)
+			elif (ret == 0):
+				#no, same color piece
+				pass
+			elif (ret == 3):
+				#no, off board
+				pass
+
+		return moves
+
+	def _move_pawn(self, src):
+		# move a pawn located at 'src'
+		moves = []
+
+		if (self.current_turn == 'white'):
+			move = (src[0], src[1] + 1)
+		else:
+			move = (src[0], src[1] - 1)
+
+		my_color = self.current_turn
+		ret = self._isValidMove((move[0], move[1]), my_color)
+		if (ret == 2):
+			# yes, blank
+			moves.append(move)
+		elif (ret == 1):
+			# yes, take
+			moves.append(move)
+		elif (ret == 0):
+			#no, same color piece
+			pass
+		elif (ret == 3):
+			#no, off board
+			pass
+
+		return moves
+
+	def _move_bishop(self, src):
+		moves = []
+
+		moves += self._check_dir(src, "duright")
+		moves += self._check_dir(src, "duleft")
+		moves += self._check_dir(src, "ddright")
+		moves += self._check_dir(src, "ddleft")
+
+		return moves
+
+	# given this destination, can I go there?
+	# returns 0 if same color
+	# returns 1 if opposite color (takes)
+	# returns 2 if blank square
+	# retunrs 3 if off board
+	# returns -1 if error
+	def _isValidMove(self, dst, my_color):
+		pce = self._getPieceByLocation(dst)
+		
+		if (pce == None):
+			return -1
+		target_color = pce[1]
+		if (dst[0] not in range(0,8)) or (dst[1] not in range(0,8)):
+			# lands off board
+			return 3
+		if pce[0] == 'blank':
+			return 2
+		if (pce[1] == my_color):
+			return 0 # bad spot, same color piece
+		else:
+			# piece of the other color
+			return 1
+
+	# returns only good values
+	def _check_dir(self, src, dir):
+		moves = []
+		my_color = self._getPieceByLocation(src)[1]
+		# src is starting square
+		# dst is ending square
+		# dir is: right, left, up, down, duright, duleft, ddleft, ddright
+
+		# diagonal up/right
+		if (dir == "duright"):
+			for a in range(1, 8):
+				# check squares in same rank to right
+				# run into piece, stop
+				ret = self._isValidMove((src[0]+a, src[1]+a), my_color)
+				if (ret == 2):
+					# blank
+					# add this square and keep going
+					moves.append((src[0]+a, src[1]+a))
+				elif (ret == 0):
+					# same color
+					# we ran into our own piece, stop looking in this direction
+					return moves
+				elif (ret == 1):
+					# we ran into a piece we can take, stop looking in this direction and take it
+					moves.append((src[0]+a, src[1]+a))
+					return moves
+
+		# diagonal up/left
+		if (dir == "duleft"):
+			for a in range(1, 8):
+				# check squares in same rank to right
+				# run into piece, stop
+				ret = self._isValidMove((src[0]-a, src[1]+a), my_color)
+				if (ret == 2):
+					# blank
+					# add this square and keep going
+					moves.append((src[0]-a, src[1]+a))
+				elif (ret == 0):
+					# same color
+					# we ran into our own piece, stop looking in this direction
+					return moves
+				elif (ret == 1):
+					# we ran into a piece we can take, stop looking in this direction and take it
+					moves.append((src[0]-a, src[1]+a))
+					return moves
+
+		# diagonal down/right
+		if (dir == "ddright"):
+			for a in range(1, 8):
+				# check squares in same rank to right
+				# run into piece, stop
+				ret = self._isValidMove((src[0]+a, src[1]-a), my_color)
+				if (ret == 2):
+					# blank
+					# add this square and keep going
+					moves.append((src[0]+a, src[1]-a))
+				elif (ret == 0):
+					# same color
+					# we ran into our own piece, stop looking in this direction
+					return moves
+				elif (ret == 1):
+					# we ran into a piece we can take, stop looking in this direction and take it
+					moves.append((src[0]+a, src[1]-a))
+					return moves
+
+		# diagonal down/left
+		if (dir == "ddleft"):
+			for a in range(1, 8):
+				# check squares in same rank to right
+				# run into piece, stop
+				ret = self._isValidMove((src[0]-a, src[1]-a), my_color)
+				if (ret == 2):
+					# blank
+					# add this square and keep going
+					moves.append((src[0]-a, src[1]-a))
+				elif (ret == 0):
+					# same color
+					# we ran into our own piece, stop looking in this direction
+					return moves
+				elif (ret == 1):
+					# we ran into a piece we can take, stop looking in this direction and take it
+					moves.append((src[0]-a, src[1]-a))
+					return moves
+
+		if (dir == "right"):
+			for a in range(src[0]+1, 8):
+				# check squares in same rank to right
+				# run into piece, stop
+				ret = self._isValidMove((a, src[1]), my_color)
+				if (ret == 2):
+					# blank
+					# add this square and keep going
+					moves.append((a, src[1]))
+				elif (ret == 0):
+					# same color
+					# we ran into our own piece, stop looking in this direction
+					return moves
+				elif (ret == 1):
+					# we ran into a piece we can take, stop looking in this direction and take it
+					moves.append((a, src[1]))
+					return moves
+
+		if (dir == "left"):
+			for a in range(src[0] -1 , -1, -1):
+				# check squares in same rank to right
+				# run into piece, stop
+				ret = self._isValidMove((a, src[1]), my_color)
+				if (ret == 2):
+					# blank
+					# add this square and keep going
+					moves.append((a, src[1]))
+				elif (ret == 0):
+					# same color
+					# we ran into our own piece, stop looking in this direction
+					return moves
+				elif (ret == 1):
+					# we ran into a piece we can take, stop looking in this direction and take it
+					moves.append((a, src[1]))
+					return moves
+
+		if (dir == "up"):
+			for a in range(src[1]+1, 8):
+				# check squares in same rank to right
+				# run into piece, stop
+				ret = self._isValidMove((src[0], a), my_color)
+				if (ret == 2):
+					# blank
+					# add this square and keep going
+					moves.append((src[0], a))
+				elif (ret == 0):
+					# same color
+					# we ran into our own piece, stop looking in this direction
+					return moves
+				elif (ret == 1):
+					# we ran into a piece we can take, stop looking in this direction and take it
+					moves.append((src[0], a))
+					return moves
+
+		if (dir == "down"):
+			for a in range(src[1] -1 , -1, -1):
+				# check squares in same rank to right
+				# run into piece, stop
+				ret = self._isValidMove((src[0], a), my_color)
+				if (ret == 2):
+					# blank
+					# add this square and keep going
+					moves.append((src[0], a))
+				elif (ret == 0):
+					# same color
+					# we ran into our own piece, stop looking in this direction
+					return moves
+				elif (ret == 1):
+					# we ran into a piece we can take, stop looking in this direction and take it
+					moves.append((src[0], a))
+					return moves
+		
+		#for a in moves:
+		#	print(a)
+
+		return moves
+
+	# this will return a list of valid spots to move this piece
+	def _move_queen(self, src):
+		moves = []
+
+		moves += self._check_dir(src, "right")
+		moves += self._check_dir(src, "left")
+		moves += self._check_dir(src, "up")
+		moves += self._check_dir(src, "down")
+		moves += self._check_dir(src, "duright")
+		moves += self._check_dir(src, "duleft")
+		moves += self._check_dir(src, "ddright")
+		moves += self._check_dir(src, "ddleft")
+
+		return moves
+
+	def _move_rook(self, src):
+		moves = []
+
+		moves += self._check_dir(src, "right")
+		moves += self._check_dir(src, "left")
+		moves += self._check_dir(src, "up")
+		moves += self._check_dir(src, "down")
+
+		return moves
+
+	def _move_knight(self, src):
+		x = src[0]
+		y = src[1]
+
+		moves = []
+		poss_moves = []
+		poss_moves.append((x+2,y+1))
+		poss_moves.append((x+2,y-1))
+		poss_moves.append((x-2,y+1))
+		poss_moves.append((x-2,y-1))
+		poss_moves.append((x-1,y+2))
+		poss_moves.append((x+1,y+2))
+		poss_moves.append((x+1,y-2))
+		poss_moves.append((x-1,y-2))
+
+		my_color = self.current_turn
+		for a in poss_moves:
+			ret = self._isValidMove((a[0], a[1]), my_color)
+			if (ret == 2):
+				# yes, blank
+				moves.append(a)
+			elif (ret == 1):
+				# yes, take
+				moves.append(a)
+			elif (ret == 0):
+				#no, same color piece
+				pass
+			elif (ret == 3):
+				#no, off board
+				pass
+
+		return moves
+
+	def _movePiece(self):
+		# get random piece
+		# make valid move with selected piece
+		
+		moves = []
+		peece = self._selectGoodPiece()
+		src = (peece[2], peece[3])
+
+		if (peece[0] == 'pawn'):
+			moves = self._move_pawn(src)
+		elif (peece[0] == 'knight'):
+			moves = self._move_knight(src)
+		elif (peece[0] == 'bishop'):
+			moves = self._move_bishop(src)
+		elif (peece[0] == 'queen'):
+			moves = self._move_queen(src)
+		elif (peece[0] == 'king'):
+			moves = self._move_king(src)
+		elif (peece[0] == 'rook'):
+			moves = self._move_rook(src)
 
 
-class SC(object):
+		if moves == None:
+			return False
+		# pick out a random valid location to move this piece to
+		maxnum = len(moves)
+		if (maxnum < 1):
+			return False
+		elif (maxnum == 1):
+			selected_num = 0
+		else:
+			selected_num = random.randrange(0, maxnum - 1)
+		dst = moves[selected_num]
 
-    def __init__(self, key):
-        self.key = key
+		str = "{},{} {},{}".format(src[0], src[1], dst[0], dst[1])
+		#print peece[0] + ' : ' + str
+		self.write(str)
 
-    def _bwt(self, comp, d):
-        if comp:
-            out = ''
-            size = 0
-            while True:
-                if size >= len(d):
-                    break
-                data = d[size:size+512]
-                table = [data[i:] + data[:i] for i in xrange(len(data))]
-                global key
-                key = self.key
-                table.sort(cmp=_cmp)
-                last = ''.join([r[-1] for r in table])
-                oidx = table.index(data)
-                out += struct.pack('<H', oidx)
-                out += last
-                size += len(data)
-                #print 'original oidx: %d' % oidx
-                #import sys
-                #for c in out:
-                #    sys.cgc_stdout.write('%02X ' % ord(c))
-                #print ''
-            return out, len(out)
-        else:
-            out = ''
-            size = 0
-            #import sys
-            #for c in d:
-            #    sys.cgc_stdout.write('%02X ' % ord(c))
-            #print ''
-            while True:
-                if size >= len(d):
-                    break
-                oidx = struct.unpack('<H', d[size:size+2])[0]
-                size += 2
-                data = d[size:size+512]
-                table = [''] * len(data)
-                for i in xrange(len(data)):
-                    table = [data[j] + table[j] for j in xrange(len(data))]
-                    table.sort(cmp=_cmp)
-                #print 'later oidx: %d' % oidx
-                out += table[oidx]
-                size += len(data)
-            return out, len(out)
+		# keep track internally of where pieces are
+		self._movePieceOnBoard(src,dst)
+		return True
 
-    def _mtf(self, comp, data):
-        if comp:
-            l = [chr(x) for x in xrange(32)]
-            l += list(self.key)
-            l += [chr(x) for x in xrange(127, 256)]
-            code = list()
-            for i in xrange(len(data)):
-                c = l.index(data[i])
-                code.append(chr(c))
-                l.pop(c)
-                l.insert(0, data[i])
-            out = ''.join(code)
-            out_c = '\0' * len(data) * 2
-            bio = BIO(out_c)
-            for i in xrange(len(data)):
-                if ord(out[i]) > 0x0F:
-                    bio.write('\x00', 1)
-                    bio.write(out[i], 8)
-                else:
-                    bio.write('\x80', 1)
-                    bio.write(chr(ord(out[i]) << 4), 4)
-            outlen = bio.didx + 4 + (1 if bio.bidx > 0 else 0)
-            out_c = struct.pack('<I', len(data)) + bio.data[:outlen-4]
-            #import sys
-            #for c in out_c:
-            #    sys.cgc_stdout.write('%02X ' % ord(c))
-            #print ''
-            return out_c, outlen
-        else:
-            sz = struct.unpack('<I', data[0:4])[0]
-            if sz > 4096:
-                return None, 0
-            out = ''
-            bio = BIO(data[4:])
-            for i in xrange(sz):
-                if bio.read(1) == 0:
-                    out += chr(bio.read(8))
-                else:
-                    out += chr(bio.read(4))
-            l = [chr(x) for x in xrange(32)]
-            l += list(self.key)
-            l += [chr(x) for x in xrange(127, 256)]
-            out_d = list()
-            for c in out:
-                n = l[ord(c)]
-                out_d.append(n)
-                l.pop(ord(c))
-                l.insert(0, n)
-            out_d = ''.join(out_d)
-            return out_d, sz
+	def makeValidMove(self):
+		# keep trying to make a valid move until it works
+		while (self._movePiece() == False):
+			pass
+		
+		# change turn
+		if (self.current_turn == 'white'):
+			self.current_turn = 'black'
+		else:
+			self.current_turn = 'white'
 
-    def compress(self, data):
-        #print 'Before Length: %d, data: %s' % (len(data), data)
-        bout, boutlen = self._bwt(True, data)
-        #print 'BWT Length: %d, data: %s' % (boutlen, bout)
-        mout, moutlen = self._mtf(True, bout)
-        #print 'MTF Length: %d, data: %s' % (moutlen, mout)
-        return mout, moutlen
+		exp = r"OK\n" + self.current_turn.upper() + ": "
+		delimm = self.current_turn.upper() + ": "
+		self.read(delim=delimm, expect=exp, expect_format="pcre")
 
-    def decompress(self, data):
-        #print 'Before Length: %d, data: %s' % (len(data), data)
-        mout, moutlen = self._mtf(False, data)
-        #print 'iMTF Length: %d, data: %s' % (moutlen, mout)
-        bout, boutlen = self._bwt(False, mout)
-        #print 'iBWT Length: %d, data: %s' % (boutlen, bout)
-        return bout, boutlen
+	def badMoveValidPieceOnBoard(self):
+		# pick valid piece and move it randomly
+		#global LOG_ENABLED
+		#LOG_ENABLED = True
+		peece = self._selectGoodPiece()
+		dst = location().getRandGoodLocation()
+		too_good = True
+		moves = []
+		while (too_good):
+			# make sure this isn't a valid move for this piece
+			if (peece[0] == 'pawn'):
+				moves = self._move_pawn((peece[2], peece[3]))
+			if (peece[0] == 'king'):
+				moves = self._move_king((peece[2], peece[3]))
+			if (peece[0] == 'knight'):
+				moves = self._move_knight((peece[2], peece[3]))
+			if (peece[0] == 'rook'):
+				moves = self._move_rook((peece[2], peece[3]))
+			if (peece[0] == 'queen'):
+				moves = self._move_queen((peece[2], peece[3]))
+			if (peece[0] == 'bishop'):
+				moves = self._move_bishop((peece[2], peece[3]))
+			if dst not in moves:
+				# this is not a valid move, which is good
+				too_good = False
+				#print "{}, {} not found in {}".format(peece[0], dst, moves)
 
-class ASECOMP(Actions):
+			if too_good:
+				# try a new location		
+				dst = location().getRandGoodLocation()
 
-    def _shuffle_key(self):
-        self.key = [chr(x) for x in xrange(32, 127)]
-        random.shuffle(self.key)
-        self.key = ''.join(self.key)
+		str = "{},{} {},{}".format(peece[2], peece[3], dst[0], dst[1])
+		#print "badmovevalidpieceONboard: " + str
+		self.write(str) # bad move with valid piece (on board)
+		exp = "NO\n" + self.current_turn.upper() + ": "
+		delimm = self.current_turn.upper() + ": "
+		self.read(delim=delimm, expect=exp)
+		#LOG_ENABLED = False
 
-    def _generate_data(self):
-        alph = [chr(x) for x in xrange(32, 127)]
-        n = random.randint(1, 100)
-        return ''.join([random.choice(alph) * 3 for x in xrange(n/3 + 1)])
+	def badMoveValidPieceOffBoard(self):
+		# pick valid piece and move it randomly
+		peece = self._selectGoodPiece()
+		dst = location().getRandBadLocation()
 
-    def start(self):
-        #self.delay(100)
-        #print '---START'
-        self.key = None
-        self.data = None
-        self.original = None
-        s = ''
-        for i in xrange(0, 8, 2):
-            s += '%02X' % ord(self.magic_page[i])
-        s += '\n'
-        self.read(length=len(s), expect=s)
+		exp = "NO\n" + self.current_turn.upper() + ": "
 
-    def menu(self):
-        #print ' >>> MENU'
-        s = '1. Compress\n2. Decompress\n3. Quit\n'
-        self.read(length=len(s), expect=s)
-
-    def compress(self):
-        #print '   +++ compress'
-        self.write('1\n')
-        s = 'Key?\n'
-        self.read(length=len(s), expect=s)
-        self._shuffle_key()
-        #print 'Compress key (%d): %s' % (len(self.key), self.key)
-        self.write(self.key)
-        s = 'Data?\n'
-        self.read(length=len(s), expect=s)
-        self.data = self._generate_data()
-        #print 'Compress data (%d): %s' % (len(self.data), self.data)
-        self.write(self.data + '\0')
-        sc = SC(self.key)
-        out, outlen = sc.compress(self.data)
-        if out is None:
-            s = 'error.\n'
-            self.read(length=len(s), expect=s)
-            return
-        s = 'Original Size: %d\n' % len(self.data)
-        s += 'Compressed Size: %d (%d%%)\n' % (outlen, int((1.0 * outlen / len(self.data) * 100)))
-        s += 'Compressed Data: '
-        for i in xrange(outlen):
-            if i >= 32:
-                break
-            s += '%02X' % ord(out[i])
-        s += '\n'
-        self.read(length=len(s), expect=s)
-        self.original = self.data
-        self.data = out
-
-    def decompress(self):
-        #print '   +++ decompress'
-        if self.data is None:
-            self.compress()
-            self.menu()
-        self.write('2\n')
-        s = 'Key?\n'
-        self.read(length=len(s), expect=s)
-        if self.key is None:
-            self._shuffle_key()
-        #print 'Decompress key: %s' % self.key
-        self.write(self.key)
-        s = 'Length?\n'
-        self.read(length=len(s), expect=s)
-        n = random.randint(1, 512)
-        data = self.data
-        if self.data is None:
-            data = random_bytes_n(n)
-        s = '%d\n' % len(data)
-        self.write(s)
-        s = 'Data?\n'
-        self.read(length=len(s), expect=s)
-        self.write(data)
-        sc = SC(self.key)
-        out, outlen = self.original, len(self.original)
-        #out, outlen = sc.decompress(data)
-        if out is None:
-            s = 'error.\n'
-            self.read(length=len(s), expect=s)
-            return
-        s = 'Compressed Size: %d\n' % len(data)
-        s += 'Original Size: %d\n' % outlen
-        s += 'Original Data: %s\n' % out[:outlen]
-        self.read(length=len(s), expect=s)
-
-    def invalid(self):
-        while True:
-            r = random_string()
-            if r[0] not in '123':
-                break
-        self.write(r[:6] + '\n')
-        s = 'Invalid menu.\n'
-        self.read(length=len(s), expect=s)
-
-    def quit(self):
-        #print '---END'
-        self.write('3\n')
-        self.read(length=len('Bye.\n'), expect='Bye.\n')
+		str = "{},{} {},{}".format(peece[2], peece[3], dst[0], dst[1])
+		#print "badmovevalidpieceOFFboard: {} ".format(len(str)) + str
+		
+		# if the randomly generated location is > 10 or < 0, the length
+		#   will be impacted. that is an illegal move format
+		if (len(str) > 7):
+			exp = "incorrect input\nNot a legal move format\n" + self.current_turn.upper() + ": "
+		self.write(str) # bad move with valid piece (on board)
+		
+		self.read(length=len(exp), expect=exp)

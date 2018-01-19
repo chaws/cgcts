@@ -1,18 +1,18 @@
 /*
  * Author: Andrew Wesie <andrew.wesie@kapricasecurity.com>
- * 
+ *
  * Copyright (c) 2014 Kaprica Security, Inc.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,269 +20,231 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- * 
+ *
  */
-#include "cgc_stdarg.h"
 #include "cgc_stdlib.h"
+#include "cgc_stdarg.h"
 #include "cgc_string.h"
 
-typedef int (*consumer_t) (void *arg, const char *buf, cgc_size_t n);
+#define OUTPUT_BYTE(x) do { \
+    cgc_size_t bytes; \
+    char _c = x; \
+    cgc_transmit(STDOUT, &_c, sizeof(_c), &bytes); \
+} while (0);
 
-static char *_print_base(char *outend, int *n, unsigned int val, unsigned int base, int uppercase)
+#define NUM_TO_LOWER(x) (((x) < 10 ? (x)+'0' : (x)-10+'a'))
+#define NUM_TO_UPPER(x) (((x) < 10 ? (x)+'0' : (x)-10+'A'))
+
+#define FLAG_PAD_ZERO 0x1
+#define FLAG_UPPERCASE 0x2
+int cgc_output_number_printf(unsigned int x, int base, int min, unsigned int flags)
 {
-    *n = 0;
-    if (base < 2 || base > 16)
-        return outend;
-
-    if (val == 0)
+    int n = 0;
+    if (x >= base)
     {
-        *n = 1;
-        *(--outend) = '0';
-        return outend;
+        n = cgc_output_number_printf(x / base, base, min-1, flags);
+        x %= base;
+    }
+    if (n == 0 && min > 0)
+    {
+        while (--min)
+            if (flags & FLAG_PAD_ZERO)
+                OUTPUT_BYTE('0')
+            else
+                OUTPUT_BYTE(' ')
     }
 
-    const char *str;
-    if (uppercase)
-        str = "0123456789ABCDEF";
+    if (flags & FLAG_UPPERCASE)
+        OUTPUT_BYTE(NUM_TO_UPPER(x))
     else
-        str = "0123456789abcdef";
-
-    while (val > 0)
-    {
-        (*n)++;
-        *(--outend) = str[val % base];
-        val /= base;
-    }
-
-    return outend;
+        OUTPUT_BYTE(NUM_TO_LOWER(x))
+    return n + 1;
 }
 
-static char *_print_signed(char *outbuf, int *n, int val)
+int cgc_printf(const char *fmt, ...)
 {
-    int neg = 0;
-    if (val < 0)
+    char *astring;
+    int aint, i, n = 0, flags = 0, min = 0;
+    unsigned int auint;
+    va_list ap;
+    va_start(ap, fmt);
+
+    while (*fmt != '\0')
     {
-        neg = 1;
-        val = -val;
-    }
-    char *s = _print_base(outbuf, n, (unsigned int)val, 10, 0);
-    if (neg)
-    {
-        *(--s) = '-';
-        (*n)++;
-    }
-    return s;
-}
-
-static int cgc__printf(consumer_t consumer, void *arg, const char *fmt, va_list ap)
-{
-    char tmpbuf[32]; /* must be at least 32 bytes for _print_base */
-    const char *fmtstr = NULL;
-    char modifier = 0;
-    int n, total = 0;
-
-#define CONSUME(b, c) \
-    do { \
-        cgc_size_t tmp = (cgc_size_t)(c); \
-        if (tmp == 0) break; \
-        total += (n = consumer(arg, (b), tmp)); \
-        if (n < 0) goto error; \
-        if (n < tmp) goto done; \
-    } while (0)
-
-#define FLUSH() \
-    do { \
-        if (fmtstr) { \
-            CONSUME(fmtstr, fmt-fmtstr); \
-            fmtstr = NULL; \
-        } \
-    } while (0)
-
-    while (*fmt)
-    {
-        int flags = 0;
-#define FLAG_ZERO_PADDING 0x01
-        unsigned int field_width = 0;
-
-        if (*fmt != '%')
+        char c = *fmt++;
+        if (c == '%')
         {
-            if (fmtstr == NULL)
-                fmtstr = fmt;
-            fmt++;
-            continue;
-        }
-
-        FLUSH();
-
-        fmt++;
-        if (*fmt == '%')
-        {
-            CONSUME(fmt, 1);
-            fmt++;
-            continue;
-        }
-
-        /* process flags */
-        while (1)
-        {
-            switch (*fmt)
+            while (1)
             {
-            case '0':
-                flags |= FLAG_ZERO_PADDING;
-                fmt++;
+                c = *fmt++;
+                switch (c)
+                {
+                case '0':
+                    flags |= FLAG_PAD_ZERO;
+                    continue;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    min = cgc_strtol(fmt-1, (char**)&fmt, 10);
+                    continue;
+                }
+                break;
+            }
+            switch (c)
+            {
+            case '%':
+                OUTPUT_BYTE('%')
+                break;
+            case 's':
+                astring = va_arg(ap, char *);
+                for (i = 0; i < cgc_strlen(astring); i++)
+                    OUTPUT_BYTE(astring[i]);
+                break;
+            case 'd':
+                aint = va_arg(ap, int);
+                if (aint < 0)
+                {
+                    OUTPUT_BYTE('-')
+                    aint = -aint;
+                }
+                cgc_output_number_printf(aint, 10, min, flags);
+                break;
+            case 'X':
+                flags |= FLAG_UPPERCASE;
+            case 'x':
+                auint = va_arg(ap, unsigned int);
+                cgc_output_number_printf(auint, 16, min, flags);
                 break;
             default:
-                goto flags_done;
+                OUTPUT_BYTE(c)
+                break;
             }
+            min = 0;
+            flags = 0;
         }
-
-flags_done:
-        /* process field width */
-        field_width = cgc_strtoul(fmt, (char **)&fmt, 10);
-
-        /* process modifiers */
-        switch (*fmt)
+        else
         {
-        case 'H':
-        case 'h':
-        case 'l':
-            modifier = *fmt;
-            fmt++;
-            break;
-        }
-
-        /* process conversion */
-        char *tmpstr;
-        int base, outlen, sv;
-        unsigned int uv;
-        void *pv;
-        switch(*fmt)
-        {
-        case 'd':
-        case 'i':
-            sv = va_arg(ap, int);
-            if (modifier == 'h') sv = (short)(sv & 0xffff);
-            else if (modifier == 'H') sv = (signed char)(sv & 0xff);
-            tmpstr = _print_signed(tmpbuf + 32, &outlen, sv);
-            while (field_width > outlen)
-            {
-                CONSUME((flags & FLAG_ZERO_PADDING) ? "0" : " ", 1);
-                field_width--;
-            }
-            CONSUME(tmpstr, outlen);
-            fmt++;
-            break;
-        case 'u':
-        case 'o':
-        case 'x':
-        case 'X':
-            if (*fmt == 'u') base = 10;
-            else if(*fmt == 'o') base = 8;
-            else base = 16;
-            uv = va_arg(ap, unsigned int);
-            if (modifier == 'h') uv &= 0xffff;
-            else if (modifier == 'H') uv &= 0xff;
-            tmpstr = _print_base(tmpbuf + 32, &outlen, uv, base, *fmt == 'X');
-            while (field_width > outlen)
-            {
-                CONSUME((flags & FLAG_ZERO_PADDING) ? "0" : " ", 1);
-                field_width--;
-            }
-            CONSUME(tmpstr, outlen);
-            fmt++;
-            break;
-        case 'n':
-            pv = va_arg(ap, void *);
-            if (modifier == 'h') *(short int *)pv = total;
-            else if (modifier == 'H') *(signed char *)pv = total;
-            else *(int *)pv = total;
-            fmt++;
-            break;
-        case 's':
-            pv = va_arg(ap, void *);
-            CONSUME((char *)pv, cgc_strlen((char *)pv));
-            fmt++;
-            break;
+            OUTPUT_BYTE(c)
         }
     }
-    FLUSH();
 
-done:
-    return total;
-error:
-    return -1;
+    va_end(ap);
+    return n;
 }
 
-static int cgc__consumer_fd(void *arg, const char *buf, cgc_size_t n)
+#undef OUTPUT_BYTE
+
+#define OUTPUT_BYTE(n, s, x) do { \
+    cgc_size_t bytes; \
+    char _c = x; \
+    *(*(s)) = _c; \
+    (*(s))++; \
+    (*(n))++; \
+} while (0);
+
+void cgc_output_number_sprintf(int *n, char **s, unsigned int x, int base, int min, unsigned int flags)
 {
-    cgc_size_t tx;
-    cgc_transmit((int)arg, buf, n, &tx);
-    return (int)n;
+    if (x >= base)
+    {
+        cgc_output_number_sprintf(n, s, x / base, base, min-1, flags);
+        x %= base;
+    }
+    if (x < base && min > 0)
+    {
+        while (--min)
+            if (flags & FLAG_PAD_ZERO)
+                OUTPUT_BYTE(n, s, '0')
+            else
+                OUTPUT_BYTE(n, s, ' ')
+    }
+
+    if (flags & FLAG_UPPERCASE)
+        OUTPUT_BYTE(n, s, NUM_TO_UPPER(x))
+    else
+        OUTPUT_BYTE(n, s, NUM_TO_LOWER(x))
 }
 
-static int cgc__consumer_string(void *arg, const char *buf, cgc_size_t n)
+int cgc_sprintf(char *str, const char *fmt, ...)
 {
-    char **s = (char **)arg;
-    cgc_memcpy(*s, buf, n);
-    (*s) += n;
-    **s = '\0';
-    return (int)n;
-}
-
-typedef struct {
-    char *buf;
-    cgc_size_t bytes_remaining;
-} string_info_t;
-
-static int cgc__consumer_string_checked(void *arg, const char *buf, cgc_size_t n)
-{
-    string_info_t *sinfo = arg;
-    if (n > sinfo->bytes_remaining)
-        n = sinfo->bytes_remaining;
-    if (n == 0)
-        return 0;
-    cgc_memcpy(sinfo->buf, buf, n);
-    sinfo->buf += n;
-    sinfo->buf[0] = '\0';
-    sinfo->bytes_remaining -= n;
-    return (int)n;
-}
-
-int cgc_fdprintf(int fd, const char *fmt, ...)
-{
+    char *astring;
+    int aint, i, n = 0, flags = 0, min = 0;
+    unsigned int auint;
     va_list ap;
     va_start(ap, fmt);
-    int ret = cgc__printf(cgc__consumer_fd, (void *)fd, fmt, ap);
+
+    while (*fmt != '\0')
+    {
+        char c = *fmt++;
+        if (c == '%')
+        {
+            while (1)
+            {
+                c = *fmt++;
+                switch (c)
+                {
+                case '0':
+                    flags |= FLAG_PAD_ZERO;
+                    continue;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    min = cgc_strtol(fmt-1, (char**)&fmt, 10);
+                    continue;
+                }
+                break;
+            }
+            switch (c)
+            {
+            case '%':
+                OUTPUT_BYTE(&n, &str, '%')
+                break;
+            case 's':
+                astring = va_arg(ap, char *);
+                for (i = 0; i < cgc_strlen(astring); i++)
+                    OUTPUT_BYTE(&n, &str, astring[i]);
+                break;
+            case 'd':
+                aint = va_arg(ap, int);
+                if (aint < 0)
+                {
+                    OUTPUT_BYTE(&n, &str, '-')
+                    aint = -aint;
+                }
+                cgc_output_number_sprintf(&n, &str, aint, 10, min, flags);
+                break;
+            case 'X':
+                flags |= FLAG_UPPERCASE;
+            case 'x':
+                auint = va_arg(ap, unsigned int);
+                cgc_output_number_sprintf(&n, &str, auint, 16, min, flags);
+                break;
+            default:
+                OUTPUT_BYTE(&n, &str, c)
+                break;
+            }
+            min = 0;
+            flags = 0;
+        }
+        else
+        {
+            OUTPUT_BYTE(&n, &str, c)
+        }
+    }
+    *str++ = 0;
+
     va_end(ap);
-    return ret;
-}
-
-int cgc_sprintf(char *s, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    int ret = cgc__printf(cgc__consumer_string, (void *)&s, fmt, ap);
-    va_end(ap);
-    return ret;
-}
-
-int cgc_vsnprintf(char *s, cgc_size_t size, const char *fmt, va_list ap)
-{
-    if (size == 0)
-        return 0;
-
-    string_info_t sinfo;
-    sinfo.buf = s;
-    sinfo.bytes_remaining = size - 1; /* room for NULL byte */
-    return cgc__printf(cgc__consumer_string_checked, (void *)&sinfo, fmt, ap);
-}
-
-int cgc_snprintf(char *s, cgc_size_t size, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    int ret = cgc_vsnprintf(s, size, fmt, ap);
-    va_end(ap);
-    return ret;
+    return n;
 }
 

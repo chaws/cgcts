@@ -1,79 +1,45 @@
-# CGC Challenge Binary Template
+# CROMU_00019 - Casino Games
 
 ## Author Information
 
-"Nick Davis" <info@narfindustries.com>
+"Debbie Nuttall" <debbie@cromulence.co>
 
 ### DARPA performer group
-
-Narf Industries (NRFIN)
+Cromulence LLC (CROMU)
 
 ## Description
 
-SOLFEDGE is state of the art software used by ARRRRGH, the Academy of Really, Really, Really, Really, Great Harmony, to translate their music between notes and syllables (Solmization).
-
-ARRRRGH teaches their classes in French, so SOFEDGE is designed to use the French 'fixed do' method of solfedge and only recognizes the C major scale.
+This is a casino game service. It runs poker, blackjack, and slots. It offers registration in a player's club to track player information. It also has a hidden programming interface that allows modifying game payouts.  
 
 ### Feature List
 
-This service is a translation engine, so it has 2 primary functions:
+In order to simulate randomness while still having a deterministic game the casino service implements an xorshift pseudo random number generator (PRNG) and seeds it with a string taken from the player at game start. This PRNG is used to shuffle the deck before each round of poker or blackjack and to generate the symbols for the slot machine. 
 
-* It accepts large strings of notes and converts them to syllables.
-* It accepts large strings of syllables and converts them to notes.
+The casino game service runs poker in the style of a 5 card draw video poker machine. The player is dealt a 5 card hand and allowed to keep or discard each of the cards. Replacement cards are drawn for any discarded and then the new hand is scored. The scoring system pays out anything that is a pair of jacks or better using standard poker hand rankings. To play a round of poker costs the player $10 and the default payouts range from $10 for a pair to $500 for a royal flush. 
 
-Valid notes are:
-* C
-* D
-* E
-* F
-* G
-* A
-* B
+The service runs a blackjack game where the goal is to reach closest to 21 points without going over. The player hand is scored against a dealer hand. The player receives a 2 card hand and then may choose to hit (recieve an additional card) or stand (receive no more cards and play moves to the dealer). The dealer will hit until reaching a hand value of 17 or greater (dealer stands on soft 17). A hand of blackjack costs the player $10 and pays out 2 to 1 for a win, and 2.5 to 1 for a 'blackjack' (an initial hand value of 21). 
 
-And valid syllables are:
-* Ut
-* Re
-* Mi
-* Fa
-* Sol
-* La
-* Si
+The casino service slots game can generate a slot machine with 2, 3, 4, or 5 rows/columns. A symbol match in all positions of a row or column is considered a win. Each size slot machine has slightly different odds of winning. The cost to play is $2 and the default payout is $4. Multiple matches in one round will all pay out. 
 
-A single harmony can contain up to 2048 syllables or notes.
+The players club is used to track how many rounds of each game have been played as well as the player's wallet balance. The service does not begin tracking a player until they have been registered and logged in. 
+
+When a secret password is entered at game start, the service enters a programming mode where it will accept an encoded blob of data. The data is decoded and used to program new payouts for slots, blackjack, and poker. 	
 
 ## Vulnerability
+This challenge contains two vulnerabilities. 
+The first vulnerability is a stack buffer overflow early in the main function of the program.  In casino.c a stack buffer is declared on line 277. On line 284, a call to receive() allows a 20 byte overwrite of that stack buffer with user data. The vulnerability can only be leveraged if the main function returns normally. There are only two scenarios that allow the main function to return, all other code paths result in a call to _terminate() to end the program. 
 
-The buffer that stores syllables is 4096 bytes long. Assuming syllables are 2 bytes, that allows 2048 syllables. The syllable 'sol' is 3 bytes long, while the rest are 2 chars long. So, if the user provides a harmony that contains 2048 notes and one or more of those notes corresponds to the syllable 'sol', then writing those notes as syllables will go beyond the syllables buffer (page) and cause a segfault.
-
-More specifically, in operation.c:process\_notes, the while loop will cause write\_syllable\_to\_buf to write into the syllables\_buf until one of 3 conditions happens. 1) an error is returned, 2) all of the input bytes have been processed, and 3) the total chars written to the syllable buf has reached the MAX\_SYLLABLES\_BYTES. The comparison (total\_bytes\_written < MAX\_SYLLABLES\_BYTES) is a form of an off-by-one error, because each iteration of the loop can write 2 or 3 bytes. So, if total\_bytes\_written is 1 or 2 less than MAX\_SYLLABLES\_BYTES, the loop will run one more iteration. If it is 1 less, that iteration will cause a segfault with both a 2-btye and 3-byte syllable. If it is 2 less, that iteration will cause segfault with a 3-byte syllable.
-
-The segfault will occur in operations.c:write\_syllable\_to\_buf at either line 224 or 227.
-
-
-There are multiple ways to patch this vuln. The provided PATCHED version uses a more optimal patch that covers both failure conditions. It is also possible to put a much more restrictive bound on total\_bytes\_written (i.e. 100 or 2000), that will prevent the overflow, but will also greatly shorten the possible harmony length.
-
-A more extensive patch, that is unlikely for automated patching is to pass the total\_bytes\_written value into write\_syllable\_to\_buf, and perform a check that can calculate how many more bytes will fit into the buffer before it writes any bytes. It could then return an error value if there are not enough bytes remaining to complete the write.
-
+The second vulnerability is in the hidden programming interface. It is a stack buffer overflow that occurs when the encoded blob of data decodes to a larger size than the destination buffer. In casino.c on line 261 an array is declared on the stack. On line 264 a call to decode() uses this array as the destination buffer. If the user data input into decode() contains the '`' character, it will generate output longer than the destination array. Enough instances of '`' will cause an overflow large enough to overwrite the return address on the stack. 
 
 ### Generic class of vulnerability
-
-Improper Input Validation
-Improper Validation of Array Index
-Off-by-one Error
+Stack Buffer Overflow
 
 ### CWE classification
-
-Improper Input Validation
-CWE-20
-
-Improper Validation of Array Index
-CWE-129
-
-Off-by-one Error
-CWE-193
-
+CWE-121: Stack-based Buffer Overflow
 
 ## Challenges
-* This CB is intentionally on the easier side. A SAT solver should be able to reason about the difference between the syllables' buffer size and the amount of data that can be written to it.
-* The way in which a team patches the vuln should indicate if they can reason that both failure points are due to a common cause. If they simply try to patch both failure points separately, they may not have been able to correlate the 2 failure points.
-* 
+The first vulnerability is a classic buffer overflow that should be straightforward to detect and patch. The challenge in proving it is that the CRS must determine the correct sequence of events to reach the end of the main function and return. This involves exploring most of the functionality of the program including registering a player, logging in as that player, playing a round of blackjack, poker, and slots, and then exiting. Attempting to exit the program before exploring those code paths results in a call to _terminate and the overflow thus has no provability. 
+
+An alternate path to reach the end of the main function is to amass enough winnings through gambling to exceed $5000 in which case the program exits normally; however, the odds and payouts of the casino games make it very unlikely that this could be achived through standard fuzzing. 
+
+The second vulnerability is more difficult to reach. Initial user input is hashed to create the seed to the PRNG. If the seed matches a specific value, the service enters a programming mode. The CRS will need to solve for the initial input which leads to the specific hash before this portion of the service can be accessed. Once this portion of the service is reached, a blob of encoded data is accepted and decoded into a stack buffer. For most inputs, the decoding algorithm shrinks the data by half, but for specific values of input, the decoding algorithm generates a same sized output which will overflow the destination stack buffer in the unpatched service. 

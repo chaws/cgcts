@@ -1,4 +1,4 @@
-CHAL=NoHiC
+CHAL=On_Sale
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,31 +20,45 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/math_fun.c.o -c src/math_fun.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o NoHiC_patched lib/libc.c.o src/operation.c.o src/math_fun.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/recv_until_delim_n.c.o -c lib/recv_until_delim_n.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/send_bytes.c.o -c lib/send_bytes.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/recv_bytes.c.o -c lib/recv_bytes.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/list.c.o -c lib/list.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/inventory.c.o -c src/inventory.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/sale.c.o -c src/sale.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/products.c.o -c src/products.c
+	$(CXX) $(FLAGS) -o On_Sale_patched lib/recv_until_delim_n.c.o lib/malloc.c.o lib/send_bytes.c.o lib/recv_bytes.c.o lib/memcpy.c.o lib/memcmp.c.o lib/list.c.o lib/string.c.o lib/memset.c.o src/inventory.c.o src/service.c.o src/sale.c.o src/products.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/math_fun.c.o -c src/math_fun.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o NoHiC lib/libc.c.o src/operation.c.o src/math_fun.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/recv_until_delim_n.c.o -c lib/recv_until_delim_n.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/send_bytes.c.o -c lib/send_bytes.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/recv_bytes.c.o -c lib/recv_bytes.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/list.c.o -c lib/list.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/string.c.o -c lib/string.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/inventory.c.o -c src/inventory.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/sale.c.o -c src/sale.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/products.c.o -c src/products.c
+	$(CXX) $(FLAGS) -o On_Sale lib/recv_until_delim_n.c.o lib/malloc.c.o lib/send_bytes.c.o lib/recv_bytes.c.o lib/memcpy.c.o lib/memcmp.c.o lib/list.c.o lib/string.c.o lib/memset.c.o src/inventory.c.o src/service.c.o src/sale.c.o src/products.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(FLAGS) -o NoHiC_pov_4 pov_4/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o NoHiC_pov_3 pov_3/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o NoHiC_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o NoHiC_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -pedantic -O0 -o pov_2/pov_2.c.o -c pov_2/pov_2.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -pedantic -O0 -o pov_1/pov_1.c.o -c pov_1/pov_1.c
+	$(CXX) $(FLAGS) -o On_Sale_pov_1 pov_1/pov_1.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o On_Sale_pov_2 pov_2/pov_2.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_4/pov.c.o pov_3/pov.c.o pov_1/pov.c.o pov_2/pov.c.o lib/libc.c.o src/operation.c.o src/math_fun.c.o src/service.c.o lib/libc.c.o src/operation.c.o src/math_fun.c.o src/service.c.o NoHiC_pov_4 NoHiC_pov_3 NoHiC_pov_1 NoHiC_pov_2 NoHiC_patched NoHiC
+	rm -f pov_2/pov_2.c.o pov_1/pov_1.c.o lib/recv_until_delim_n.c.o lib/malloc.c.o lib/send_bytes.c.o lib/recv_bytes.c.o lib/memcpy.c.o lib/memcmp.c.o lib/list.c.o lib/string.c.o lib/memset.c.o src/inventory.c.o src/service.c.o src/sale.c.o src/products.c.o lib/recv_until_delim_n.c.o lib/malloc.c.o lib/send_bytes.c.o lib/recv_bytes.c.o lib/memcpy.c.o lib/memcmp.c.o lib/list.c.o lib/string.c.o lib/memset.c.o src/inventory.c.o src/service.c.o src/sale.c.o src/products.c.o On_Sale_pov_2 On_Sale_pov_1 On_Sale_patched On_Sale

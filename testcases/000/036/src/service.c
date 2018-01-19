@@ -19,53 +19,104 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
 #include "libcgc.h"
+#include "cgc_stdint.h"
 #include "cgc_libc.h"
-#include "cgc_vm.h"
-#include "cgc_stack.h"
-#include "cgc_service.h"
+#include "cgc_recv_all.h"
+#include "cgc_send.h"
+#include "cgc_memcmp.h"
+#include "cgc_memcpy.h"
+
+#include "cgc_breakfast.h"
+
+#define INITIAL_ORDER_ID 4242
+
+const char cgc_INPUT_TYPE_PLAIN[4] =        {'\xdd','\x11','\x44','\xaa'};
+const char cgc_INPUT_TYPE_SERIALIZED[4] =   {'\x00','\xaa','\xdd','\x11'};
+
+static Stream *in;
+
+static char OK[4] = {0};
+static char ERR[4] = {0};
+
+/**
+ * Create a checksum of the flag page to use as the OK/ERR byte strings
+ */
+void cgc_gen_result_bufs(void) {
+    const char *fp = (char *)FLAG_PAGE;
+    for (unsigned int idx = 0; idx < 4095; idx+=2) {
+        OK[idx % 4] ^= fp[idx];
+        ERR[(idx + 1) % 4] ^= fp[idx + 1];
+    }
+}
+
+/**
+ * Receive input buffer, convert to Stream object
+ *
+ * @return SUCCESS on success, else, -1 on error
+ */
+cgc_ssize_t cgc_receive_input(void) {
+    cgc_ssize_t res;
+    Stream tmp;
+    // recv Input type and size
+    res = cgc_recv_all((char *)&tmp, sizeof(tmp));
+    if (res != sizeof(tmp)) {
+        cgc__terminate(ERRNO_RECV);
+    }
+
+    // check for invalid INPUT_TYPE
+    if (cgc_memcmp(cgc_INPUT_TYPE_PLAIN, (const char *)tmp.type, sizeof(cgc_INPUT_TYPE_PLAIN)) &&
+        cgc_memcmp(cgc_INPUT_TYPE_SERIALIZED, (const char *)tmp.type, sizeof(cgc_INPUT_TYPE_SERIALIZED))) {
+        return -1;
+    }
+
+    in = cgc_malloc(sizeof(tmp) + tmp.size);
+    MALLOC_OK(in);
+
+    in->size = tmp.size;
+    cgc_memcpy(in->type, tmp.type, sizeof(cgc_INPUT_TYPE_SERIALIZED));
+
+    res = cgc_recv_all(in->content, in->size);
+    if (res != in->size) {
+        cgc__terminate(ERRNO_RECV);
+    }
+
+    return SUCCESS;
+}
 
 int main(int cgc_argc, char *cgc_argv[]) {
-	Stack programStack ={-1, 0, 0, NULL};
 
-	while(1) {
-		char buf[1024] ={0};
-		int bytes_read =0;
-		int arg_pos =0;
+    cgc_ssize_t ret = 0;
+    int order_id = INITIAL_ORDER_ID;
 
-		bytes_read = cgc_recvline(STDIN, buf, sizeof(buf)-1);
-		if (bytes_read <= 0)
-			cgc__terminate(1);
+    cgc_gen_result_bufs();
 
-		if(programStack.numElements <= 0)
-				cgc_initStack(&programStack, MAX_PROGRAM_STACK_SIZE, sizeof(Program *));
+    while (TRUE) {
 
-		if((arg_pos = cgc_parseCmd(NEW_PROGRAM_CMD_STR, buf))  > 0) {
-			Program* program = NULL;
+        ret = cgc_receive_input();
+        if (0 > ret) {
+            goto check_res;
+        }
 
-			cgc_initProgram(&program, STDIN);
-			if(program != NULL)
-				cgc_pushElement(&programStack, &program);
-		} else if((arg_pos = cgc_parseCmd(EXECUTE_PROGRAM_CMD_STR, buf))  > 0) {
-			int program_num;
-			int ret;
+        cgc_send((char *)&order_id, sizeof(order_id));
 
-			program_num = cgc_strn2int(buf+arg_pos, 10);
-#ifdef PATCHED
-		if(program_num > programStack.top || program_num < 0) {
-#else		
-			if(program_num > programStack.top) {
-#endif
-				ret = cgc_transmit_all(STDOUT, INVALID_PROGRAM_STR, sizeof(TOO_MANY_LINES_STR));
-				if (ret != 0)
-    				cgc__terminate(13);
-    		} else {
+        if (0 == cgc_memcmp(cgc_INPUT_TYPE_PLAIN, (const char *)in->type, sizeof(cgc_INPUT_TYPE_PLAIN))) {
+            ret = cgc_process_plain_input(in);
+        } else {
+            ret = cgc_process_serialized_input(in);
+        }
+check_res:
+        if (0 == ret) {
+            cgc_send(OK, sizeof(OK));
+        } else {
+            cgc_send(ERR, sizeof(ERR));
+	        break;
+        }
 
-				Program **program_ptr;
-				program_ptr = programStack.elements+(program_num*sizeof(Program *));
-				cgc_executeProgram(*program_ptr);
-			}
-		}
-	}
+        cgc_free(in);
+        order_id++;
+    }
 
+    return 0;
 }

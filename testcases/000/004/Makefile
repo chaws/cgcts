@@ -23,13 +23,13 @@ patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/words.c.o -c src/words.c
-	$(CC) $(FLAGS) -o CGC_Hangman_Game_patched lib/libc.c.o src/service.c.o src/words.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o CGC_Hangman_Game_patched lib/libc.c.o src/service.c.o src/words.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/words.c.o -c src/words.c
-	$(CC) $(FLAGS) -o CGC_Hangman_Game lib/libc.c.o src/service.c.o src/words.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o CGC_Hangman_Game lib/libc.c.o src/service.c.o src/words.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/service.c.o -c pov_3/service.c
@@ -38,9 +38,9 @@ pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/libc.c.o -c pov_2/libc.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/service.c.o -c pov_1/service.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/libc.c.o -c pov_1/libc.c
-	$(CC) $(FLAGS) -o CGC_Hangman_Game_pov_1 pov_1/service.c.o pov_1/libc.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CGC_Hangman_Game_pov_2 pov_2/service.c.o pov_2/libc.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CGC_Hangman_Game_pov_3 pov_3/service.c.o pov_3/libc.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o CGC_Hangman_Game_pov_1 pov_1/service.c.o pov_1/libc.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o CGC_Hangman_Game_pov_2 pov_2/service.c.o pov_2/libc.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o CGC_Hangman_Game_pov_3 pov_3/service.c.o pov_3/libc.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)

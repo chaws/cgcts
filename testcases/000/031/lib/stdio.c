@@ -63,11 +63,11 @@ int cgc_WRAPPER_OUTC( void *ctx, int c, cgc_size_t pos )
 	return (pos+1);	
 }
 
-#define BUFFER_PUTC_MAXLEN      256
+#define BUFFER_PUTC_MAXLEN	256
 struct BUFFER_PUTC_DATA
 {
-        char szBuffer[BUFFER_PUTC_MAXLEN];
-        uint16_t bufferPos;
+	char szBuffer[BUFFER_PUTC_MAXLEN];
+	uint16_t bufferPos;
 };
 
 typedef struct BUFFER_PUTC_DATA tBufferPutcData;
@@ -76,30 +76,24 @@ tBufferPutcData g_putcBuffer;
 
 int cgc_WRAPPER_BUFFER_PUTC( void *ctx, int c, cgc_size_t pos )
 {
-        tBufferPutcData *pBufferData = (tBufferPutcData *)ctx;
+	tBufferPutcData *pBufferData = (tBufferPutcData *)ctx;
 
-        if ( pBufferData->bufferPos >= BUFFER_PUTC_MAXLEN )
-        {
-                char *pBufferPos = pBufferData->szBuffer;
+	while ( pBufferData->bufferPos >= BUFFER_PUTC_MAXLEN )
+	{
+        	cgc_size_t tx_bytes;
 
-                while ( pBufferData->bufferPos > 0 )
-                {
-                        cgc_size_t tx_bytes;
+        	if ( cgc_transmit( STDOUT, (const void *)pBufferData->szBuffer, pBufferData->bufferPos, &tx_bytes ) != 0 )
+                	return (-1);
 
-                        if ( cgc_transmit( STDOUT, (const void *)pBufferPos, pBufferData->bufferPos, &tx_bytes ) != 0 )
-                                return (-1);
+		if ( tx_bytes == 0 )
+			return (-1);
 
-                        if ( tx_bytes == 0 )
-                                return (-1);
+		pBufferData->bufferPos -= tx_bytes;
+	}		
 
-                        pBufferData->bufferPos -= tx_bytes;
-                        pBufferPos += tx_bytes;
-                }
-        }
+	pBufferData->szBuffer[pBufferData->bufferPos++] = (char)c;
 
-        pBufferData->szBuffer[pBufferData->bufferPos++] = (char)c;
-
-        return (pos+1);
+	return (pos+1);
 }
 
 int cgc_putchar( int c )
@@ -131,40 +125,33 @@ int cgc_puts( const char *s )
 	}
 
 	cgc_putchar( '\n' );
-	cgc_putchar( '\r' );
 
 	return (0);
 }
 
 int cgc_vprintf_buffered( const char *format, va_list args )
 {
-        tPrintfWrapperFP wrapper_putc_buffered = &cgc_WRAPPER_BUFFER_PUTC;
+	tPrintfWrapperFP wrapper_putc_buffered = &cgc_WRAPPER_BUFFER_PUTC;
 
-        tBufferPutcData g_putcBuffer;
-        g_putcBuffer.bufferPos = 0;
+	tBufferPutcData g_putcBuffer;
+	g_putcBuffer.bufferPos = 0;
 
-        void *ctx = (void *)&g_putcBuffer;
-        cgc_size_t pos = 0;
+	void *ctx = (void *)&g_putcBuffer;
+	cgc_size_t pos = 0;
 
-        int iReturn = cgc_wrapper_output( ctx, wrapper_putc_buffered, pos, format, args );
+	int iReturn = cgc_wrapper_output( ctx, wrapper_putc_buffered, pos, format, args );
 
-        // Cleanup buffer
-        char *pBufferPos = g_putcBuffer.szBuffer;
-        while ( g_putcBuffer.bufferPos > 0 )
-        {
-                cgc_size_t tx_bytes;
+	if ( g_putcBuffer.bufferPos > 0 )
+	{
+        	cgc_size_t tx_bytes;
 
-                if ( cgc_transmit( STDOUT, (const void *)pBufferPos, g_putcBuffer.bufferPos, &tx_bytes ) != 0 )
-                        return (-1);
+        	if ( cgc_transmit( STDOUT, (const void *)g_putcBuffer.szBuffer, g_putcBuffer.bufferPos, &tx_bytes ) != 0 )
+                	return (-1);
 
-                if ( tx_bytes == 0 )
-                        return (-1);
+		g_putcBuffer.bufferPos = 0;
+	}
 
-                g_putcBuffer.bufferPos -= tx_bytes;
-                pBufferPos += tx_bytes;
-        }
-
-        return iReturn;
+	return iReturn;
 }
 
 int cgc_printf( const char *format, ... )
@@ -172,7 +159,11 @@ int cgc_printf( const char *format, ... )
 	va_list args;
 	va_start(args, format);
 
-        int return_val = cgc_vprintf_buffered( format, args );
+#if ENABLE_BUFFERED_PRINTF
+	int return_val = vprintf_buffered( format, args );
+#else
+	int return_val = cgc_vprintf( format, args );
+#endif
 
 	va_end(args);
 
@@ -211,6 +202,21 @@ int cgc_vsprintf( char *buf, const char *format, va_list args )
 	(*wrapper_outc)( ctx, '\0', iReturnValue );
 
 	return iReturnValue;
+}
+
+int cgc_DebugPrint( const char *format, ... )
+{
+  va_list args;
+  va_start(args, format);
+
+  char buf[2000];
+  int return_val = cgc_vsprintf( buf, format, args );
+
+  va_end(args);
+
+  cgc_transmit(STDERR, buf, cgc_strlen(buf), NULL);
+
+  return (return_val);  
 }
 
 // NOTE This is reversed -- it will be printed in reverse by the printf helper!

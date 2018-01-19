@@ -1,46 +1,92 @@
-# Recipe_and_Pantry_Manager
+# Modern Family Tree
 
 ## Author Information
 
-"John Berry" <hj@cromulence.com>
+"Nick Davis" <info@narfindustries.com>
 
 ### DARPA performer group
-Cromulence
 
-## Description
+Narf Industries (NRFIN)
 
-The user can add and remove recipes as well as pantries containing ingredients.
+## Description:
 
-### Feature List
+In our society, family structures have changed such that traditional Family Tree software cannot properly model all current family structures. In response to this diverse environment, Family Relations Inc. brings to you our latest app, Modern Family Tree. It is the premier family tree building software for today's society.
 
-The main menu presents the user with the option to go into the Recipe, Pantry or Query menu.
+## Feature List:
 
-The Recipe menu allows a user to add and remove recipes, list all or just a single recipe or print the cost of each recipe.
+- Add Person: Add a new person to the family tree
+- Biological Child: Define the biological child relation between a child and 1 or 2 parents
+- Union: Mark Define Union relationship between 2 people.
+- Separation: Remove the Union relationship between 2 people.
+- Adopted Child: Define the adopted child relation between a child and 1 or 2 parents.
+- Deceased: Mark a person a being deceased.
+- Is related: Determine if 2 people are related.
+- Degrees of separation: Determine if 2 people are related and if so, how many degrees of separation there are between them.
 
-The Pantry menu allows a user to create and delete pantries, print all or just a single pantry or modify items in the grocery list.
+## Vulnerability 1
 
-The Query menu allows a user to select a pantry and print all recipes that can be made with items in that list. They can also query for recipes that they can make given an amount of money. Finally, they can print the cheapest and most expensive recipe.
+This vulnerability is a classic mistake where the author started indexing the buffer from 1 instead of 0. In service.c:separate\_two\_persons() the former partner buffer holds 2 values. The mistake here is that the buffer uses indexes 1 and 2 instead of 0 and 1. So, when the second value is written to the buffer, the data is written beyond the end of the buffer. Due to the alignment of the data in the struct, writing a Relation after the end of the former partners buffer will overwrite the shift function pointer and the next Person pointer. The shift function pointer will be the person\_id from the relation, while the next Person pointer will be the Person pointer from the relation.
 
-## Vulnerability
+To trigger this vulnerability, a sequence of operations needs to happen that achieves the following. First, person1 and person2 have to enter a union relationship. Next person1 and person2 have to adopt a child. And then person1 and person2 have to separate. Then person1 and person3 have to enter a union and then separate. At this point, the Relation for person3 will have overwritten the shift pointer and the next pointer in person1. Then person1 needs to re-adopt the same child. This will trigger the call to unset\_adopted\_child, the overwritten shift function pointer, resulting in TYPE 1 POV.
 
-When printing an individual recipe the user is prompted to enter the index. This value is not validated and can be negative. Since each pantry structure has a 4 byte cookieand the array of pantries is stored at a lower address than the array of recipes, a user can provide a negative index to begin reading the data from the pantry structures. 
+person3's ID will be the function pointer (IP\_VAL) and person1's ID will be the value in the registry (REG\_VAL)
 
-There is some error checking done and the data that is read must be aligned properly so some setup of the pantry array is required to succeed.
+### Generic Class of Vulnerability
 
-### Generic class of vulnerability
+Heap buffer overflow
+Indexing beyond end of buffer
+Off-by-one error
 
-The CB fails to correcly validate the array index.
+### CWE Classification
 
-### CWE classification
-CWE-129: Improper Validation of Array Index
+CWE-122 Heap-based Buffer Overflow
+CWE-129 Improper Validation of Array Index
+CWE-193 Off-by-one Error
+CWE-788 Access of Memory Location After End of Buffer
 
-## Challenges
+### Challenges
 
-Discovery:
-Locating the vulnerability is not too difficult. If the CRS can detect the bounds of the global recipe array using the usage of the bzero() function then they should be able to detect an out of bounds indexing. 
+* A static analysis tool should be able to easily detect the write beyond the end of the static former partners buffer.
+* A fuzzer will have a harder time finding the POV, because it's not the content of any values that matter as much as the specific sequence of operations between a set of 3 people.
+* It will be challenging for the automated system to determine the correct sequence of operations to trigger the POV. Additionally, the sequence of operations has to be applied to the same person and child to trigger the vulnerable path.
 
-PoV Generation:
-This is going to be relatively difficult because the chances of correctly creating pantries and then correctly indexing the recipe array in a way that passes the error checks is a little complex.
+### Difficulty
 
-Patching:
-Once discovered, patching is a matter of changing the data to unsigned or correctly adding in bounds checks, neither of which are too difficult.
+* Discovering is easy
+* Proving is hard
+* Fixing is easy
+
+## Vulnerability 2
+
+This vulnerability is caused by the same problem as Vulnerability 1, except it is triggered in a different block of code.
+
+This vulnerability is a classic mistake where the author started indexing the buffer from 1 instead of 0. In service.c:separate\_two\_persons() the former partner buffer holds 2 values. The mistake here is that the buffer uses indexes 1 and 2 instead of 0 and 1. So, when the second value is written to the buffer, the data is written beyond the end of the buffer. Due to the alignment of the data in the struct, writing a Relation after the end of the former partners buffer will overwrite the shift function pointer and the next Person pointer. The shift function pointer will be the person\_id from the relation, while the next Person pointer will be the Person pointer from the relation.
+
+To trigger this vulnerability, a sequence of operations needs to happen that achieves the following. First, person1 and person2 have to enter a union relationship. Next person1 and person2 have to adopt a child. And then person1 and person2 have to separate. Thus far, it's the same as Vulnerability 1. However, this time, person2 and person3 have to enter a union and then separate. At this point, the Relation for person3 will have overwritten the shift pointer and the next pointer in person2. Then person2 needs to re-adopt the same child AND person2 must be the second person in the list of parent IDs passed to the function, so the get idx == 2 when calling set\_adopting\_parent(). This will trigger the call to unset\_adopted\_child on parent2 and thus the overwritten shift function pointer, resulting in TYPE 1 POV.
+
+person3's ID will be the function pointer (IP\_VAL) and person2's ID will be the value in the registry (REG\_VAL)
+
+### Generic Class of Vulnerability
+
+Heap buffer overflow
+Indexing beyond end of buffer
+Off-by-one error
+
+### CWE Classification
+
+CWE-122 Heap-based Buffer Overflow
+CWE-129 Improper Validation of Array Index
+CWE-193 Off-by-one Error
+CWE-788 Access of Memory Location After End of Buffer
+
+### Challenges
+* The additional challenge beyond Vulnerability 1 is that the parent2 ID must be the second ID in the list of parent IDs during the second call to set\_adopted\_child(), such that their shift function is triggered in the unset\_adopted\_child() function.
+* A static analysis tool should be able to easily detect the write beyond the end of the static former partners buffer.
+* A fuzzer will have a harder time finding the POV, because it's not the content of values that matter as much as the specific sequence of operations involving a set of 3 people.
+* It will be challenging for the automated system to determine the correct sequence of operations to trigger the POV. Additionally, the sequence of operations has to be applied to the same person and child to trigger the vulnerable path.
+
+### Difficulty
+
+* Discovering is easy
+* Proving is hard
+* Fixing is easy

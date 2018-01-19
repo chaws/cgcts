@@ -1,4 +1,5 @@
-set( SERVICE_ID "00004" )
-set( AUTHOR_ID "EAGLE" )
-add_compile_options( -O0 -g )
+set( SERVICE_ID "00059" )
+set( AUTHOR_ID "NRFIN" )
+add_compile_options( -g )
+set( VULN_COUNT "1" )
 buildCB()

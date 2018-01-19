@@ -23,6 +23,7 @@
  *
  */
 
+#include "cgc_wrapper.h"
 #include "libcgc.h"
 #include "cgc_malloc.h"
 #include "cgc_stdlib.h"
@@ -45,7 +46,13 @@ void cgc_free(void *ptr)
   if (blk->size >= NEW_CHUNK_SIZE) {
     free_huge(blk);
   } else {
+#ifdef FILAMENTS
+    cgc_mutex_lock(&cgc_malloc_mutex);
+#endif
     cgc_insert_into_flist(blk);
     cgc_coalesce(blk);
+#ifdef FILAMENTS
+    cgc_mutex_unlock(&cgc_malloc_mutex);
+#endif
   }
 }

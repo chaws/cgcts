@@ -1,40 +1,42 @@
-# Shortest_Path_Tree_Calculator
-
-## Author Information
-
-"Joe Rogers" <joe@cromulence.com>
+# Sensr (KPRCA_00059)
 
 ### DARPA performer group
-Cromulence (CROMU)
+Kaprica Security (KPRCA)
 
 ## Description
-This CB, given a list of nodes and edges as input, calculates the nodes in the shortest path from a given starting node to a given ending node.
+
+A simple service that receives sensor readings, verifies them, and reports back the latest aggregated reading. 
 
 ### Feature List
-The CB accepts three commands:
-  - Send cgc_Nodes: Allows the user to input a set of nodes
-  - Send cgc_Edges: Allows the user to input a set of edges
-  - Run SPT: Instructs the program to calculate the shortest path from a starting to an ending node
 
-Upon completion of the SPT calculation, a list of nodes is sent back to the user.
+Three types of sensor inputs:
+
+ * Location (3-dimensions)
+ * RPM (revolutions per minute)
+ * Speed
+
+Customizable absolute bounds on the inputs to filter out bad inputs. Additionally, change in location is checked against the limits on speed.
+
+Every packet is timestamped. Timestamps are used for ordering and calculating speed from location. If a packet arrives out-of-order, either it will be dropped or the preceding packet will be dropped.
+
+A sensor can send a reset packet if the system is out-of-sync and the state needs to be cleared.
 
 ## Vulnerability
-The CB has a limit to the number of nodes that it will accept.  However, this limit is enforced on each use of the "Send cgc_Nodes" command rather than on the total of all nodes sent to the program.  While this doesn't cause a problem for the SPT algorithm itself, it does cause a problem for the resulting shortest path list of nodes.  The CB uses an unsigned 8-bit integer to store the total number of nodes in the SPT and uses this to calculate the size of a memory allocation call.  If the number of nodes in the SPT overflows this integer, too little storage will be allocated creating a buffer underwrite condition.
+### Vuln 1
+In queue.h:76, there is an intended bug that causes stateq_pop_tail to return uninitialized heap memory. This can be triggered by the attacker when a packet is sent that causes the previous packet to be dropped. The error packet sent back to the attacker may now contain 4 bytes of uninitialized memory. Because the secret page was copied to the heap at the beginning of the program, and then freed, this uninitialized memory will actually contain some obfuscated bytes of the secret page. Exploitable as a type 2 POV.
 
-### Generic class of vulnerability
-Incorrect buffer size calculation leading to a buffer underwrite
+#### Generic class of vulnerability
+Read of uninitialized memory
 
-### CWE classification
-CWE-124 Buffer Underwrite ('Buffer Underflow')
-CWE-131 Incorrect Calculation of Buffer Size
+#### CWE classification
+CWE-125: Out-of-bounds Read
 
-## Challenges
-The heap-based buffer underwrite allows control of the linked-list of edges that have been sent to the CB.  By controlling the list's pointers, it's possible to cause a block of stack memory to be placed on the list of free blocks for later reallocation.  Then, when that next allocation occurs, data is written to the stack allowing overwrite of critical stack contents including the return address of main().  
+CWE-226: Sensitive Information Uncleared Before Release
 
-The difficulty in setting up this sequence of events is with the lookaside table used by the library malloc function.  In order to be sure the correct block of previously free'd memory is used for the subsequent allocation, the size of the freed block must be carefully controlled.  And since this size is part of the heap metadata, when the fake block of stack-based memory is freed, it must have correct metadata.  Fortunately, main() has a stack-based counter variable which limits the number of commands that can be sent to the CB.  By sending exactly the right number of previous commands and positioning the freed block correctly, the stack-based block can be freed into the correct lookaside bucket for later re-use by the pov.  
+#### Challenges
+Involves reuse of memory without initialization, so some understanding of heap allocation is helpful. One possible avenue for discovery is fuzzing combined with taint analysis. The sensitive memory is XORd with a deterministic value and a POV must XOR the memory it reads to get the real type 2 value.
 
-The Subjective Quantifications for this vulnerability are:
-
-Discovering - Medium
-Proving - Hard
-Fixing - Easy
+#### Difficulty
+ - **Discovery**: easy
+ - **Proving**: medium
+ - **Fixing**: medium

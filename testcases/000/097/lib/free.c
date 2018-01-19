@@ -1,7 +1,5 @@
 /*
- * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
- *
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,30 +20,9 @@
  * THE SOFTWARE.
  *
  */
-
-#include "libcgc.h"
-#include "cgc_malloc.h"
-#include "cgc_stdlib.h"
-
-static void cgc_free_huge(struct blk_t *blk)
-{
-    cgc_deallocate(blk, blk->size);
-}
+#include "cgc_malloc_private.h"
 
 void cgc_free(void *ptr)
 {
-  if (ptr == NULL)
-    return;
-
-  struct blk_t *blk = (struct blk_t *)((intptr_t)ptr - HEADER_PADDING);
-
-  if (blk->free != 0)
-    return;
-
-  if (blk->size >= NEW_CHUNK_SIZE) {
-    cgc_free_huge(blk);
-  } else {
-    cgc_insert_into_flist(blk);
-    cgc_coalesce(blk);
-  }
+    return malloc_free(&g_heap, ptr);
 }

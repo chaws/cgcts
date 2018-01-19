@@ -1,61 +1,65 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
 ---
 nodes:
 - name: start
-- name: setup_input
-- name: place 
-- name: setup_map 
-- name: setup_help 
-- name: setup_unknown
-- name: setup_exit
-- name: setup_new
-
-- name: begin 
-- name: game_input
-- name: target
-- name: game_map
-- name: game_help
-- name: game_unknown
-- name: game_exit
-
-- name: end
-
+- name: cmd_init_panel
+- name: cmd_add_breaker
+- name: cmd_add_outlet
+- name: cmd_add_splitter
+- name: cmd_add_light_string
+- name: cmd_panel_overloaded
+- name: cmd_breaker_overloaded
+- name: cmd_outlet_overloaded
+- name: cmd_splitter_overloaded
+- name: cmd_light_string_overloaded
+- name: cmd_receptacle_overloaded
+- name: build_finished
 edges:
-- start: setup_input
+- start: cmd_init_panel
 
-- setup_input: place
-- setup_input: setup_map
-- setup_input: setup_help
-- setup_input: setup_unknown
-  weight: .1
-- setup_input: setup_exit
-- setup_input: setup_new
-- setup_input: begin 
-- setup_input: end
-  weight: .01
+- cmd_init_panel: cmd_add_breaker
+- cmd_add_breaker: cmd_add_outlet
+- cmd_add_outlet: cmd_add_light_string
+- cmd_add_outlet: cmd_add_splitter
 
-- place: setup_input
-- setup_map: setup_input
-- setup_help: setup_input
-- setup_unknown: setup_input
-- setup_exit: setup_input
-- setup_new: start
+- cmd_add_splitter: cmd_add_light_string
+- cmd_add_light_string: cmd_add_breaker
+- cmd_add_light_string: cmd_add_outlet
+- cmd_add_light_string: cmd_add_light_string
 
-- begin: game_input
+- cmd_add_light_string: build_finished
 
-- game_input: target
-  weight: 2 
-- game_input: game_map
-- game_input: game_help
-- game_input: game_unknown
-  weight: .1
-- game_input: game_exit
-- game_input: end
-  weight: .1
+- build_finished: cmd_panel_overloaded
+- build_finished: cmd_breaker_overloaded
+- build_finished: cmd_outlet_overloaded
+- build_finished: cmd_splitter_overloaded
+- build_finished: cmd_light_string_overloaded
+- build_finished: cmd_receptacle_overloaded
 
-- target: game_input
-- game_map: game_input
-- game_help: game_input
-- game_unknown: game_input
-- game_exit: game_input
-
-
+- cmd_panel_overloaded: build_finished
+- cmd_breaker_overloaded: build_finished
+- cmd_outlet_overloaded: build_finished
+- cmd_splitter_overloaded: build_finished
+- cmd_light_string_overloaded: build_finished
+- cmd_receptacle_overloaded: build_finished

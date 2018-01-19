@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  *
  */
-
 #include "libcgc.h"
 
 char *cgc_strchr(const char *s, int c)

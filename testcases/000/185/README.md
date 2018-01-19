@@ -1,38 +1,61 @@
-# LazyCalc
+# CGC Challenge Binary Template
+
+## Author Information
+
+"Maxwell Koo" <info@narfindustries.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+
+Narf Industries (NRFIN)
 
 ## Description
 
-A very simple, binary protocol calculator that can do basic binary operations. It provides a way to import the operations and export the results. The results are not computed untill it's told to. The service provides a random base, so that a malicious person cannot figure out the correct value of the computation except for the person who initiated the computation.
+I'm so UTF-8, you so UTF-late. This is a network-enabled file server, which
+keeps all user files in memory for blazing-quick access. The API exposes a
+public dropbox folder, while preventing access to the protected admin area. The
+filesystem is UTF-8 aware, allowing arbitrary unicode filenames of a fixed
+length.
+
+Commands take the form of a 4-byte command identifier, followed by optional
+arguments. Commands may produce output, but will always end in a 4-byte success
+code, 0 on success or -1 on failure.
 
 ### Feature List
 
-- Basic math operations: Add, Sub, Mul, Div, Mod
-- Import and Export
-- Compute
+The following features are available:
+ - Read file, accepts a filename and returns the contents of that file
+ - Write file, accepts a filename and a size, writes the contents to a file
+ - List files, lists all files in the dropbox folder
 
 ## Vulnerability
-### Vuln 1
-The interface requires a number of operations to be done in the beggining. This number determines the size of the heap to be allocated to store the operations (type, arguments and the result). However, when the export feature is used, the contents (the result field of the stored heap structs) are copied to the stack buffer that can hold up to 30 integers. The program lacks the check for the maximum size of the operations, allowing an attacker to cause a stack buffer overflow.
 
-#### Generic class of vulnerability
+The UTF-8 decoding function does not properly handle overlong encodings, so it
+is possible to defeat the input validation protecting the admin area and write
+to files in that area. Files in the admin area contain a user-controlled pointer
+value, which allows arbitrary write access to a large portion of the process'
+address space.
 
-Stack Buffer Overflow
+### Generic class of vulnerability
 
-#### CWE classification
+Improper handling of unicode encoding
 
-CWE-121: Stack-based Buffer Overflow
+### CWE classification
 
-#### Challenges
+CWE-20 Improper input validation
+CWE-22 Improper limitation of a pathname to a restricted directory
+CWE-176 Improper handling of unicode encoding
+CWE-822 Untrusted pointer dereference
 
- - There's also a pointer to the heap structure that gets overwritten while overwriting the return address on the stack.
- - This pointer gets free'd before the main function returns, so unless the valid pointer is provided the program aborts while trying to free an invalid pointer.
- - free(0) is a valid operation (virtually no-op), so the attacker needs to ensure that the pointer is overwritten with 0.
+## Challenges
 
-#### Difficulty
+This CB is designed to test the ability for a CRS to comprehend complex string
+functions and stateful processes spanning multiple invocations of a function.
+UTF-8 is a complex variable-width encoding with many possible invalid byte
+sequences. The decoder implemented in this CB handles this by running each
+character through a state machine, invoking a function on each byte which
+records its state into a output variable and its return code. Reasoning over
+separate invocations of the decoder function is necessary in order to determine
+an input which will lead to triggering the vulnerability. This CB is inspired by
+several real-world path traversal and unicode vulnerabilities, including
+CVE-2000-0884 in Microsoft IIS.
 
- - **Discovery**: easy
- - **Proving**: easy
- - **Patching**: easy

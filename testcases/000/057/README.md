@@ -2,95 +2,46 @@
 
 ## Author Information
 
-"Nick Davis" <info@narfindustries.com>
+"Jason Rogers" <info@narfindustries.com>
 
 ### DARPA performer group
-
 Narf Industries (NRFIN)
 
 ## Description
 
-H20 Flow Inc brings you the hottest technology in programmable logic controllers (PLCs) used in the water distribution industry. We know how important it is for your water distrubition PLCs to do exactly what you tell them to do and nothing more. H2FLOW is our latest generation water flow valve controller.
+Not sure where all your money is going? Having trouble staying with in your limits? Try BudgIT, the new personal finance management tool. BudgIT will alow you to set a budget, track your expenses, and let you know when you OVER BUDGET! So get started today on the road to financial success. 
+
 
 ### Feature List
 
-The H2FLOW CB is a simple flow controller that manages the valves for the fill lines of several water tanks, based on commands provided by the intelligent PLC (the remote user).
+To begin, provide BudgIT with a budget category, e.g. Groceries, followed by your spending goal for the month. Then, each time you spend money on a budget category, enter the transaction into BudgIT. BudgIT will let you know when you have reached or surpassed your budget. If at any time you are unsure of how much you have left, BudgIT can provide you a simple report that shows all your budget categories, their remaining budgets, and a total of all budgets. 
 
-Each water tank has a defined capacity. Each tank also has a minimum fill level. If the fill level drops below the minimum fill level, an emergency circuit will activate the backup fill pump until the level returns to the minimum fill level. If the fill level drops below 5 units of volume, a critical fill level alarm is raised.
-
-Each water tank has a random rate that water is flowing out of it (drain rate). This simulates periodic water usage by an end user or device.
-
-There are a fixed number of tanks, their ID numbers are sequential starting from 0, the capacities are defined by the TANK\_CAP value, and initial fill level is defined by the INIT\_LEVEL value.
-
-To simulate time and water flowing in and out of tanks, H2FLOW uses a sleep timer. During the sleep timer, the service is simulating execution of all received commands and the filling/emptying of tanks. 
-
-Between sleep timers, the service will iterate through the tanks. For each tank, it will send the remote user the tank status and then accept a command to apply to the valves for that tank.
-
-During each iteration, the drain and fill functions will remove water from tanks based on a random outflow rate and add water to tanks based on valve position and a fixed inflow rate. Finally, each tank will be tested for under fill.
-
-H2FLOW has a very simple protocol. It accepts the following commands:
-- OPEN\_VALVE           : open fill valve
-- CLOSE\_VALVE          : close fill valve
-- NO\_CHANGE            : no valve changes
-- SET\_IN\_SERVICE      : for a tank that is OUT\_OF\_SERVICE, set the fill rate and allow tank to supply water to users
-- SET\_OUT\_OF\_SERVICE : close input valve, set fill\_rate and drain\_rate to 0
-- SET\_END\_OF\_LIFE    : same as SET\_OUT\_OF\_SERVICE, but is permanant
 
 ## Vulnerability
+This service has two vulnerabilities. 
 
-Two things need to happen to trigger the POV.
+The first vulnerability is an off-by-one error that results in an out-of-bounds write. The service will create a buffer on the heap that is large enough for 128 budget categories. The check in the setMap function allows the creation of 129 categories, leading to the out-of-bounds write.
 
-First, a tank needs to be filled beyond capacity. Due to the tank level being an unsigned char, when it reach 255, the next unit of H2O added will cause the value to overflow to 0. The function tank.c:add_water() does not check the bounds on t->level to prevent overflow.
-
-Second, after both the combined fill and drain operation, the level of the tank must be in the range [0-5]. This will ensure the test for critically low level at operation.c:88 returns TRUE. Note, the update\_water\_levels function (drain and fill operations) is run before the low level tests are run. Thus, it is required for the drain + fill to cause a net int overflow. Also, it is possible for the int overflow to overflow to a level greater than 5, resulting in a value that is not in the range [0-5], and thus will not trigger the critical low level alert.
-
-When the syslog function is called in operation.c:93, the tank number variable access has a coding mistake where the array index is the TANK\_QTY, instead of idx, which causes an out of bounds access and a null pointer dereference. This will trigger SIGSEGV.
+The second vulnerability is a use of pointer subtraction to determine size vulnerability that causes an out-of-bounds read. The getSize function uses a loop to find the last budget entry in the list, and then subtracts its address from the start of the list to calculate the size. By selectively removing a budget entry and creating a new budget entry, one can control the output of the getSize call in sendReport to read memory outside the bounds of the buffer.
 
 ### Generic class of vulnerability
-
-Null pointer dereference
-
-Improper checking of loop invariant
-
-Improper array bounds checking
-
-Integer Overflow
-
-Access memory beyond buffer
+Heap-based Buffer Overflow
+Out-of-bounds Read
+Incorrect Calculation of Buffer Size
+Off-by-one Error
+Use of Pointer Subtraction to Determine Size
+Out-of-bounds Write
 
 ### CWE classification
+CWE-122: Heap-based Buffer Overflow
+CWE-125: Out-of-bounds Read
+CWE-131: Incorrect Calculation of Buffer Size
+CWE-193: Off-by-one Error
+CWE-469: Use of Pointer Subtraction to Determine Size
+CWE-787: Out-of-bounds Write
 
-Improper Input Validation
-CWE-20
+## Challenge
 
-Wrap-around Error
-CWE-128
+1) Determine how budget entries are created, stored, and removed by interacting with the service.
 
-Improper Validation of Array Index
-CWE-129
-
-Integer Overflow or Wraparound
-CWE-190
-
-Access of Memory Location After End of Buffer
-CWE-788
-
-Buffer Access with Incorrect Length Value
-CWE-805
-
-Access of Uninitialized Pointer
-CWE-824
-
-## Challenges
-* The protocol is pretty simple, but the first hurdle is to know that the tanks all start in the OUT\_OF\_SERVICE status. So, continued communication with the CB requires the first commands to be SET\_IN\_SERVICE to place tanks in service. After that, some of the other commands will work. A dumb random fuzzer will have problems with this because the order of commands used on a given tank matters.
-
-* To make the POV harder to exploit, the sleep() function is run once per iteration through the tanks. This makes the POV harder to exploit, because sending random commands will eventually trigger the poller timeout before it will have enough time to overflow the tank level and trigger the POV. The sleep value was chosen specifically to make so it is only possible to overflow the tank level if sending the first command as SET\_IN\_SERVICE followed by OPEN\_VALVE for every subsequent iteration. Other sequences have a high probability of ending due to timeout before they can fill the tank. To get N iterations in 15 seconds, want a sleep of 15/N. In testing we found the following results:
-** with fill_rate 10, it takes 39 iterations -> sleep 15/39 = .385s
-** with fill_rate 11, it takes 33 iterations -> sleep 15/33 = .454s
-** will fill_rate 12, it takes 26 iterations -> sleep 15/26 = .577s
-** with fill_rate 15, it takes 17 iterations -> sleep 15/17 = .882s
-
-* Additionally, to make the POV harder to reach by fuzzing, we added commands that place the tank either out-of-service or in an end-of-life state. When the tank is in the end-of-life state it can no longer be brought back into service. When the tank is in the out-of-service state, it requires the SET\_IN\_SERVICE command to bring it back into service.
-
-* One more thing that makes this more challenging is the lack of for-release pollers. This series of challenges should help to show distinctions between how CRS's use fuzzing.
-
+2) Understand how the getSize call can be manipulated by creating and removing specific budget entries.

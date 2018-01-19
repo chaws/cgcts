@@ -20,488 +20,1119 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "libcgc.h"
 #include "cgc_libc.h"
 
-bool cgc_heapinit_done = false;
-heap_chunk_t cgc_freedc = {0};
-heap_chunk_t cgc_allocatedc = {0};
-heap_chunk_t *cgc_freed = NULL;
-heap_chunk_t *cgc_allocated = NULL;
+// Address fragmentation issue.
+// Keep looping until we've receive'd count bytes.
+// VERBATIM to JUSTINTIME
+int cgc_receive_all(int fd, void *buf, cgc_size_t count, cgc_size_t *rx_bytes) {
 
-uint8_t *cgc_lastpage = NULL;
-uint32_t cgc_curleft = 0;
+   int ret = SUCCESS;
+   cgc_size_t bytes_left = count;
+   cgc_size_t rx_bytes_local = 0;
 
-uint32_t cgc__cookie = 0;
+   while (bytes_left) {
 
-void cgc_promptc(char *buf, uint16_t  size, char *prompt) {
+      rx_bytes_local = 0;
 
-    SSEND(cgc_strlen(prompt), prompt);
+      if (SUCCESS != (ret = cgc_receive(STDIN, buf+(count-bytes_left), bytes_left, &rx_bytes_local))) {
+#ifdef DEBUG
+         fprintf(stderr, "[E] receive () call within receive_all() failed\n");
+#endif
+         goto bail;
+      }
 
-    SRECV((uint32_t)size, buf);
+      bytes_left -= rx_bytes_local;
+
+      // Assume EOF if 0-lengthed buffer.
+      if (0 == rx_bytes_local) {
+         if (NULL != rx_bytes) { *rx_bytes = count-bytes_left; }
+         goto bail;
+      }
+   }
+
+   // If we got here, then we got all the bytes.
+   if (NULL != rx_bytes) { *rx_bytes = count; }
+
+bail:
+   return ret;
 }
 
-int cgc_sendall(int fd, const char *buf, cgc_size_t size) {
-    cgc_size_t sent = 0;
-    cgc_size_t total = 0;
+// Address fragmentation issue.
+// Keep looping until we've transmit'ed count bytes.
+// VERBATIM to JUSTINTIME
+int cgc_transmit_all(int fd, const void *buf, cgc_size_t count, cgc_size_t *tx_bytes) {
 
-    if (!buf)
-        return -1;
+   int ret = SUCCESS;
+   cgc_size_t bytes_left = count;
+   cgc_size_t tx_bytes_local = 0;
 
-    if (!size)
-        return 0;
+   while (bytes_left) {
 
-    while (size) {
-        if (cgc_transmit(fd, buf, size, &sent)) {
-            return -1;
-        }
+      tx_bytes_local = 0;
 
-        buf += sent;
-        total += sent;
-        size -= sent;
-    }
+      if (SUCCESS != (ret = cgc_transmit(STDOUT, buf, bytes_left, &tx_bytes_local))) {
+#ifdef DEBUG
+         fprintf(stderr, "[E] transmit () call within transmit_all() failed\n");
+#endif
+         goto bail;
+      }
 
-    return total;
+      bytes_left -= tx_bytes_local;
+
+      // Assume EOF if 0-lengthed buffer.
+      if (0 == tx_bytes_local) {
+         if (NULL != tx_bytes) { *tx_bytes = count-bytes_left; }
+         goto bail;
+      }
+   }
+
+   // If we got here, then we got all the bytes.
+   if (NULL != tx_bytes) { *tx_bytes = count; }
+
+bail:
+   return ret;
 }
 
-int cgc_sendline(int fd, const char *buf, cgc_size_t size) {
-    int ret;
-    ret = cgc_sendall(fd, buf, size);
-    if (ret < 0) {
-        return ret;
-    } else {
-        if (cgc_transmit(fd, "\n", 1, &size))
-            return -1;
-        else
-            return ++ret;
-    }
+
+////
+// The following is verbatim from EAGLE_00004, but isn't included in the
+// released binary (DEBUG is not defined), so this reuse shouldn't be a concern.
+////
+#ifdef DEBUG
+
+#ifdef WIN
+#include <stdarg.h>
+#else
+typedef __builtin_va_list va_list;
+#define va_start(ap, param) __builtin_va_start(ap, param)
+#define va_end(ap) __builtin_va_end(ap)
+#define va_arg(ap, type) __builtin_va_arg(ap, type)
+#endif
+
+static FILE std_files[3] = { {0, _FILE_STATE_OPEN}, {1, _FILE_STATE_OPEN}, {2, _FILE_STATE_OPEN} };
+
+FILE *stdin = &std_files[0];
+FILE *stdout = &std_files[1];
+FILE *stderr = &std_files[2];
+
+int vfprintf(FILE *stream, const char *format, va_list ap);
+int vdprintf(int fd, const char *format, va_list ap);
+
+#define IS_DIGIT     1
+#define IS_UPPER     2
+#define IS_LOWER     4
+#define IS_SPACE     8
+#define IS_XDIGIT    16
+#define IS_CTRL      32
+#define IS_BLANK     64
+
+#define IS_ALPHA     (IS_LOWER | IS_UPPER)
+#define IS_ALNUM     (IS_ALPHA | IS_DIGIT)
+
+static unsigned char type_flags[256] = {
+     0, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL,
+     IS_CTRL, IS_SPACE | IS_BLANK, IS_SPACE, IS_SPACE, IS_SPACE, IS_SPACE, IS_CTRL, IS_CTRL,
+
+     IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL,
+     IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL,
+
+     IS_SPACE | IS_BLANK, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+
+     IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT,
+     IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, 0, 0, 0, 0, 0, 0,
+
+     0, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER,
+     IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER,
+
+     IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER,
+     IS_UPPER, IS_UPPER, IS_UPPER, 0, 0, 0, 0, 0,
+
+     0, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER,
+     IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER,
+
+     IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER,
+     IS_LOWER, IS_LOWER, IS_LOWER, 0, 0, 0, 0, 0,
+};
+
+int isalpha(int c) {
+   return (type_flags[c & 0xff] & IS_ALPHA) != 0;
 }
 
-int cgc_recv(int fd, char *buf, cgc_size_t size) {
-    cgc_size_t bytes_read = 0;
-    cgc_size_t total_read = 0;
-
-    if (!size)
-        return 0;
-
-    if (!buf)
-        return -1;
-
-    while (size) {
-        if (cgc_receive(fd, buf++, 1, &bytes_read))
-            return -1;
-        
-        total_read++;
-        size--;
-    }
-
-    return total_read;
-
-}
-int cgc_recvline(int fd, char *buf, cgc_size_t size) {
-    cgc_size_t bytes_read = 0;
-    cgc_size_t total_read = 0;
-
-    if (!size)
-        return 0;
-
-    if (!buf)
-        return -1;
-
-    while (size) {
-        if (cgc_receive(fd, buf++, 1, &bytes_read))
-            return -1;
-        
-        total_read++;
-        size--;
-        
-        if (*(buf-1) == '\n')
-            break;
-    }
-
-    if (*(buf-1) != '\n')
-        return -2;
-    else
-        *(buf-1) = '\0';
-
-    return total_read;
+int isdigit(int c) {
+   return (type_flags[c & 0xff] & IS_DIGIT) != 0;
 }
 
-//non-standard convention, returns num bytes copied instead of s1
-cgc_size_t cgc_strcpy(char *s1, char *s2) {
-    char *tmp = s1;
-    while (*s2) {
-        *tmp = *s2;
-        tmp++;
-        s2++;
-    }
-    *(tmp++)='\0';
-    return tmp-s1-1;
+int isxdigit(int c) {
+   return (type_flags[c & 0xff] & IS_XDIGIT) != 0;
 }
 
-//non-standard convention, returns num bytes copied instead of s1
-cgc_size_t cgc_strncpy(char *s1, char *s2, cgc_size_t n) {
-    char *tmp = s1;
-    while ((tmp-s1 < n) && *s2) {
-        *tmp = *s2;
-        tmp++;
-        s2++;
-    }
-    *(tmp++)='\0';
-    return tmp-s1-1;
+int toupper(int c) {
+   if (isalpha(c)) {
+      return c & ~0x20;
+   }
+   return c;
 }
 
-char * cgc_strcat(char *s1, char *s2) {
-    char *tmp = s1;
-    while (*tmp) tmp++;
-    cgc_strcpy(tmp,s2);
-    return s1;
+cgc_size_t cgc_strlen(const char *str) {
+   cgc_size_t res = 0;
+   while (*str++) {res++;}
+   return res;
 }
 
-cgc_size_t cgc_strlen(char *s) {
-    char *tmp = s;
-    while (*tmp) tmp++;
-    return (cgc_size_t)(tmp-s);
+int vfprintf(FILE * stream, const char *format, va_list ap) {
+   return vdprintf(stream->fd, format, ap);
 }
 
-int cgc_streq(char *s1, char *s2) {
-    while (*s1 && *s2){
-        if (*s1 != *s2)
-            return 0;
-	    s1++;
-	    s2++;
-    }
-    return (*s1 == '\0') && (*s2 == '\0');
+int fprintf(FILE * stream, const char *format, ...) {
+   va_list va;
+   va_start(va, format);
+   return vfprintf(stream, format, va);
 }
 
-int cgc_startswith(char *s1, char *s2) {
-    while (*s1 && *s2) {
-        if (*s1 != *s2)
-            return 0;
-	    s1++;
-	    s2++;
-    }
-    return *s2 == '\0';
+struct _fd_printer {
+   int fd;
+   int err;
+   unsigned int count;
+};
+
+//if flag != 0 return number of chars output so far
+static unsigned int fd_printer(char ch, void *_fp, int flag) {
+   struct _fd_printer *fp = (struct _fd_printer *)_fp;
+   if (flag) {
+      return fp->count;
+   }
+   else {
+      fp->count++;
+      cgc_transmit(fp->fd, &ch, 1, NULL);
+   }
+   return 0;
 }
 
-// takes a uint32 and converts it to a string saved in str_buf
-// str_buf must be large enough to fit the number(s) and '\0'
-// returns 0 on success, -1 if error due to buf_size
-int cgc_uint2str(char* str_buf, int buf_size, uint32_t i) {
+#define STATE_NORMAL 0
+#define STATE_ESCAPE 1
+#define STATE_PERCENT 2
+#define STATE_OCTAL 3
+#define STATE_HEX 4
+#define STATE_FLAGS 5
+#define STATE_WIDTH 6
+#define STATE_PRECISION 7
+#define STATE_LENGTH 8
+#define STATE_CONVERSION 9
+#define STATE_WIDTH_ARG 10
+#define STATE_WIDTH_VAL 11
+#define STATE_PRECISION_ARG 12
+#define STATE_PRECISION_VAL 13
+#define STATE_NARG 15
 
-    int idx = 0;
-    uint32_t tmp;
-    int digit;
+#define FLAGS_TICK 1
+#define FLAGS_LEFT 2
+#define FLAGS_SIGN 4
+#define FLAGS_SPACE 8
+#define FLAGS_HASH 16
+#define FLAGS_ZERO 32
 
-    // at least fits 1 digit and '\0'
-    if (buf_size < 2) {
-        return -1;
-    }
+#define LENGTH_H 1
+#define LENGTH_HH 2
+#define LENGTH_L 3
+#define LENGTH_J 5
+#define LENGTH_Z 6
+#define LENGTH_T 7
+#define LENGTH_CAPL 8
 
-    tmp = i;
-
-    // increment index in str_buf to where rightmost digit goes
-    do {
-        idx++;
-        tmp = tmp/10;
-    } while (tmp > 0);
-
-    // see if this number will fit in the buffer
-    if (idx >= buf_size)
-        return -1;
-
-    //testing
-    // str_buf[0] = '0' - i;
-    // str_buf[1] = '\0';
-
-    // insert '\0'
-    str_buf[idx--] = '\0';
-
-    // move left through string, writing digits along the way
-    do {
-        digit = i % 10;
-        str_buf[idx--] = '0' + digit;
-        i /= 10;
-    } while (i > 0);
-
-    return 0;
+static char *r_utoa(unsigned int val, char *outbuf) {
+   char *p = outbuf;
+   *p = '0';
+   while (val) {
+      *p++ = (val % 10) + '0';
+      val /= 10;
+   }
+   return p != outbuf ? (p - 1) : p;
 }
 
-// takes an int32 and converts it to a string saved in str_buf
-// str_buf must be large enough to fit the sign, number(s), and '\0'
-// returns 0 on success, -1 if error due to buf_size
-int cgc_int2str(char* str_buf, int buf_size, int i) {
-
-    int idx = 0;
-    int tmp;
-    int digit;
-
-    // at least fits 1 digit and '\0'
-    if (buf_size < 2) {
-        return -1;
-    }
-
-    if (i < 0) {
-        if (buf_size < 3)
-            return -1;
-        str_buf[idx++] = '-';
-    } else {
-        i *= -1; // make i negative
-    }
-
-    // i is always 0 or negative at this point.
-    tmp = i;
-
-    // increment index in str_buf to where rightmost digit goes
-    do {
-        idx++;
-        tmp = tmp/10;
-    } while (tmp < 0);
-
-    // see if this number will fit in the buffer
-    if (idx >= buf_size)
-        return -1;
-
-    //testing
-    // str_buf[0] = '0' - i;
-    // str_buf[1] = '\0';
-
-    // insert '\0'
-    str_buf[idx--] = '\0';
-
-    // move left through string, writing digits along the way
-    do {
-        digit = -1 * (i % 10);
-        str_buf[idx--] = '0' + digit;
-        i /= 10;
-    } while (i < 0);
-
-    return 0;
+//outbuf needs to be at least 22 chars
+static char *r_llotoa(unsigned long long val, char *outbuf) {
+   char *p = outbuf;
+   *p = '0';
+   while (val) {
+      *p++ = (val & 7) + '0';
+      val >>= 3;
+   }
+   return p != outbuf ? (p - 1) : p;
 }
 
-// takes a string and converts it to an uint32
-// MAX uint32 is +/- 2^31-1 (2,147,483,647) which is 10 digits
-// returns 0 if str_buf is "0" or has no digits.
-uint32_t cgc_str2uint(const char* str_buf) {
-    int result = 0;
-    int max_chars = 10; // max number of chars cgc_read from str_buf
-    int i = 0;
-
-    if (str_buf == NULL)
-        return result;
-
-    for (; i < max_chars; i++) {
-        if ( str_buf[i] >= '0' && str_buf[i] <= '9') {
-            result *= 10;
-            result += str_buf[i] - '0';
-
-        } else {
-            break;
-        }
-    }
-
-    return result;
+static char *r_otoa(unsigned int val, char *outbuf) {
+   return r_llotoa(val, outbuf);
 }
 
-void * cgc_memset(void *dst, char c, cgc_size_t n) {
-    cgc_size_t i;
-    for (i=0; i<n; i++) {
-        *((uint8_t*)dst+i) = c;
-    }
-    return dst;
+//outbuf needs to be at least 22 chars
+static char *r_llxtoa(unsigned long long val, char *outbuf, int caps) {
+   char *p = outbuf;
+   *p = '0';
+   while (val) {
+      char digit = (char)(val & 0xf);
+      if (digit < 10) {
+         digit += '0';
+      }
+      else {
+         digit = caps ? (digit + 'A' - 10) : (digit + 'a' - 10);
+      }
+      *p++ = digit;
+      val >>= 4;
+   }
+   return p != outbuf ? (p - 1) : p;
 }
 
-void * cgc_memcpy(void *dst, void *src, cgc_size_t n) {
-    cgc_size_t i;
-    for (i=0; i<n; i++) {
-        *((uint8_t*)dst+i) = *((uint8_t*)src+i);
-    }
-    return dst;
+static char *r_xtoa(unsigned int val, char *outbuf, int caps) {
+   return r_llxtoa(val, outbuf, caps);
 }
 
-char * cgc_b2hex(uint8_t b, char *h) {
-    if (b>>4 < 10)
-        h[0] = (b>>4)+0x30;
-    else
-        h[0] = (b>>4)+0x41-10;
-
-    if ((b&0xf) < 10)
-        h[1] = (b&0xf)+0x30;
-    else
-        h[1] = (b&0xf)+0x41-10;
-    h[2] = '\0';
-    return h;
+static int hex_value_of(char ch) {
+   if (isdigit(ch)) {
+      return ch - '0';
+   }
+   else if (isalpha(ch)) {
+      return toupper(ch) - 'A' + 10;
+   }
+   return -1;
 }
 
-char * cgc_strchr(char *str, char c) {
-    char *tmp = str;
-    while (*tmp) {
-        if (*tmp == c)
-            return tmp;
-        tmp++;
-    }
-    return 0;
-}
-
-//modulus
-int cgc___umoddi3(int a, int b) {
-    return a-(a/b*b);
-}
-
-void cgc_sleep(int s) {
-    struct cgc_timeval tv;
-    tv.tv_sec = s;
-    tv.tv_usec = 0;
-    cgc_fdwait(0, NULL, NULL, &tv, NULL);
-}
-
-int cgc_memcmp(void *a, void *b, cgc_size_t n) {
-    cgc_size_t i;
-    for (i=0; i < n; i++)
-        if ( *(uint8_t*)(a+i) != *(uint8_t*)(b+i))
-            return -1;
-    return 0;
-}
-
-static void cgc_heapinit() {
-    cgc_allocated = &cgc_allocatedc;
-    cgc_freed = &cgc_freedc;
-    cgc_allocated->next = cgc_allocated;
-    cgc_allocated->prev = cgc_allocated;
-    cgc_freed->next = cgc_freed;
-    cgc_freed->prev = cgc_freed;
-    cgc_heapinit_done = true;
-}
-
-static void cgc_insert(heap_chunk_t *head, heap_chunk_t *node) {
-    node->next = head;
-    node->prev = head->prev;
-    node->prev->next = node;
-    head->prev = node;
-}
-
-static void cgc_remove(heap_chunk_t *node) {
-    node->prev->next = node->next;
-    node->next->prev = node->prev;
-    node->next = NULL;
-    node->prev = NULL;
-}
-
-void cgc_checkheap() {
-    /*
-     * Verify that there is no overlap between freed and allocated lists.
-     */
-    heap_chunk_t *fchunk = cgc_freed;
-    heap_chunk_t *achunk;
-    while (fchunk->next != cgc_freed) {
-        achunk = cgc_allocated;
-        while (achunk->next != cgc_allocated) {
-            if ((uint32_t)fchunk < (uint32_t)(((uint8_t*)achunk)+achunk->size) &&
-                (uint32_t)achunk < (uint32_t)(((uint8_t*)fchunk)+fchunk->size)) {
-                LOG("corrupt");
-                cgc__terminate(283);
+//func is responsible for outputing the given character
+//user is a pointer to data required by func
+static void printf_core(unsigned int (*func)(char, void *, int), void *user, const char *format, va_list ap) {
+   int state = STATE_NORMAL;
+   int flags;
+   int digit_count = 0;
+   int value = 0;
+   char ch;
+   int arg_count = 0;
+   int width_value;
+   int prec_value;
+   int field_arg;
+   int length;
+   char **args = (char**)ap;
+   for (ch = *format++; ch; ch = *format++) {
+      switch (state) {
+         case STATE_NORMAL:
+            if (ch == '%') {
+               state = STATE_PERCENT;
             }
-            achunk = achunk->next;
-        }
-        fchunk = fchunk->next;
-    }
+            else if (ch == '\\') {
+               state = STATE_ESCAPE;
+            }
+            else {
+               func(ch, user, 0);
+            }
+            break;
+         case STATE_ESCAPE:
+            switch (ch) {
+               case 'n':
+                  func('\n', user, 0);
+                  break;
+               case 't':
+                  func('\t', user, 0);
+                  break;
+               case 'r':
+                  func('\r', user, 0);
+                  break;
+               case 'b':
+                  func('\b', user, 0);
+                  break;
+               case 'f':
+                  func('\f', user, 0);
+                  break;
+               case 'v':
+                  func('\v', user, 0);
+                  break;
+               case '\\': case '\'': case '"':
+                  func(ch, user, 0);
+                  break;
+               case 'x':
+                  state = STATE_HEX;
+                  digit_count = 0;
+                  value = 0;
+                  break;
+               default:
+                  if (ch > '0' && ch < '8') {
+                     state = STATE_OCTAL;
+                     digit_count = 1;
+                     value = ch - '0';
+                  }
+                  else {
+                     func(*format, user, 0);
+                  }
+                  break;
+            }
+            if (state == STATE_ESCAPE) {
+               state = STATE_NORMAL;
+            }
+            break;
+         case STATE_PERCENT:
+            if (ch == '%') {
+               func(ch, user, 0);
+               state = STATE_NORMAL;
+            }
+            else {
+               state = STATE_NARG;
+               flags = 0;
+               format--;
+            }
+            break;
+         case STATE_OCTAL:
+            if (ch > '0' && ch < '8' && digit_count < 3) {
+               digit_count++;
+               value = value * 8 + (ch - '0');
+               if (digit_count == 3) {
+                  func(value, user, 0);
+                  state = STATE_NORMAL;
+               }
+            }
+            else {
+               func(value, user, 0);
+               state = STATE_NORMAL;
+               format--;
+            }
+            break;
+         case STATE_HEX:
+            if (isxdigit(ch) && digit_count < 2) {
+               digit_count++;
+               value = value * 16 + hex_value_of(ch);
+               if (digit_count == 2) {
+                  func(value, user, 0);
+                  state = STATE_NORMAL;
+               }
+            }
+            else {
+               func(value, user, 0);
+               state = STATE_NORMAL;
+               format--;
+            }
+            break;
+         case STATE_NARG:
+            width_value = -1;
+            prec_value = -1;
+            flags = 0;
+            length = 0;
+            field_arg = -1;
+            if (ch == '0') {
+               format--;
+               state = STATE_FLAGS;
+               break;
+            }
+            if (isdigit(ch)) {
+               //could be width or could be arg specifier or a 0 flag
+               //width and arg values don't start with 0
+               width_value = 0;
+               while (isdigit(ch)) {
+                  width_value = width_value * 10 + (ch - '0');
+                  ch = *format++;
+               }
+               if (ch == '$') {
+                  field_arg = width_value - 1;
+                  width_value = 0;
+                  state = STATE_FLAGS;
+               }
+               else {
+                  //this was a width
+                  format--;
+                  state = STATE_PRECISION;
+               }
+            }
+            else {
+               format--;
+               state = STATE_FLAGS;
+            }
+            break;
+         case STATE_FLAGS:
+            switch (ch) {
+               case '\'':
+                  flags |= FLAGS_TICK;
+                  break;
+               case '-':
+                  flags |= FLAGS_LEFT;
+                  break;
+               case '+':
+                  flags |= FLAGS_SIGN;
+                  break;
+               case ' ':
+                  flags |= FLAGS_SPACE;
+                  break;
+               case '#':
+                  flags |= FLAGS_HASH;
+                  break;
+               case '0':
+                  flags |= FLAGS_ZERO;
+                  break;
+               default:
+                  format--;
+                  if ((flags & (FLAGS_ZERO | FLAGS_LEFT)) == (FLAGS_ZERO | FLAGS_LEFT)) {
+                     //if both '-' and '0' appear, '0' is ignored
+                     flags &= ~FLAGS_ZERO;
+                  }
+                  state = STATE_WIDTH;
+                  break;
+            }
+            break;
+         case STATE_WIDTH:
+            if (ch == '*') {
+               ch = *format++;
+               int width_arg = 0;
+               if (isdigit(ch)) {
+                  while (isdigit(ch)) {
+                     width_arg = width_arg * 10 + (ch - '0');
+                     ch = *format++;
+                  }
+                  width_arg--;
+                  if (ch != '$') {
+                     //error
+                  }
+               }
+               else {
+                  width_arg = arg_count++;
+                  format--;
+               }
+               width_value = (int)args[width_arg];
+            }
+            else if (isdigit(ch)) {
+               width_value = 0;
+               while (isdigit(ch)) {
+                  width_value = width_value * 10 + (ch - '0');
+                  ch = *format++;
+               }
+               format--;
+            }
+            else {
+               //no width specified
+               format--;
+            }
+            state = STATE_PRECISION;
+            break;
+         case STATE_PRECISION:
+            if (ch == '.') {
+               //have a precision
+               ch = *format++;
+               if (ch == '*') {
+                  ch = *format++;
+                  int prec_arg = 0;
+                  if (isdigit(ch)) {
+                     while (isdigit(ch)) {
+                        prec_arg = prec_arg * 10 + (ch - '0');
+                        ch = *format++;
+                     }
+                     prec_arg--;
+                     if (ch != '$') {
+                        //error
+                     }
+                  }
+                  else {
+                     prec_arg = arg_count++;
+                     format--;
+                  }
+                  prec_value = (int)args[prec_arg];
+               }
+               else if (isdigit(ch)) {
+                  prec_value = 0;
+                  while (isdigit(ch)) {
+                     prec_value = prec_value * 10 + (ch - '0');
+                     ch = *format++;
+                  }
+                  format--;
+               }
+               else {
+                  //no precision specified
+                  format--;
+               }
+            }
+            else {
+               //no precision specified
+               format--;
+            }
+            state = STATE_LENGTH;
+            break;
+         case STATE_LENGTH:
+            switch (ch) {
+               case 'h':
+                  length = LENGTH_H;
+                  if (*format == 'h') {
+                     length++;
+                     format++;
+                  }
+                  break;
+               case 'l':
+                  length = LENGTH_L;
+                  if (*format == 'l') {
+//                     length++;
+                     format++;
+                  }
+                  break;
+               case 'j':
+                  length = LENGTH_J;
+                  break;
+               case 'z':
+                  length = LENGTH_Z;
+                  break;
+               case 't':
+                  length = LENGTH_T;
+                  break;
+               case 'L':
+                  length = LENGTH_CAPL;
+                  break;
+               default:
+                  format--;
+                  break;
+            }
+            state = STATE_CONVERSION;
+            break;
+         case STATE_CONVERSION: {
+            char num_buf[32];
+            char *num_ptr;
+            int use_caps = 1;
+            int sign;
+            int val;
+            long long llval;
+            if (field_arg == -1) {
+               field_arg = arg_count++;
+            }
+            switch (ch) {
+               case 'd': case 'i': {
+                  int len;
+                  switch (length) {
+                     case LENGTH_H:
+                        val = (short)(int)args[field_arg];
+                        sign = val < 0;
+                        if (sign) {
+                           val = -val;
+                        }
+                        num_ptr = r_utoa(val, num_buf);
+                        break;
+                     case LENGTH_HH:
+                        val = (char)(int)args[field_arg];
+                        sign = val < 0;
+                        if (sign) {
+                           val = -val;
+                        }
+                        num_ptr = r_utoa(val, num_buf);
+                        break;
+                     case LENGTH_L:
+                     default:
+                        val = (long)args[field_arg];
+                        sign = val < 0;
+                        if (sign) {
+                           val = -val;
+                        }
+                        num_ptr = r_utoa(val, num_buf);
+                        break;
+                  }
+                  len = num_ptr - num_buf + 1;
+                  if (width_value == -1) {
+                     //by default min length is the entire value
+                     width_value = len;
+                     if (sign || (flags & FLAGS_SIGN)) {
+                        width_value++;
+                     }
+                  }
+                  if (prec_value == -1) {
+                     //by default max is entire value
+                     prec_value = len;
+                     if ((flags & FLAGS_ZERO) != 0 && prec_value < width_value) {
+                        //widen precision if necessary to pad to width with '0'
+                        if (sign || (flags & FLAGS_SIGN)) {
+                           prec_value = width_value - 1;
+                        }
+                        else {
+                           prec_value = width_value;
+                        }
+                     }
+                  }
+                  else {
+                     if (prec_value < len) {
+                        prec_value = len;
+                     }
+                     //number won't need leading zeros
+                     flags &= ~FLAGS_ZERO;
+                  }
+                  if (flags & FLAGS_LEFT) {
+                     if (sign) {
+                        func('-', user, 0);
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     else if ((flags & FLAGS_SIGN) != 0) {
+                        func('+', user, 0);
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (width_value != 0) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                  }
+                  else {
+                     while (width_value > (prec_value + 1)) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                     if (sign) {
+                        func('-', user, 0);
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     else if ((flags & FLAGS_SIGN) != 0) {
+                        func('+', user, 0);
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     if (width_value > prec_value) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                     }
+                  }
+                  break;
+               }
+               case 'o': {
+                  int len;
+                  switch (length) {
+                     case LENGTH_H:
+                        num_ptr = r_otoa((unsigned short)(unsigned int)args[field_arg], num_buf);
+                        break;
+                     case LENGTH_HH:
+                        num_ptr = r_otoa((unsigned char)(unsigned int)args[field_arg], num_buf);
+                        break;
+                     case LENGTH_L:
+                     default:
+                        num_ptr = r_otoa((unsigned long)args[field_arg], num_buf);
+                        break;
+                  }
+                  if (flags & FLAGS_HASH) {
+                     if (*num_ptr != '0') {
+                        num_ptr++;
+                        *num_ptr = '0';
+                     }
+                  }
+                  len = num_ptr - num_buf + 1;
+                  if (width_value == -1) {
+                     //by default min length is the entire value
+                     width_value = len;
+                  }
+                  if (prec_value == -1) {
+                     //by default max is entire value
+                     prec_value = len;
+                     if ((flags & FLAGS_ZERO) != 0 && prec_value < width_value) {
+                        //widen precision if necessary to pad to width with '0'
+                        prec_value = width_value;
+                     }
+                  }
+                  else {
+                     if (prec_value < len) {
+                        prec_value = len;
+                     }
+                     flags &= ~FLAGS_ZERO;
+                  }
+                  if (flags & FLAGS_LEFT) {
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (width_value != 0) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                  }
+                  else {
+                     while (width_value > prec_value) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                     }
+                  }
+                  break;
+               }
+               case 'u': {
+                  int len;
+                  switch (length) {
+                     case LENGTH_H:
+                        num_ptr = r_utoa((unsigned short)(unsigned int)args[field_arg], num_buf);
+                        break;
+                     case LENGTH_HH:
+                        num_ptr = r_utoa((unsigned char)(unsigned int)args[field_arg], num_buf);
+                        break;
+                     case LENGTH_L:
+                     default:
+                        num_ptr = r_utoa((unsigned long)args[field_arg], num_buf);
+                        break;
+                  }
+                  len = num_ptr - num_buf + 1;
+                  if (width_value == -1) {
+                     //by default min length is the entire value
+                     width_value = len;
+                  }
+                  if (prec_value == -1) {
+                     //by default max is entire value
+                     prec_value = len;
+                     if ((flags & FLAGS_ZERO) != 0 && prec_value < width_value) {
+                        //widen precision if necessary to pad to width with '0'
+                        prec_value = width_value;
+                     }
+                  }
+                  else {
+                     if (prec_value < len) {
+                        prec_value = len;
+                     }
+                     flags &= ~FLAGS_ZERO;
+                  }
+                  if (flags & FLAGS_LEFT) {
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (width_value != 0) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                  }
+                  else {
+                     while (width_value > prec_value) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                     }
+                  }
+                  break;
+               }
+               case 'x':
+                  use_caps = 0;  //now fall into X case
+               case 'X': {
+                  int len;
+                  switch (length) {
+                     case LENGTH_H:
+                        num_ptr = r_xtoa((unsigned short)(unsigned int)args[field_arg], num_buf, use_caps);
+                        break;
+                     case LENGTH_HH:
+                        num_ptr = r_xtoa((unsigned char)(unsigned int)args[field_arg], num_buf, use_caps);
+                        break;
+                     case LENGTH_L:
+                     default:
+                        num_ptr = r_xtoa((unsigned long)args[field_arg], num_buf, use_caps);
+                        break;
+                  }
+                  len = num_ptr - num_buf + 1;
+                  if (width_value == -1) {
+                     //by default min length is the entire value
+                     width_value = len;
+                  }
+                  if (prec_value == -1) {
+                     //by default max is entire value
+                     prec_value = len;
+                     if ((flags & FLAGS_ZERO) != 0 && prec_value < width_value) {
+                        //widen precision if necessary to pad to width with '0'
+                        prec_value = width_value;
+                     }
+                  }
+                  else {
+                     if (prec_value < len) {
+                        prec_value = len;
+                     }
+                     flags &= ~FLAGS_ZERO;
+                  }
+                  if (flags & FLAGS_LEFT) {
+                     if (flags & FLAGS_HASH && (len != 1 || *num_ptr != '0')) {
+                        func('0', user, 0);
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                        func(use_caps ? 'X' : 'x', user, 0);
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (width_value != 0) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                  }
+                  else {
+                     while (width_value > (prec_value + 2)) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                     if (flags & FLAGS_HASH && (len != 1 || *num_ptr != '0')) {
+                        func('0', user, 0);
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                        func(use_caps ? 'X' : 'x', user, 0);
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     else {
+                        while (width_value > prec_value) {
+                           func(' ', user, 0);
+                           width_value--;
+                        }
+                     }
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                     }
+                  }
+                  break;
+               }
+               case 'f': case 'F':
+                  break;
+               case 'e': case 'E':
+                  break;
+               case 'g': case 'G':
+                  break;
+               case 'a': case 'A':
+                  break;
+               case 'c': {
+                  unsigned char ch = (unsigned char)(unsigned int)args[field_arg];
+                  if (width_value == -1) {
+                     width_value = 1;
+                  }
+                  if (flags & FLAGS_LEFT) {
+                     func((char)ch, user, 0);
+                     if (width_value > 0) {
+                        width_value--;
+                     }
+                     while (width_value != 0) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                  }
+                  else {
+                     while (width_value > 1) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                     func(ch, user, 0);
+                  }
+                  break;
+               }
+               case 's': {
+                  const char *s_arg = (const char *)args[field_arg];
+                  int len = cgc_strlen(s_arg);
+                  if (width_value == -1) {
+                     //by default min length is the entire string
+                     width_value = len;
+                  }
+                  if (prec_value == -1 || prec_value > len) {
+                     //by default max is entire string but no less than width
+                     prec_value = len;
+                  }
+                  if (flags & FLAGS_LEFT) {
+                     while (prec_value != 0) {
+                        func(*s_arg++, user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (width_value != 0) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                  }
+                  else {
+                     while (width_value > prec_value) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                     while (prec_value != 0) {
+                        func(*s_arg++, user, 0);
+                        prec_value--;
+                     }
+                  }
+                  break;
+               }
+               case 'p': {
+                  int len;
+                  flags |= FLAGS_HASH;
+                  num_ptr = r_xtoa((unsigned int)args[field_arg], num_buf, 0);
+                  len = num_ptr - num_buf + 1;
+                  if (prec_value == -1) {
+                     //by default max is entire value
+                     prec_value = len;
+                  }
+                  else {
+                     if (prec_value < len) {
+                        prec_value = len;
+                     }
+                     flags &= ~FLAGS_ZERO;
+                  }
+                  if (width_value == -1) {
+                     //by default min length is the entire value
+                     width_value = prec_value + 2;
+                  }
+                  if (flags & FLAGS_LEFT) {
+                     func('0', user, 0);
+                     if (width_value > 0) {
+                        width_value--;
+                     }
+                     func('x', user, 0);
+                     if (width_value > 0) {
+                        width_value--;
+                     }
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                        if (width_value > 0) {
+                           width_value--;
+                        }
+                     }
+                     while (width_value != 0) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                  }
+                  else {
+                     while (width_value > (prec_value + 2)) {
+                        func(' ', user, 0);
+                        width_value--;
+                     }
+                     func('0', user, 0);
+                     if (width_value > 0) {
+                        width_value--;
+                     }
+                     func('x', user, 0);
+                     if (width_value > 0) {
+                        width_value--;
+                     }
+                     while (prec_value > len) {
+                        func('0', user, 0);
+                        prec_value--;
+                     }
+                     while (prec_value != 0) {
+                        func(*num_ptr--, user, 0);
+                        prec_value--;
+                     }
+                  }
+                  break;
+               }
+               case 'n': {
+                  void *np = (void*)args[field_arg];
+                  unsigned int len = func(0, user, 1);
+                  switch (length) {
+                     case LENGTH_HH:
+                        *(unsigned char*)np = (unsigned char)len;
+                        break;
+                     case LENGTH_H:
+                        *(unsigned short*)np = (unsigned short)len;
+                        break;
+                     case LENGTH_L:
+                     default:
+                        *(unsigned int*)np = len;
+                        break;
+                  }
+                  break;
+               }
+               case 'C':
+                  break;
+               case 'S':
+                  break;
+               default:
+                  break;
+            }
+            state = STATE_NORMAL;
+            break;
+         }
+      }
+   }
 }
 
-void *cgc_malloc(cgc_size_t size) {
-    /*
-     * A very stupid malloc implementation, meant to be simple.
-     * Keeps a list of allocated and freed chunks
-     * Alloc walks list of freed chunks to see if any are large enough
-     * If not, it allocates space large enough to store
-     * Oh, and we never actually free pages. It's quality software.
-     *
-     */
-    if (!cgc_heapinit_done) 
-        cgc_heapinit();
-
-    if (size == 0)
-        return NULL;
-
-    heap_chunk_t *chunk = cgc_freed;
-    //need space for inline metadata
-    size += sizeof(heap_chunk_t);
-
-    //walk freed list to see if we can find match
-    while (chunk->size < size && chunk->next != cgc_freed) {
-        chunk = chunk->next;
-    }
-
-    if (chunk->size >= size) {
-        //found a match, remove from freed list, add to allocated list, and return
-        //SSSENDL("found free chunk");
-        cgc_remove(chunk);
-        cgc_insert(cgc_allocated,chunk);
-        return ((uint8_t*)chunk)+sizeof(heap_chunk_t);
-    }
-
-    //see if free space in last allocated page is enough
-    if (size <= cgc_curleft) {
-        //SSSENDL("had enough left in current page");
-        chunk = (heap_chunk_t*)cgc_lastpage;
-        chunk->size = size;
-        cgc_lastpage += size;
-        cgc_curleft -= size;
-        cgc_insert(cgc_allocated,chunk);
-        return ((uint8_t*)chunk)+sizeof(heap_chunk_t);
-    }
-
-    //need to allocate new page
-
-    //SSSENDL("allocating new page");
-    //first add the remaining page to our freed list as a lazy hack
-    //if there's not enough left, we just let it leak
-    if (cgc_curleft > sizeof(heap_chunk_t)) {
-        //SSSENDL("adding remainder to free list");
-        chunk = (heap_chunk_t*)cgc_lastpage;
-        chunk->size = cgc_curleft;
-        cgc_insert(cgc_freed,chunk);
-    }
-
-    if (cgc_allocate(size,0,(void**)&chunk) != 0)
-        return NULL;
-
-    chunk->size = size;
-    cgc_insert(cgc_allocated,chunk);
-
-    cgc_lastpage = ((uint8_t*)chunk)+size;
-    //this is bad.
-    if ((size & 0xfff) != 0)
-        cgc_curleft = PAGE_SIZE-(size&(PAGE_SIZE-1));
-    else
-        cgc_curleft = 0;
-    return ((uint8_t*)chunk)+sizeof(heap_chunk_t);
+int vdprintf(int fd, const char *format, va_list ap) {
+   struct _fd_printer fp;
+   fp.fd = fd;
+   fp.err = 0;
+   fp.count = 0;
+   printf_core(fd_printer, &fp, format, ap);
+   return fp.count;
 }
 
-void cgc_free(void *p) {
-    /*
-     * A very stupid free for a very stupid malloc
-     * Simply moves pointer from allocated to free list
-     * With no checking of anything, obviously
-     *
-     */
-    if (!p)
-        return;
-
-    heap_chunk_t *chunk = (heap_chunk_t*)((uint8_t*)p - sizeof(heap_chunk_t));
-
-    //fix allocated list
-    cgc_remove(chunk);
-
-    //add chunk to the freed list
-    cgc_insert(cgc_freed,chunk);
-    return;
-}
-
-void cgc___stack_cookie_init() {
-    RAND(&cgc__cookie, sizeof(cgc__cookie), NULL);
-}
-
-void cgc___stack_cookie_fail() {
-    SSENDL(sizeof(COOKIEFAIL)-1,COOKIEFAIL);
-    cgc__terminate(66);
-}
+#endif

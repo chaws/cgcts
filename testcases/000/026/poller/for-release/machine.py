@@ -4,197 +4,340 @@ from generator.actions import Actions
 import random
 import string
 import struct
-import linecache
+
+instFmts = {
+    "ALU":0,
+    "FMT2":1,
+}
+
+aluOps = {
+    "ADD":0,
+    "ADC":1,
+    "SUB":2,
+    "SUC":3,
+    "LSL":4,
+    "LSR":5,
+    "RSB":6,
+    "RSC":7,
+    "AND":8,
+    "OR":9,
+    "XOR":10,
+    "NOT":11,
+    "MIN":12,
+    "MAX":13,
+    "CLR":14,
+    "SET":15,
+}
+
+fmt2Ops = {
+    "JMP":0,
+    "JAL":1,
+    "LDI":2,
+    "LMBD":3,
+    "SCAN":4,
+    "HALT":5,
+    "RESERVED_1":6,
+    "RESERVED_2":7,
+    "RESERVED_3":8,
+    "RESERVED_4":9,
+    "RESERVED_5":10,
+    "RESERVED_6":11,
+    "RESERVED_7":12,
+    "RESERVED_8":13,
+    "RESERVED_9":14,
+    "SLP":15,
+}
+
+def getLastArg(regOp):
+    if(regOp == 1):
+        return "R%d" % random.choice(range(32))
+    else:
+        return random.choice(range(0xffff))
+
+def genInstruction():
+    fmts = [aluOps, fmt2Ops]
+    fmt = random.choice(fmts)
+    regOp = random.choice([0,1])
+    fmt = aluOps
+    if fmt == aluOps:
+        op = random.choice(fmt.keys())
+        return "%s R%d R%d %s" % (op, random.choice(range(32)), random.choice(range(32)), getLastArg(regOp))
+    else:
+        print "FMT2"
+    pass
+
+def buildALUInstruction(inst):
+    aluOpName,Rd,Rs1,Rs2 = inst.split()
+    aluOp = aluOps[aluOpName]
+    if Rs2[0] == "R":
+        aluIO = 0
+    else:
+        aluIO = 1
+    if(aluIO == 0):
+        aluRS2 = int(Rs2[1:])
+    else:
+        aluRS2 = int(Rs2)
+    aluRS1 = int(Rs1[1:])
+    aluRD = int(Rd[1:])
+
+    if aluIO == 1:
+        return int("0x%0.8x" % (0 << (31-31)| (aluOp << (31-28)) | aluIO << (31-24) | aluRS2 << (31-23) | aluRS1 << (31-12) | aluRD << (31-4)), 16)
+    else:
+        return int("0x%0.8x" % (0 << (31-31)| (aluOp << (31-28)) | aluIO << (31-24) | aluRS2 << (31-20) | aluRS1 << (31-12) | aluRD << (31-4)), 16)
+
+def buildLDIInstruction(inst):
+    value = int(inst.split()[2])
+    rd = int(inst.split()[1][1:])
+    if int("0x%0.8x" % (0b001 << (31-31) | fmt2Ops["LDI"] << (31-28) | value << (31-23) | rd << (31-4)), 16) == -1:
+        print "!!!!!!!!" + inst
+    return int("0x%0.8x" % (0b001 << (31-31) | fmt2Ops["LDI"] << (31-28) | value << (31-23) | rd << (31-4)), 16)
+
+def buildJMPInstruction(inst):
+    branchTarget = inst.split()[1]
+    if branchTarget[0] == "R":
+        aluIO = 0
+        branchTarget = int(branchTarget[1:])
+    else:
+        aluIO = 1
+        branchTarget = int(branchTarget)
+
+    if aluIO == 1:
+        return int("0x%0.8x" % (0b001 << (31-31) | fmt2Ops["JMP"] << (31-28) | aluIO << (31-24) | branchTarget << (31-23)), 16)
+    else:
+        return int("0x%0.8x" % (0b001 << (31-31) | fmt2Ops["JMP"] << (31-28) | aluIO << (31-24) | branchTarget << (31-20)), 16)
+
+def buildJALInstruction(inst):
+    branchTarget = inst.split()[2]
+    rd = int(inst.split()[1][1:])
+
+    if branchTarget[0] == "R":
+        aluIO = 0
+        branchTarget = int(branchTarget[1:])
+        return int("0x%0.8x" % (0b001 << (31-31) | fmt2Ops["JAL"] << (31-28) | aluIO << (31-24) | branchTarget << (31-20) | rd << (31-4)), 16)
+    else:
+        aluIO = 1
+        branchTarget = int(branchTarget)
+        return int("0x%0.8x" % (0b001 << (31-31) | fmt2Ops["JAL"] << (31-28) | aluIO << (31-24) | branchTarget << (31-23) | rd << (31-4)), 16)
 
 
-class Hugger(Actions):
-    name = ""
-    lfsrstate = 0
-
-    def genName(self):
-        return ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase) for _ in range(10))
-
-    def doLFSR(self):
-        self.lfsrstate &= 0xffffffff
-        bits = ((self.lfsrstate >> 0) ^ (self.lfsrstate >> 2) ^ (self.lfsrstate >> 3) ^ (self.lfsrstate >> 5)) & 1
-        self.lfsrstate = ((self.lfsrstate >> 1) & 0xffffffff) | ((bits << 31) & 0xffffffff)
-        return self.lfsrstate
-
-    def start(self):
-        #self.delay(100)
-        self.hugs = 1000
-        self.goaway = 0
-        pass
-
-    def handleWager(self):
-        self.read(delim="? ", expect="How much would you like to wager")
-        if(self.hugs <= 1):
-            bet = 1
+def buildInstruction(inst):
+    op = inst.split()[0]
+    if(op in aluOps.keys()):
+        return buildALUInstruction(inst)
+    if(op in fmt2Ops.keys()):
+        if op == "LDI":
+            return buildLDIInstruction(inst)
+        if op == "JMP":
+            return buildJMPInstruction(inst)
+        if op == "JAL":
+            return buildJALInstruction(inst)
         else:
-            bet = random.randint(1, self.hugs)
-        self.write("%d\n" % bet)
-        if (bet > 1000):
-            self.read(delim="\n", expect="HIGH ROLLER COMING THROUGH!")
-        return bet
+            print "FMT2"
+        return 0x41414141
+    else:
+        print "Illegal Instruction"
+        return 0x42424242
 
-    def banner(self):
-        self.read(delim="\n", expect="Welcome to the hug gambling server.")
+class prucpu():
+    def __init__(self):
+        self.r = [0 for i in range(32)]
+        self.pc = 0
+        self.code = []
+        self.mem = [0 for i in range(0x4000)]
+        self.asm = []
+        self.carry = 0
+        self.executed = 0
 
-    def getName(self):
-        self.read(delim="\n", expect="What is your name?")
-        self.name = self.genName()
-        self.write(self.name+ "\n")
-        self.lfsrstate = struct.unpack("I", self.name[0:4])[0]
-        self.read(delim=". ", expect="Hi " + self.name)
-
-    def cardName(self, cardNum):
-        return["two","three","four","five","six","seven","eight","nine","ten","jack","queen","king","ace"][cardNum]
-
-    def cardSuite(self, cardNum):
-        return["spades","hearts","clubs","diamonds"][cardNum]
-
-    def resolveWar(self, wager):
-        bet = wager * 2
-        self.doLFSR()
-        self.doLFSR()
-        self.doLFSR()
-        playerCard = self.doLFSR()
-        self.doLFSR()
-        self.doLFSR()
-        self.doLFSR()
-        dealerCard = self.doLFSR()
-        if(dealerCard % 13 > playerCard % 13):
-            self.read(delim="\n", expect="Dealer's %s of %s beats player's %s of %s" % (self.cardName(dealerCard % 13), self.cardSuite(dealerCard % 4), self.cardName(playerCard % 13), self.cardSuite(playerCard % 4)))
-            self.read(delim="\n", expect="YOU LOSE!")
-            self.read(delim="\n\n", expect="Debiting %d from your hug balance." % bet)
-            self.hugs-=bet
-        elif(dealerCard % 13 < playerCard % 13):
-            self.read(delim="\n", expect="Player's %s of %s beats dealer's %s of %s" % (self.cardName(playerCard % 13), self.cardSuite(playerCard % 4), self.cardName(dealerCard % 13), self.cardSuite(dealerCard % 4)))
-            self.read(delim="\n", expect="YOU WIN!")
-            self.read(delim="\n\n", expect="Adding %d to your hug balance." % bet)
-            self.hugs+=bet
-        else:
-            self.read(delim="\n", expect="Both players drew a %s" % (self.cardName(playerCard % 13)))
-            self.read(delim="\n", expect="THIS MEANS WAR")
-            self.resolveWar(bet)
-
-    def war(self):
-        if(self.hugs <= 0):
-            return
-        self.write("4\n")
-        bet = self.handleWager();
-        playerCard = self.doLFSR()
-        dealerCard = self.doLFSR()
-        if(dealerCard % 13 > playerCard % 13):
-            self.read(delim="\n", expect="Dealer's %s of %s beats player's %s of %s" % (self.cardName(dealerCard % 13), self.cardSuite(dealerCard % 4), self.cardName(playerCard % 13), self.cardSuite(playerCard % 4)))
-            self.read(delim="\n", expect="YOU LOSE!")
-            self.read(delim="\n\n", expect="Debiting %d from your hug balance." % bet)
-            self.hugs-=bet
-        elif(dealerCard % 13 < playerCard % 13):
-            self.read(delim="\n", expect="Player's %s of %s beats dealer's %s of %s" % (self.cardName(playerCard % 13), self.cardSuite(playerCard % 4), self.cardName(dealerCard % 13), self.cardSuite(dealerCard % 4)))
-            self.read(delim="\n", expect="YOU WIN!")
-            self.read(delim="\n\n", expect="Adding %d to your hug balance." % bet)
-            self.hugs+=bet
-        else:
-            self.read(delim="\n", expect="Both players drew a %s" % (self.cardName(playerCard % 13)))
-            self.read(delim="\n", expect="THIS MEANS WAR")
-            self.resolveWar(bet)
-
-    def chooseGame(self):
-        if(self.hugs <= 0 and self.goaway == 0):
-            self.read(delim="\n", expect="You're all out of hugs :(. Thanks for playing.")
-            self.goaway = 1
-        if(self.goaway == 1):
-            return
-        if(self.hugs > 1000000):
-            self.hugs = 1000000
-        self.read(delim="\n", expect="You have %d hugs. Shall we play a game?" % self.hugs)
-        self.read(delim="\n", expect="1. Coin Flip")
-        self.read(delim="\n", expect="2. Hangman")
-        self.read(delim="\n", expect="3. Dice game")
-        self.read(delim="\n", expect="4. War")
-        self.read(delim="\n", expect="q. Quit")
-
-    def coinflip(self):
-        if(self.hugs <= 0):
-            return
-        self.write("1\n")
-        wagered = self.handleWager()
-        choice = random.choice(['h', 't'])
-        self.read(delim="\n", expect="Flipping a coin. Do you think it's going to be (h)eads or (t)ails?")
-        self.write(choice + "\n")
-        result = self.doLFSR() % 2
-        if(choice == 'h' and result == 1):
-            self.read(delim="\n", expect="YOU WIN!")
-            self.read(delim="\n\n", expect="Adding %d to your hug balance." % wagered)
-            self.hugs+=wagered
-        elif(choice == 't' and result == 0):
-            self.read(delim="\n", expect="YOU WIN!")
-            self.read(delim="\n\n", expect="Adding %d to your hug balance." % wagered)
-            self.hugs+=wagered            
-        else:
-            self.read(delim="\n", expect="YOU LOSE!")
-            self.read(delim="\n\n", expect="Debiting %d from your hug balance." % wagered)
-            self.hugs-=wagered
-
-    def boards(self, which):
-        return ["|---|\n|\n|\n|\n|\n______\n", "|---|\n|   O\n|\n|\n|\n______\n",
-        "|---|\n|   O\n|   |\n|\n|\n______\n", "|---|\n|   O\n|  -|-\n|\n|\n______\n",
-        "|---|\n|   O\n|  -|-\n|  / \\\n|\n______\n"][which];
-
-    def hangman(self):
-        if(self.hugs <= 0):
-            return
-        hmboard = 0
-        self.write("2\n")
-        bet = self.handleWager()
-        word = linecache.getline("support/words", (self.doLFSR() % 235886) + 1).strip()
-        boardmap = list("_" * len(word))
-        letters = set([x for x in word])
-        for letter in letters:
-            self.read(length=len(self.boards(hmboard)), expect=self.boards(hmboard))
-            self.read(delim="\n", expect=''.join(boardmap))
-            self.read(delim=": ", expect="Please enter a guess")
-            for i in range(len(word)):
-                if word[i] == letter:
-                    boardmap[i] = letter
-            self.write(letter + "\n")
-        self.read(delim="\n", expect="YOU WIN!")
-        self.read(delim="\n\n", expect="Adding %d to your hug balance." % bet)
-        self.hugs += bet
-
-    def dicegame(self):
-        if(self.hugs <= 0):
-            return
-        self.write("3\n")
-        bet = self.handleWager()
-        times = random.randint(1, 16)
-        self.read(delim="? ", expect="How many rolls do you want")
-        self.write("%d\n" % times)
-        while(times > 0):
-            roll = self.doLFSR() % 31338
-            self.read(delim="\n", expect="Rolling a 31337 sided dice. 31337 wins jackpot. If you guess within 100, you win.")
-            self.read(delim="? ", expect="What is your guess for the dice")
-            if(roll == 31337):
-                self.read(delim="\n", expect="!!!JACKPOT!!!YOU WIN!")
-		bet = bet * 1000
-                self.hugs+=bet
-            	self.read(delim="\n\n", expect="Adding %d to your hug balance." % (bet))
+    def emulate(self):
+        while True:
+            if self.pc > len(self.asm)-1:
+                return
+            if self.executed >= 2000:
+                return
+            if len(self.asm) == 0:
+                return
+            if type(self.asm[self.pc]) is not str:
+                return
+            op = self.asm[self.pc].split()[0]
+            if op == "LDI":
+                op1,op2 = self.asm[self.pc].split()[1:]
+                self.doLDI(int(op1[1:]), int(op2))
+            elif op in aluOps.keys():
+                op1, op2, op3 = self.asm[self.pc].split()[1:]
+                if op3[0] == "R":
+                    op3 = self.r[int(op3[1:])]
+                else:
+                    op3 = int(op3)
+                getattr(self, "do"+op)(int(op1[1:]),int(op2[1:]),op3)
+            elif op == "JMP":
+                arg1=self.asm[self.pc].split()[1]
+                if arg1[0] == "R":
+                    arg1 = self.r[int(arg1[1:])]
+                else:
+                    arg1 = int(arg1)
+                self.doJMP(arg1)
+                self.executed += 1
+                continue
+            elif op == "JAL":
+                rd,arg1=self.asm[self.pc].split()[1:]
+                rd = int(rd[1:])
+                if arg1[0] == "R":
+                    arg1 = self.r[int(arg1[1:])]
+                else:
+                    arg1 = int(arg1)
+                self.doJAL(rd, arg1)
+                self.executed +=1
+                continue
             else:
-            	self.write("%d\n" % roll)
-            	self.read(delim="\n", expect="Yes! %d is 0 away from %d" % (roll, roll))
-            	self.read(delim="\n", expect="YOU WIN!")
-            	self.read(delim="\n\n", expect="Adding %d to your hug balance." % bet)
-            	self.hugs+=bet
-            times-=1
+                return
+            self.pc += 1
+            self.executed +=1
 
+    def doJMP(self, arg1):
+        self.pc=arg1 & 0xffffffff
+
+    def doJAL(self, rd, arg1):
+        self.r[rd] = self.pc+1
+        self.pc=arg1
+
+    def doMIN(self, rd, s1, s2):
+        if self.r[s1] > s2:
+            self.r[rd] = s2
+        else:
+            self.r[rd] = self.r[s1]
+
+    def doMAX(self, rd, s1, s2):
+        if self.r[s1] < s2:
+            self.r[rd] = s2
+        else:
+            self.r[rd] = self.r[s1]
+
+    def doAND(self, rd, s1, s2):
+        self.r[rd] = self.r[s1] & s2
+
+    def doOR(self, rd, s1, s2):
+        self.r[rd] = self.r[s1] | s2
+
+    def doXOR(self, rd, s1, s2):
+        self.r[rd] = self.r[s1] ^ s2
+
+    def doNOT(self, rd, s1, s2):
+        self.r[rd] = (((((~self.r[s1]) & 0xffffffff)* -1) - 2**32) * -1) & 0xffffffff
+
+    def doLDI(self, rd, imm):
+        self.r[rd] = imm
+
+    def doRSC(self, rd, s1, s2):
+        self.r[rd] = s2 - self.r[s1] - self.carry
+        self.carry = ((self.r[rd] & 0xffffffff) >> 31) & 1
+        if(self.r[rd] < 0):
+            self.r[rd] = ((self.r[rd] * -1) - 2**32) * -1
+
+    def doRSB(self, rd, s1, s2):
+        self.r[rd] = s2 - self.r[s1]
+        self.carry = ((self.r[rd] & 0xffffffff) >> 31) & 1
+        if(self.r[rd] < 0):
+            self.r[rd] = ((self.r[rd] * -1) - 2**32) * -1
+
+    def doLSL(self, rd, s1, s2):
+        self.r[rd] = (self.r[s1] << (s2 & 0x1f)) & 0xffffffff
+
+    def doLSR(self, rd, s1, s2):
+        self.r[rd] = (self.r[s1] >> (s2 & 0x1f)) & 0xffffffff
+
+    def doADD(self, rd, s1, s2):
+        self.r[rd] = (self.r[s1] + s2) & 0xffffffff
+        self.carry = ((self.r[rd] & 0xffffffff) >> 31) & 1
+
+    def doADC(self, rd, s1, s2):
+        self.r[rd] = (self.r[s1] + s2 + self.carry) & 0xffffffff
+        self.carry = (self.r[rd] >> 31) & 1
+
+    def doSUB(self, rd, s1, s2):
+        self.r[rd] = self.r[s1] - s2
+        self.carry = ((self.r[rd] & 0xffffffff) >> 31) & 1
+        if(self.r[rd] < 0):
+            self.r[rd] = ((self.r[rd] * -1) - 2**32) * -1
+
+    def doSUC(self, rd, s1, s2):
+        self.r[rd] = self.r[s1] - s2 - self.carry
+        self.carry = ((self.r[rd] & 0xffffffff) >> 31) & 1
+        if(self.r[rd] < 0):
+            self.r[rd] = ((self.r[rd] * -1) - 2**32) * -1
+
+    def doCLR(self, rd, s1, s2):
+        self.r[rd] = self.r[s1] & (~(1 << (s2 & 0x1f)))
+
+    def doSET(self, rd, s1, s2):
+        self.r[rd] = self.r[s1] | (1 << (s2 & 0x1f))
+
+class PRU(Actions):
+    def start(self):
+        self.delay(50)
+        self.cpu = prucpu()
+
+    def genInstructions(self):
         pass
 
-    def quit(self):
-        if(self.hugs <= 0):
+    def genALU(self):
+        op = random.choice(aluOps.keys())
+        regTarget = random.choice([0, 1])
+        if regTarget == 0:
+            arg2 = "R" + str(random.choice(range(32)))
+        else:
+            arg2 = str(random.choice(range(0xff)))
+        dest = "R" + str(random.choice(range(32)))
+        arg1 = "R" + str(random.choice(range(32)))
+        self.cpu.code.append(buildInstruction("%s %s %s %s" % (op, dest, arg1, arg2)))
+        self.cpu.asm.append("%s %s %s %s" % (op, dest, arg1, arg2))
+
+    def genLDI(self):
+        imm = random.choice(range(0xffff))
+        dest = "R" + str(random.choice(range(32)))
+        self.cpu.code.append(buildInstruction("LDI %s %s" % (dest, imm)))
+        self.cpu.asm.append("LDI %s %s" % (dest, imm))
+
+    def genBranch(self):
+        if len(self.cpu.asm) == 0:
             return
-        self.write("q\n")
-        self.read(delim="\n", expect="Thanks for playing! Don't spend all your hugs in one place.")
+        imm = random.choice(range(len(self.cpu.asm)))
+        op = random.choice(["JMP", "JAL"])
+        if op=="JAL":
+            rd = random.choice(range(32))
+            self.cpu.code.append(buildInstruction("JAL R%d %s" % (rd, str(imm))))
+            self.cpu.asm.append("JAL R%d %s" % (rd, str(imm)))
+        else:
+            self.cpu.code.append(buildInstruction("JMP %d" % (imm)))
+            self.cpu.asm.append("JMP %d" % (imm))
 
-    def end(self):
-        pass
+    def dumpState(self):
+        numInstructions = len(self.cpu.asm)
+        if numInstructions > 1000:
+            numInstructions = 1000
+            self.cpu.asm = self.cpu.asm[:1000]
+            self.cpu.code = self.cpu.code[:1000]
+        self.write(struct.pack("I", len(self.cpu.asm)))
+        for i in range(numInstructions):
+            self.write(struct.pack("<I", self.cpu.code[i]))
+        self.cpu.emulate()
+        self.read(expect="============================================", delim="\n")
+        for i in range(16):
+            val1 = self.cpu.r[i*2]
+            val2 = self.cpu.r[i*2+1]
+            if val1 < 0:
+                val1 = ((val1 * -1) - 2**32) *-1
+            if val2 < 0:
+                val2 = ((val2 * -1) - 2**32) * -1
+            self.read(expect="R%d:\t0x%0.8x\tR%d:\t0x%0.8x" % (i*2, val1, i*2+1, val2), delim="\n")
+        self.read(expect="PC:\t0x%0.8x" % (self.cpu.pc * 4), delim="\n")
+        self.read(expect="============================================", delim="\n")
+
+if __name__ == "__main__":
+    print "%0.8x" % buildInstruction("LDI R0 29")
+    print "%0.8x" % buildInstruction("LSL R0 R0 8")
+    print "%0.8x" % buildInstruction("LDI R1 216")
+    print "%0.8x" % buildInstruction("OR R0 R0 R1")
+    print "%0.8x" % buildInstruction("LSL R0 R0 8")
+    print "%0.8x" % buildInstruction("LDI R1 64")
+    print "%0.8x" % buildInstruction("OR R0 R0 R1")
+    print "%0.8x" % buildInstruction("LSL R0 R0 8")

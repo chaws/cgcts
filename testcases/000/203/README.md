@@ -1,26 +1,56 @@
-# KPRCA-00019
+# CGC Challenge Binary Template
 
-## DARPA performer group
-Kaprica Security (KPRCA)
+## Author Information
 
-## Description:
+"Ben Schmidt" <info@narfindustries.com>
 
-This service represents a device that implements a human-interface device protocol over a session protocol that is responsible for muxing, fragmentation and reassembly. It is similar to a different protocol known as Bluetooth, but definitely is not Bluetooth. There are three layers of protocols which makes the system very extensible and flexible. 
+### DARPA performer group
+
+Narf Industries (NRFIN)
+
+## Description
+
+TFTTP (The Futuristic TV Trivia Protocol) is InfoSphere's latest effort to bring you, the knowledgable consumer, interesting content as fast as possible.
 
 ### Feature List
 
-The bottom layer is designed to interface with a radio and has a fixed packet length that should support speeds up to 723 kb/s. The middle layer supports packet sizes up to 64KB and will fragment them as necessary before sending to the bottom layer. Additionally, the middle layer has support for 65471 dynamic channels that can be created and destroyed as needed, with fixed addresses to multiplex between several applications. The only application that is implemented in this device represents a simple RID, with random data generated rather than human data.
+Good news, everyone!
+Here at InfoSphere, we try and bring you the content you crave at prices you can just barely afford.
+Our most recent efforts to do just that have resulted in TFTTP, the latest, greatest transfer protocol designed specifically for optimizing the transfer of TV show trivia.
+Inspired by TFTP, we've done away with authentication and minimized protocol overhead, leading to performance advances that will revolutionize this new and emerging field.
+Our database is still small, but we hope that our new users can share their wealth of knowledge with others through our helpful service.
+Feel free to download the alpha version of our client (for the low, introductory price of 5 million quatloos) and give it a try!
 
 ## Vulnerability
 
-The vulnerability is present in the options parsing in session\_configuration\_request. The protocol specifies that unknown required options be sent in the response with a unknown options result. However, the function does not allocate enough memory to hold all of the options if the length of an option goes beyond the end of the command length. This can result in an overflow of up to 254 bytes; more than enough to overwrite the heap structures of the next block or the contents of the next block. From this point, a write-anywhere condition is possible to cause a function pointer to be overwritten.
+This CB contains two vulnerabilities: a trivial out-of-bounds memory access vulnerability, and an uninitialized memory usage vulnerability.
+The former is designed to be trivial to find; the latter is significantly more difficult.
+The out-of-bounds access occurs while scanning a user-controlled packet for the byte 0x42; if the packet does not contain this, a crash will occur.
+To reach the vulnerable function, two main constraints must be satisfied:
+
+ - The packet must contain the string "0101010101010101" at data+2
+ - The result of a call to getrand() (a small wrapper for random returning a 64-bit integer) must equal 0x3127a1b73
+
+The second constraint is obviously more difficult; brute force is infeasible in a reasonable amount of time.
+To prove vulnerability, a CRS must instead utilize its control of the count argument and set it to 0, causing the result to be left uninitialized.
+It must also reason about how to fully control this uninitialized memory, which can be done by correctly sending a large, fragmented request.
 
 ### Generic class of vulnerability
-Heap-based Buffer Overflow
+
+Uninitilized memory use
+Out of bounds access
 
 ### CWE classification
-CWE-122: Heap-based Buffer Overflow
+
+CWE-457: Use of uninitialized variable 
+CWE-125: Out-of-bounds read
 
 ## Challenges
 
-The two primary challenges are the complexity of the protocol and the integrity function. The system is composed of three separate protocols that interact with each other, sometimes using function pointers to do so. The released PCAP only has one session, so attackers will need to analyze the binary as well to understand the protocol. A successful attack is only possible by correctly adjust a couple of length bytes and adding the proper data. The released PCAP is also the only test of the integrity function, which sends back the contents of the code to make sure it has not been modified. Only a very small amount of the main function is verified, so a patch is still possible, but heavy-weight systems may have issues if not designed well.
+The vulnerability that directly causes a crash should be trivial to find for most CRSs; recent clang checkers easily find this out-of-bounds access.
+Given the trivial nature of this vulnerability, we anticipate patching to be trivial as well.
+
+However, satisfying the constraints necessary to prove the vulnerability is significantly more difficult.
+Competitors must be able to identify uninitialized memory access in cases when an undersized count value is provided to random(), and craft a request to trigger it.
+This requires correct modeling of the behavior of random(), and will foil naive attempts to ignore branches wholly dependent on server-generated random values.
+In addition, they must autonomously reason about fragmentation support and utilize this knowledge to fully control the uninitialized memory.

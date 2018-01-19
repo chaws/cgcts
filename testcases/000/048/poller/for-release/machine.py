@@ -1,476 +1,433 @@
 #!/usr/bin/env python
-
 from generator.actions import Actions
+
 import random
+import re
 import string
-from struct import pack, unpack, unpack_from
+import struct
+import sys
+import numpy
 
+char_maps = {
+    'a': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','1','1','1','1','0','0',
+        '0','0','0','0','0','1','0',
+        '0','0','1','1','1','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','1','1','0','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'b': [
+        '1','1','0','0','0','0','0',
+        '0','1','0','0','0','0','0',
+        '0','1','0','0','0','0','0',
+        '0','1','1','1','1','0','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '1','0','1','1','1','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'c': [
+          '0','1','1','1','1','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','0','0','0','0','0',
+          '0','1','1','1','1','0','0',
+          '0','0','0','0','0','0','0',
+    ],
+    'd': [
+        '0','0','0','0','1','1','0',
+        '0','0','0','0','0','1','0',
+        '0','0','0','0','0','1','0',
+        '0','0','1','1','1','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','1','1','0','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'e': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','1','1','1','1','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','1','1','1','0',
+        '0','1','0','0','0','0','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','1','1','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'f': [
+        '0','0','1','1','1','1','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '1','1','1','1','1','1','1',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','1','1','1','1','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'g': [
+        '0','0','0','0','0','0','0',
+        '0','1','1','1','1','0','1',
+        '0','1','0','0','0','0','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','1','1','1','1','0',
+        '0','0','0','0','0','1','0',
+        '0','0','0','0','0','1','0',
+        '0','0','0','0','0','1','0',
+        '0','0','1','1','1','0','0',
+    ],
+    'h': [
+        '1','1','0','0','0','0','0',
+        '0','1','1','1','0','0','0',
+        '0','1','0','0','1','0','0',
+        '0','1','0','0','0','0','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '1','1','1','0','1','1','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'i': [
+        '0','0','0','1','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','1','1','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','1','1','1','1','1','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'j': [
+        '0','0','0','0','1','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','1','1','1','1','0','0',
+        '0','0','0','0','1','0','0',
+        '0','0','0','0','1','0','0',
+        '0','0','0','0','1','0','0',
+        '0','0','0','0','1','0','0',
+        '0','0','0','0','1','0','0',
+        '0','0','0','0','1','0','0',
+        '0','0','0','0','1','0','0',
+        '0','1','1','1','0','0','0',
+    ],
+    'k': [
+        '1','1','0','0','0','0','0',
+        '0','1','0','0','0','0','0',
+        '0','1','0','0','0','0','0',
+        '0','1','0','0','1','1','0',
+        '0','1','0','1','0','0','0',
+        '0','1','1','0','0','0','0',
+        '0','1','0','1','0','0','0',
+        '0','1','0','0','1','0','0',
+        '1','1','0','0','0','1','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'l': [
+        '0','1','1','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','1','1','1','1','1','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'm': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '1','1','1','0','1','0','0',
+        '0','1','0','1','0','1','0',
+        '0','1','0','1','0','1','0',
+        '0','1','0','1','0','1','0',
+        '0','1','0','1','0','1','0',
+        '1','1','0','1','0','1','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'n': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '1','0','1','1','1','0','0',
+        '0','1','1','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '1','1','1','0','0','1','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'o': [
+          '0','0','0','0','0','0','0',
+          '0','1','1','1','1','1','0',
+          '0','1','0','0','0','1','0',
+          '0','1','0','0','0','1','0',
+          '0','1','0','0','0','1','0',
+          '0','1','0','1','0','1','0',
+          '0','1','0','1','0','1','0',
+          '0','1','0','1','0','1','0',
+          '0','1','0','0','0','1','0',
+          '0','1','0','0','0','1','0',
+          '0','1','1','1','1','1','0',
+          '0','0','0','0','0','0','0',
+    ],
+    'p': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '1','0','1','1','1','0','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','1','1','1','0','0',
+        '0','1','0','0','0','0','0',
+        '0','1','0','0','0','0','0',
+        '1','1','1','0','0','0','0',
+    ],
+    'q': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','1','1','1','0','1',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','1','1','1','0',
+        '0','0','0','0','0','1','0',
+        '0','0','0','0','0','1','0',
+        '0','0','0','0','1','1','1',
+    ],
+    'r': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','1','0','1','1','1','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','1','1','1','1','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    's': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','1','1','1','0','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','1','1','0','0',
+        '0','0','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','1','1','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    't': [
+        '0','0','0','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','1','1','1','1','1','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','0','1','0','0','0','1',
+        '0','0','0','1','1','1','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'u': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','1','1','0',
+        '0','0','0','0','0','1','0',
+        '1','1','0','0','0','1','0',
+        '1','1','0','0','0','1','0',
+        '1','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','1','1','0','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'v': [
+        '0','0','0','0','0','0','0',
+        '1','1','1','0','1','1','1',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','0','1','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'w': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '1','1','1','0','1','1','1',
+        '0','1','0','0','0','1','0',
+        '0','1','0','1','0','1','0',
+        '0','1','0','1','0','1','0',
+        '0','0','1','0','1','0','0',
+        '0','0','1','0','1','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'x': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '1','1','1','0','1','1','1',
+        '0','0','1','0','1','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','1','0','1','0','0',
+        '0','1','0','0','0','1','0',
+        '1','1','0','0','0','1','1',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    'y': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '1','1','1','0','1','1','1',
+        '0','1','0','0','0','1','0',
+        '0','1','0','0','0','1','0',
+        '0','0','1','0','1','0','0',
+        '0','0','1','1','1','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','0','1','0','0','0',
+        '0','1','1','0','0','0','0',
+    ],
+    'z': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','1','1','1','1','1','0',
+        '0','1','0','0','1','0','0',
+        '0','0','0','1','0','0','0',
+        '0','0','1','0','0','0','0',
+        '0','1','0','0','0','1','0',
+        '0','1','1','1','1','1','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+    ' ': [
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+        '0','0','0','0','0','0','0',
+    ],
+}
 
-class FileSystemTest(Actions):
-
+class Machine(Actions):
     def start(self):
-
-        #self.delay(100)
-        self.securityID = 0
-        self.userName = ''
-        self.totalSize = 8192*300        
-        self.blockSize = 8192
-
-        self.totalBlocks = self.totalSize / self.blockSize
-
-        self.freeBlocks = 0
-        self.maxBlocksPerFile = (self.blockSize - 8) / 4
-        self.maxDirEntries = 127
-        self.maxOpenFiles = 10
-
-        self.rootDir = []
-        self.rootDirFileCount = 0
-
-        self.fileData = []
-
-        self.fileHandles = []
-
-        for i in range(0, self.maxOpenFiles+1):
-            self.fileHandles.append(-1)
-
-        for i in range (0, self.maxDirEntries):
-            # filename, size, type, in-use flag, owner-ID, other-perms, owner-name
-            self.rootDir.append(["", 0, 0, 0, 0, 0, ''])
-            # contents, readPos, writePos
-            self.fileData.append(['', 0, 0])
-
-        self.rootDir[0] = ['README.txt', 138, 2, 1, 0, 3, '       ']
-        self.rootDir[1] = ['authentication.db', 4096, 4, 1, 0, 0, '       ']
-        self.rootDirFileCount = 1
-
-        self.fileData[0][0] = 'Welcome to the interactive filesystem shell. Valid commands are make, makememfile, erase, list, copy, write, show, first, last, and perms.'
-
-
-    def top(self):
-
-        pass
-
-    def unauthed(self):
-
-        self.read( length = 7, expect = 'login: ')
-
-    def authed(self):
-
-        self.read( length = 2, expect = '> ')
-
-    def bad_auth(self):
-
-
-        userName = ''.join(random.choice(string.ascii_lowercase) for _ in range(7))
-        userToken = random.randint(0, 0xffff)
-
-        message = '{} {}\n'.format(userName, userToken)
-
-        self.write(message)
-
-        self.read(delim = '\n', expect = "Invalid login\n")
-
-
-    def authenticate(self):
-
-        userNumber = random.randint(0, 127)
-
-        offset = userNumber * 32
-        userName = ''
-
-        for x in range(0, 7):
-            value = (ord(self.magic_page[offset+x]) % 26) + ord('a')
-            userName = userName + chr(value)
-
-        token = 0
-
-        for x in range(14, 28):
-            token = token + ord(self.magic_page[offset+x])
-
-        message = '{} {}\n'.format(userName, token)
-
-        self.write(message)
-
-        self.securityID = unpack('i', self.magic_page[offset+28:offset+32])[0]
-
-        self.securityID = self.securityID & 0x7fffffff
-
-        self.userName = userName
-
-        self.read(delim = '\n', expect = 'Access allowed\n')
-        self.read(delim = '\n', expect = 'Welcome {}\n'.format(userName))
-
-
-    def logout(self):
-
-        self.write('logout\n')
-
-        self.read(delim = '\n', expect = 'bye felicia\n')
-
-
-
-    def create_file(self):
-
-
-        length = random.randint(5, 19)
-        filename = ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
-
-        message = 'make ' + filename + '\n'
-        self.write(message)
-
-        # first make sure the file doesn't already exist
-        for i in range(0, self.maxDirEntries):
-            if self.rootDir[i][0] == filename:
-
-                expect_string = 'file {} already exists\n'.format(filename)
-                self.read(delim = '\n', expect = expect_string)
-                return
-
-        #it doesn't so find the first empty slot in the directory
-        slotFound = False
-
-        for i in range(0, self.maxDirEntries):
-            if len(self.rootDir[i][0]) == 0:
-                self.rootDir[i] = [filename, 0, 2, 1, self.securityID, 0, self.userName]
-                slotFound = True
-                self.rootDirFileCount = self.rootDirFileCount + 1
-                break
-
-        if slotFound == False:
-            expect_string = 'error\n'
-            self.read(delim = '\n', expect = expect_string)
-            return            
-           
-
-    def set_perms(self):
-
-
-        if self.rootDirFileCount == 0:
-            self.write('\n')
-            return
-
-        fileChoice = random.randint(0, self.rootDirFileCount-1) 
-
-        count = 0
-
-        for x in range(0, self.maxDirEntries):
-            if len(self.rootDir[x][0]) > 0:
-
-                if count == fileChoice:
-                    break
-
-                count = count + 1
-
-        message = 'perms ' + self.rootDir[x][0] + ' '
-
-        perms = random.choice([0, 1, 2, 3])
-
-        message = message + '{}\n'.format(perms) 
-        self.write(message)
-
-        if self.rootDir[x][4] == self.securityID:
-
-            self.rootDir[x][5] = perms
-        else:
-
-            self.read(delim = '\n', expect = 'permission denied\n')
-
-
-    def delete_file(self):
-
-        if self.rootDirFileCount == 0:
-            self.write('\n')
-            return
-
-        fileChoice = random.randint(0, self.rootDirFileCount-1) 
-
-        count = 0
-
-        for x in range(0, self.maxDirEntries):
-            if len(self.rootDir[x][0]) > 0:
-
-                if count == fileChoice:
-                    break
-
-                count = count + 1
-
-        message = 'erase ' + self.rootDir[x][0] + '\n'
-
-        self.write(message)
-
-        if self.securityID != self.rootDir[x][4]:
-
-            if self.rootDir[x][5] > 0 and self.rootDir[x][5]& 0x01 == 0:
-
-                self.read(delim = '\n', expect = 'error erasing {}\n'.format(self.rootDir[x][0]))
-                return
-
-            elif self.rootDir[x][5] == 0:
-
-                self.read(delim = '\n', expect = 'permission denied\n')
-                return
-
-
-        self.rootDir[x] = ["", 0, 0, 0, 0, 0]
-
-        self.fileData[x] = ['', 0, 0]
-
-        self.rootDirFileCount = self.rootDirFileCount - 1
-
-
-    def write_file(self):
-
-        if self.rootDirFileCount == 0:
-            self.write('\n')
-            return
-
-        fileChoice = random.randint(0, self.rootDirFileCount-1) 
-
-        count = 0
-
-        for x in range(0, self.maxDirEntries):
-            if len(self.rootDir[x][0]) > 0:
-
-                if count == fileChoice:
-                    break
-
-                count = count + 1
-
-        message = 'write ' + self.rootDir[x][0] + '\n'
-
-        self.write(message)
-
-        # if we don't have permissions to write, get an error message
-
-        if self.securityID != self.rootDir[x][4]:
-
-            if self.rootDir[x][5] > 0 and self.rootDir[x][5]& 0x01 == 0:
-
-                self.read(delim = '\n', expect = 'permission denied for write\n')
-                return
-
-            elif self.rootDir[x][5] == 0:
-
-                self.read(delim = '\n', expect = 'permission denied\n')
-                return
-
-
-        length = random.randint(5, 100)
-        filedata = ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
-
-        self.write(filedata + '\n\n')
-
-        self.fileData[x][0] = filedata
-
-        self.rootDir[x][1] = length
-
-     
-
-    def read_file(self):
-
-        if self.rootDirFileCount == 0:
-            self.write('\n')
-            return
-
-        fileChoice = random.randint(0, self.rootDirFileCount-1) 
-
-        count = 0
-
-        for x in range(0, self.maxDirEntries):
-            if len(self.rootDir[x][0]) > 0:
-
-                if count == fileChoice:
-                    break
-
-                count = count + 1
-
-
-        message = 'show ' + self.rootDir[x][0] + '\n'
-
-        self.write(message)
-
-        if self.securityID != self.rootDir[x][4]:
-
-            if self.rootDir[x][5] > 0 and self.rootDir[x][5]& 0x02 == 0:
-
-                self.read(delim = '\n', expect = 'permission denied for read\n'.format(self.rootDir[x][0]))
-                return
-
-            elif self.rootDir[x][5] == 0:
-
-                self.read(delim = '\n', expect = 'permission denied\n')
-                return
-
-        self.read(delim = '\n', expect = self.fileData[x][0] + '\n')
-    def read_first_n(self):
-
-        if self.rootDirFileCount == 0:
-            self.write('\n')
-            return
-
-        fileChoice = random.randint(0, self.rootDirFileCount-1) 
-
-        count = 0
-
-        for x in range(0, self.maxDirEntries):
-            if len(self.rootDir[x][0]) > 0:
-
-                if count == fileChoice:
-                    break
-
-                count = count + 1
-
-
-        message = 'first {} {}\n'.format(self.rootDir[x][0], 10)
-
-        self.write(message)
-
-        if self.securityID != self.rootDir[x][4]:
-
-            if self.rootDir[x][5] > 0 and self.rootDir[x][5]& 0x02 == 0:
-
-                self.read(delim = '\n', expect = 'permission denied for read\n'.format(self.rootDir[x][0]))
-                return
-
-            elif self.rootDir[x][5] == 0:
-
-                self.read(delim = '\n', expect = 'permission denied\n')
-                return
-
-        self.read(delim = '\n', expect = self.fileData[x][0][0:10] + '\n')
-
-
-    def read_last_n(self):
-
-        if self.rootDirFileCount == 0:
-            self.write('\n')
-            return
-
-        fileChoice = random.randint(0, self.rootDirFileCount-1) 
-
-        count = 0
-
-        for x in range(0, self.maxDirEntries):
-            if len(self.rootDir[x][0]) > 0:
-
-                if count == fileChoice:
-                    break
-
-                count = count + 1
-
-
-        message = 'last {} {}\n'.format(self.rootDir[x][0], 10)
-
-        self.write(message)
-
-        if self.securityID != self.rootDir[x][4]:
-
-            if self.rootDir[x][5] > 0 and self.rootDir[x][5]& 0x02 == 0:
-
-                self.read(delim = '\n', expect = 'permission denied for read\n'.format(self.rootDir[x][0]))
-                return
-
-            elif self.rootDir[x][5] == 0:
-
-                self.read(delim = '\n', expect = 'permission denied\n')
-                return
-
-        self.read(delim = '\n', expect = self.fileData[x][0][-10:] + '\n')
-
-
-    def list_files(self):
-
-        message = 'list\n'
-        self.write(message)
-
-        otherperms = ["--", "-W", "R-", "RW"]
-        filetype = ["", "DIR", "REG", "MEM", "ROM" ]
-
-        expect_string = "FILENAME                   SIZE        OWNER     O-PERMS    TYPE\n"
-        self.read(delim = '\n', expect = expect_string)
-
-        expect_string = "----------------------------------------------------------------\n"
-        self.read(delim = '\n', expect = expect_string)
-
-        for i in range(0, self.maxDirEntries):
-            if len(self.rootDir[i][0]) != 0:
-
-                expect_string = "{:25s}  {:10d}  {:8s}  {:2s}    {:3s}\n".format(self.rootDir[i][0], 
-                                                                        self.rootDir[i][1],
-                                                                        self.rootDir[i][6],
-                                                                        otherperms[self.rootDir[i][5]],
-                                                                        filetype[self.rootDir[i][2]])
-
-                self.read(delim = '\n', expect = expect_string)
-
-        self.read(delim = '\n', expect = '\n')
-
-
-    def copy_file(self):
-
-        if self.rootDirFileCount == 0:
-            self.write('\n')
-            return
-
-        fileChoice = random.randint(0, self.rootDirFileCount-1) 
-        count = 0
-
-        for x in range(0, self.maxDirEntries):
-            if len(self.rootDir[x][0]) > 0:
-
-                if count == fileChoice:
-                    break
-
-                count = count + 1
-
-        length = random.randint(5, 19)
-        dest_filename = ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
-
-        message = 'copy {} {}\n'.format(self.rootDir[x][0], dest_filename)
-
-        self.write(message)
-
-        if self.securityID != self.rootDir[x][4]:
-
-            if self.rootDir[x][5] > 0 and self.rootDir[x][5]& 0x02 == 0:
-
-                self.read(delim = '\n', expect = 'permission denied for read\n'.format(self.rootDir[x][0]))
-                return
-
-            elif self.rootDir[x][5] == 0:
-
-                self.read(delim = '\n', expect = 'permission denied\n')
-                return
-
-        # first make sure the destination file doesn't already exist
-        for i in range(0, self.maxDirEntries):
-            if self.rootDir[i][0] == dest_filename:
-
-                expect_string = 'file {} already exists\n'.format(filename)
-                self.read(delim = '\n', expect = expect_string)
-                return
-
-        #it doesn't so find the first empty slot in the directory
-        slotFound = False
-        
-        for i in range(0, self.maxDirEntries):
-            if len(self.rootDir[i][0]) == 0:
-                self.rootDir[i] = [dest_filename, self.rootDir[x][1], 2, 1, self.securityID, 0, self.userName]
-                slotFound = True
-                self.rootDirFileCount = self.rootDirFileCount + 1
-                self.fileData[i][0] = self.fileData[x][0]
-                break
-
-        if slotFound == False:
-            expect_string = 'error\n'
-            self.read(delim = '\n', expect = expect_string)
-            return   
-
-    def exit(self):
-
-        # tell the service to exit normally
-        message = 'exit\n'
-
-        self.write(message)
-
-
+        self.state['char_set'] = string.lowercase + ' '
+        self.state['string'] = ''
+        self.state['output'] = []
+        self.width = 0
+        self.height = 12
+        self.char_width = 7
+
+    def pick_chars(self):
+        for _ in xrange(random.randint(1, 64)):
+            c = random.choice(self.state['char_set'])
+            self.state['string'] += c
+
+    def munge_maps(self):
+        for idx in xrange(len(self.state['string'])):
+            self.state['cur_map'] = char_maps[self.state['string'][idx]][:]
+            changes = random.sample(xrange(len(self.state['cur_map'])), 4)
+            for c_idx in changes:
+                if self.state['cur_map'][c_idx] == '0':
+                    self.state['cur_map'][c_idx] = '1'
+                elif self.state['cur_map'][c_idx] == '1':
+                    self.state['cur_map'][c_idx] = '0'
+
+            self.state['output'].append(''.join(self.state['cur_map']))
+            self.width += self.char_width
+
+
+
+    def insert_newlines(self):
+        self.state['final_output'] = ''
+        for l in xrange(self.height):
+            for i in xrange(len(self.state['output'])):
+                self.state['final_output'] += self.state['output'][i][l * self.char_width:(l + 1) * self.char_width]
+            self.state['final_output'] += '\n'
+
+    def validate(self):
+        self.read(expect='Welcome to the super awesome OCR engine! Enter your input to have it OCR\'d', delim='\n')
+        self.write('Z1\n')
+        self.write('{} {}\n'.format(self.width, self.height))
+        self.write(self.state['final_output'])
+        self.read(expect='Result: {}'.format(self.state['string']), delim='\n')

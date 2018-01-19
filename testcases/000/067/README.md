@@ -1,58 +1,81 @@
-# CGC Challenge Binary (KPRCA\_00042): Movie Rental Service Redux
+# Eddy
+
+## Author Information
+"Maxwell Koo" <info@narfindustries.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+Narf Industries (NRFIN)
 
 ## Description
-
-This is a simple movie rental service where the user can list available movies in the inventory and rent the ones that are not rented already. The user is also able to return the movie. There is also an interface for privileged user (admin) when successfully logged in. This interface allows the admin to add, remove, or update movies in the inventory. The movie rental service also allows a debug mode for allowing an admin to test adding genres and movie ratings.
+Eddy is your new favorite text editor! With an efficient binary command
+interface and advanced features such as regular expression searching, your
+productivity will skyrocket when compared to your experience with competing
+text editors.
 
 ### Feature List
+This service is a text editor similar to the 'ed' utility.
 
-This service supports the following "documented" features:
+- Supports the following commands:
+    * Append
+    * Change
+    * Delete
+    * Get mark
+    * Insert
+    * Inverse Search
+    * Join
+    * List
+    * Mark
+    * Number
+    * Quit
+    * Transform
+- Supports searching a file by regular expression
+- Supports addressing file locations by line number
+- Supports several marks for storing and addressing locations
+- Contains advanced debugging features
 
-In normal mode,
-
-  1. **List movies**: lists a full movie list as well as a rental list (i.e. the movies that are currently rented).
-  2. **Rent movie**: allows the user to rent a movie from the list (movies that are not currently rented can be rented).
-  3. **Return movie**: allows the user to return the movie that was rented.
-  4. **Admin mode (login)**: verifies username and password to provide privileged menus.
-  5. **Exit**: quits the program.
-
-In admin mode,
-
-  1. **Add movie**: adds a new movie to the list.
-  2. **Remove movie**: removes a movie from the list.
-  3. **Update movie**: updates information about a movie.
-  4. **Quit admin mode**: quits the admin mode and goes back to the normal mode.
-
-The service supports the following "undocumented" features:
-
-In admin mode,
-    Send byte array \x29\x78\x31\x16\x00\x29\x78\x31\x16\x00 to enter debug mode
-
-In debug mode,
-   1. **Debug Add Genre**: Send integer 1294579383 appended with a string, 
-                            adds appended string to the list of Genres
-   2. **Debug Add Rating**: Send integer 388502 appended with a string, 
-                            adds appended string to the list of Movie Ratings
-
-## Vulnerability
-
-The vulnerability is a format string vulnerability triggered by a special debug function. Once in debug mode if the user sends the integer: 1294579383 (sent as a little endian byte array: \x4D\x29\xB6\xB7) The user can append a genre title to the integer. Since the user has complete control over the string they can trivially crash the program.
-
-Getting to the vulenrable state requires -> logging in as admin -> passing the debug sequence \x29\x78\x31\x16\x00\x29\x78\x31\x16\x00 to enable debug mode -> passing the debug code \x4D\x29\xB6\xB7<VULNERABLE STRING> -> exit debug mode -> add/update a movie
+## Vulnerability 1
+The addressing for marks does not properly check to ensure that a mark location
+is valid, allowing for setting a mark to an arbitrary memory address which can
+be used to leak information.
 
 ### Generic class of vulnerability
-
-Format String
+- Information Leak
 
 ### CWE classification
+- CWE-201: Information Exposure Through Sent Data
 
-CWE-134: Uncontrolled Format String
+### Challenges
+In order to prove this vulnerability, a CRS will need to be able to identify the
+correct regions addressable by marks, understand the preconditions needed to
+invoke the mark command and connect the various commands together in order to
+leak data from the flag page.
 
-## Challenges
+### Difficulty
+- Discovering is easy
+- Proving is medium
+- Fixing is easy
 
-The CB generates a small random password stored in the heap which is meant to be bruce forceable. The more challenging part is determining the "undocumented" byte sequence (hardcoded in the binary) that enables debug mode. Once in debug mode a user must send the "undocumented" integer codes that call the debug functions, dag (debug add genre) and dar (debug add rating). Specifically the vulnerability is enabled by calling dag with a vulnerable string.
+## Vulnerability 2
+The number command does not properly calculate the output buffer size when
+rendering lines with a 3 digit number. The output of this command is placed in a
+heap buffer prior to being transmitted.
 
-Once a competitor determines how to call the dag function and add a vulnerable string to the movie genre list, crashing the program requires the competitor use the admin mode function to add or update a movie. When it gets to the part that lists the "genres" the bug can be triggered.
+### Generic class of vulnerability
+- Heap Overflow
+
+### CWE classification
+- CWE-120: Buffer Copy without Checking Size of Input
+- CWE-122: Heap-based Buffer Overflow
+- CWE-787: Out-of-bounds Write
+
+### Challenges
+In order to prove this vulnerability, a CRS will need to be able to identify
+heap buffers as well as identify the relationship between the insert/append
+commands and the length of the string placed in the output buffer. Several
+commands will need to be issued in order to trigger the overflow.
+
+### Difficulty
+- Discovering is medium
+- Proving is hard
+- Fixing is easy
+

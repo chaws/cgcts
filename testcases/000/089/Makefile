@@ -1,4 +1,4 @@
-CHAL=Azurad
+CHAL=String_Info_Calculator
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,96 +20,38 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strdup.c.o -c lib/strdup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strchr.c.o -c lib/strchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memmove.c.o -c lib/memmove.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strcpy.c.o -c lib/strcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strcmp.c.o -c lib/strcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/exit.c.o -c lib/exit.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strndup.c.o -c lib/strndup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memcmp.c.o -c lib/memcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/malloc_common.c.o -c lib/malloc_common.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fread.c.o -c lib/fread.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strsep.c.o -c lib/strsep.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memchr.c.o -c lib/memchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fxlat.c.o -c lib/fxlat.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strcasestr.c.o -c lib/strcasestr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strtoul.c.o -c lib/strtoul.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/free.c.o -c lib/free.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fwrite.c.o -c lib/fwrite.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fflush.c.o -c lib/fflush.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fopen.c.o -c lib/fopen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/calloc.c.o -c lib/calloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strtol.c.o -c lib/strtol.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strstr.c.o -c lib/strstr.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o lib/cxa.cc.o -c lib/cxa.cc
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/realloc.c.o -c lib/realloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/array.cc.o -c src/array.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/ccstring.cc.o -c src/ccstring.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/parser.cc.o -c src/parser.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/eval.cc.o -c src/eval.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/service.cc.o -c src/service.cc
-	$(CC) $(FLAGS) -o Azurad_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/cxa.cc.o lib/realloc.c.o lib/strlen.c.o src/array.cc.o src/ccstring.cc.o src/parser.cc.o src/eval.cc.o src/service.cc.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/e_libc.c.o -c lib/e_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/rand.c.o -c lib/rand.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/recv_until_delim_n.c.o -c lib/recv_until_delim_n.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/send_bytes.c.o -c lib/send_bytes.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/char.c.o -c lib/char.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/strinfo.c.o -c src/strinfo.c
+	$(CXX) $(FLAGS) -o String_Info_Calculator_patched lib/e_libc.c.o lib/rand.c.o lib/recv_until_delim_n.c.o lib/send_bytes.c.o lib/char.c.o lib/memset.c.o src/service.c.o src/strinfo.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strdup.c.o -c lib/strdup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strchr.c.o -c lib/strchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memmove.c.o -c lib/memmove.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strcpy.c.o -c lib/strcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strcmp.c.o -c lib/strcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/exit.c.o -c lib/exit.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strndup.c.o -c lib/strndup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memcmp.c.o -c lib/memcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/malloc_common.c.o -c lib/malloc_common.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fread.c.o -c lib/fread.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strsep.c.o -c lib/strsep.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memchr.c.o -c lib/memchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fxlat.c.o -c lib/fxlat.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strcasestr.c.o -c lib/strcasestr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strtoul.c.o -c lib/strtoul.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/free.c.o -c lib/free.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fwrite.c.o -c lib/fwrite.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fflush.c.o -c lib/fflush.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/fopen.c.o -c lib/fopen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/calloc.c.o -c lib/calloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strtol.c.o -c lib/strtol.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strstr.c.o -c lib/strstr.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o lib/cxa.cc.o -c lib/cxa.cc
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/realloc.c.o -c lib/realloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/array.cc.o -c src/array.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/ccstring.cc.o -c src/ccstring.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/parser.cc.o -c src/parser.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/eval.cc.o -c src/eval.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -o src/service.cc.o -c src/service.cc
-	$(CC) $(FLAGS) -o Azurad lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/cxa.cc.o lib/realloc.c.o lib/strlen.c.o src/array.cc.o src/ccstring.cc.o src/parser.cc.o src/eval.cc.o src/service.cc.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/e_libc.c.o -c lib/e_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/rand.c.o -c lib/rand.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/recv_until_delim_n.c.o -c lib/recv_until_delim_n.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/send_bytes.c.o -c lib/send_bytes.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/char.c.o -c lib/char.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/strinfo.c.o -c src/strinfo.c
+	$(CXX) $(FLAGS) -o String_Info_Calculator lib/e_libc.c.o lib/rand.c.o lib/recv_until_delim_n.c.o lib/send_bytes.c.o lib/char.c.o lib/memset.c.o src/service.c.o src/strinfo.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -pedantic -O0 -o pov_1/xlat.c.o -c pov_1/xlat.c
-	$(CC) $(FLAGS) -o Azurad_pov_1 pov_1/pov.c.o pov_1/xlat.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/e_libc.c.o -c pov_1/e_libc.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/rand.c.o -c pov_1/rand.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/send_bytes.c.o -c pov_1/send_bytes.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/recv_bytes.c.o -c pov_1/recv_bytes.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/service.c.o -c pov_1/service.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/memset.c.o -c pov_1/memset.c
+	$(CXX) $(FLAGS) -o String_Info_Calculator_pov_1 pov_1/e_libc.c.o pov_1/rand.c.o pov_1/send_bytes.c.o pov_1/recv_bytes.c.o pov_1/service.c.o pov_1/memset.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o pov_1/xlat.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/cxa.cc.o lib/realloc.c.o lib/strlen.c.o src/array.cc.o src/ccstring.cc.o src/parser.cc.o src/eval.cc.o src/service.cc.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/cxa.cc.o lib/realloc.c.o lib/strlen.c.o src/array.cc.o src/ccstring.cc.o src/parser.cc.o src/eval.cc.o src/service.cc.o Azurad_pov_1 Azurad_patched Azurad
+	rm -f pov_1/e_libc.c.o pov_1/rand.c.o pov_1/send_bytes.c.o pov_1/recv_bytes.c.o pov_1/service.c.o pov_1/memset.c.o lib/e_libc.c.o lib/rand.c.o lib/recv_until_delim_n.c.o lib/send_bytes.c.o lib/char.c.o lib/memset.c.o src/service.c.o src/strinfo.c.o lib/e_libc.c.o lib/rand.c.o lib/recv_until_delim_n.c.o lib/send_bytes.c.o lib/char.c.o lib/memset.c.o src/service.c.o src/strinfo.c.o String_Info_Calculator_pov_1 String_Info_Calculator_patched String_Info_Calculator

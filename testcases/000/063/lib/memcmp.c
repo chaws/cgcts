@@ -1,5 +1,5 @@
 /*
- * Author: Brian Pak <brian.pak@kapricasecurity.com>
+ * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
  *
  * Copyright (c) 2014 Kaprica Security, Inc.
  *
@@ -23,22 +23,14 @@
  *
  */
 #include "libcgc.h"
-#include "cgc_stdint.h"
 
-extern int cgc_memcmp(void *s1, const void *s2, cgc_size_t n)
+int cgc_memcmp(const char *s1, const char *s2, cgc_size_t n)
 {
-  unsigned char *p1 = (unsigned char *)s1, *p2 = (unsigned char *)s2;
-  cgc_size_t i = 0;
-  while (i < n)
-  {
-    if (*p1 == *p2)
-    {
-      p1++;
-      p2++;
-    }
-    else
-      return *p1 - *p2;
-    i++;
-  }
-  return 0;
+    cgc_size_t i;
+    for(i = 0; i < n; i++)
+      if (*s1 != *s2)
+        return *s1 - *s2;
+      else
+        s1++, s2++;
+    return 0;
 }

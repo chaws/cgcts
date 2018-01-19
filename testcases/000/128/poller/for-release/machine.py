@@ -1,447 +1,183 @@
-#!/usr/bin/env python
-
 from generator.actions import Actions
+import math
 import random
 import string
-from struct import pack, unpack, unpack_from
+import struct
+import re
 
-# matches User class in user.h
-class User():
-    user_id = 0
-    weight = 0
-    height = 0
-    age = 0
-    bloodPressure = 0
-    bodyFat = 0
-    sex = 0
+def random_printable(max_size, is_text=True, min_size=1):
+    if is_text:
+        printable = "".join(set(string.printable) - set(' \x0b\x0c\r\n'))
+    else:
+        printable = "".join(set(string.printable) - set(' \\()*+?&|[]^.${}#<=\t\n\r\x0b\x0c'))
+    max_size = max_size if max_size >= min_size else min_size
+    return ''.join(random.choice(printable) for c in range(max_size))
 
-# matches enum in common.h
-class Type():
-    GENERAL = 0
-    REGISTER_SENSOR = 1
-    REGISTER_USER = 2
-    CHANGE_CURRENT_USER = 3
-    INPUT_SENSOR_DATA = 4
-    INPUT_MANUAL = 9
-    INPUT_SETTINGS = 0x0a
-    REQUEST_SENSORS = 0x0b
-    REMOVE_SENSOR = 0x0c
-    #TEST_VERIFY = 0x0d
-    REQUEST_HW_IDS = 0x33
-    END = 0xff
+def random_operator():
+    operator = '0*+?|'
+    op = random.choice(operator)
 
-class ErrorCodes():
-    NO_ERROR = 0
-    ERROR_DUPLICATE_SENSOR = 1
-    ERROR_BAD_VALUE = 2
-    ERROR_NO_USER = 3
-    ERROR_SENSOR_NOT_REGISTERED = 4
-    ERROR_REG_OTHER_USER = 5
-    ERROR_REG_THIS_USER = 6
-    ERROR_BAD_SENSOR_MAC = 7
-    ERROR_USER_FULL = 8
-    ERROR_DUPLICATE_USER = 9
-    ERROR_TEST_MAGIC_MISMATCH = 10
-    ERROR_TEST_MAGIC_MATCH = 11
-    ERROR_FULL_SENSORS = 12
+    if op == '0':
+        return ''
+    if random.randint(0,10) == 0:
+        return '\\' + op
+
+    return op
+
+def random_text():
+    it = random.randint(1, 50)
+    text = ""
+    for i in xrange(it):
+        text += random_printable(10) + ' '
+        if i % 3:
+            text += '\n'
+
+    while(text[-1] == '\n'):
+        text = text[:-1]
+
+    return text
+
+def random_search_str():
+    it = random.randint(1, 5)
+    sstr = ''
+    for i in xrange(it):
+        sstr = random_printable(1, False)
+        if random.randint(0,7) == 0:
+            sstr = '(' + sstr + ')'
+        elif random.randint(0,15) == 0:
+            sstr = '[' + sstr + ']'
+        elif random.randint(0,20) == 0:
+            sstr += ' '
+        sstr += random_operator()
+
+    while(sstr[-1] == '|' or sstr[-1] == '\\'):
+        sstr = sstr[:-1]
+
+    return sstr
+
+class TextSearch(Actions):
+    menu_str = (
+        "Text Searcher: Main Menu\n" +
+        "1. Enter Text\n" +
+        "2. Enter Search String\n" +
+        "3. Line Search - Partial Matches\n" +
+        "4. Line Search - Exact Matches\n" +
+        "5. Print Text\n" +
+        "6. Print Search String\n" +
+        "7. Search Text\n" +
+        "8. Quit\n\n"
+    )
+    select_str = "Select: "
+
+    enter_text_str = "Enter text to search\n"
+    enter_search_str= "Enter search string\n"
+
+    no_text_str = "Input text has not been received\n"
+    no_search_str = "Search text has not been received\n"
+
+    bad_selection = "Bad Selection\n"
+    exit_str = "Exiting..."
+
+    def _read(self, string):
+        self.read(length=len(string), expect=string)
+
+    def _read_status_bar(self):
+        if self.text:
+            if len(self.text) > 15:
+                self._read("[Text={0}...]\n".format(self.text[:15]))
+            else:
+                self._read("[Text={0}]\n".format(self.text))
 
 
-class Service(Actions):
+        if self.search_str:
+            if len(self.search_str) > 15:
+                self._read("[SearchString={0}...]\n".format(self.search_str[:15]))
+            else:
+                self._read("[SearchString={0}]\n".format(self.search_str))
 
-    # header: 
-    #  2b sync
-    #  2b type
-    #  2b data len
-    # DATA
-    #  depends...
+        if self.match == 'PARTIAL':
+            self._read("[LineMatching=Partial]\n")
+        else:
+            self._read("[LineMatching=Exact]\n")
 
-    def send_message( self, pkt_type, pkt_data ):
+    def _read_text(self):
+        if self.text:
+            self._read("--Text--\n{0}\n".format(self.text))
+        else:
+            self._read("--Text--\n\n")
 
-        data = pack( '2B', 0xc3, 0x3c )
-
-        # add type
-        data = data + pack( 'H', pkt_type ) 
-
-        # add the length of the data
-        data = data + pack( 'H', len( pkt_data ) ) 
-
-        # now append the data
-        data = data + pkt_data
-
-        self.write( data )
-
-    def expect_message( self, pkt_type, pkt_data ):
-
-        data = pack( '2B', 0xc3, 0x3c )
-
-        # add type
-        data = data + pack( 'H', 0x0033 )
-
-        # add the length of the data
-        data = data + pack( 'H', 3 )
-
-        # add the length of the data
-        data = data + pack( 'H', pkt_type )
-
-        # add the length of the data
-        data = data + pack( 'B', pkt_data )
-
-        self.read(length=9, expect=data)
-
-    # matches FitnessSensor::GenerateTypeValues() from sensor.cc
-    def GenerateTypeValues( self ):
-        value = self.magic_page
-        offset = 0
-        a = 0
-
-        MAX_SENSOR_VALUE = 5 # comes from sensor.h. MUST MATCH
-
-        for i in range( 0, MAX_SENSOR_VALUE ):
-            j = 0
-
-            a = ord( value[ offset + j ] )
-
-            while a == 0:
-                j += 1
-                a = ord( value[ offset + j ] )
-
-            j += 1
-            while a in self.magicSensorArray or a == 0:
-                a = ord( value[ offset + j ] )
-                j += 1
-            
-            self.magicSensorArray.append( a )
-            offset = ord( value[ offset + 1 ] )
+    def _read_search_str(self):
+        if self.search_str:
+            self._read("--Search String--\n{0}\n".format(self.search_str))
+        else:
+            self._read("--Search String--\n\n")
 
     def start(self):
-
-        # track current sensors as list of tuples (id, mac)
-        #self.delay(100)
-        self.sensorArray = []
-
-        # track users w/ list of Users
-        self.userArray = []
-
-        # track current user
-        self.currentUser = User()
-
-        self.currentUser.user_id = 0xff;
-
-        # same as m_sensorArray in sensor.h
-        # stores the magic_page values
-        self.magicSensorArray = []
-
-        self.GenerateTypeValues()
-
-        # test only:
-
-        # magic_nums = ''
-
-        # for x in self.magicSensorArray:
-        #     magic_nums = magic_nums + pack('B', x)
-
-        # data = pack( '2B', 0xc3, 0x3c )
-
-        # # add type
-        # data = data + pack( 'H', Type.TEST_VERIFY ) 
-
-        # # add the length of the data
-        # data = data + pack( 'H', len( magic_nums ) ) 
-
-        # # now append the data
-        # data = data + magic_nums
-
-        # self.write( data )
-
-        # self.expect_message( Type.TEST_VERIFY, ErrorCodes.ERROR_TEST_MAGIC_MATCH )
-
-
-    def top( self ):
-        pass
-
-    def get_hw_ids( self ):
-        
-        if not self.magicSensorArray:
-            return
-
-        # send request
-        # read response
-        # save values in our array
-        self.send_message( Type.REQUEST_HW_IDS, pack('B', 0 ) )
-
-        data = ''
-        data += pack( '2B', 0xc3, 0x3c )
-        data += pack( '2B', 0x44, 0x77 )
-
-        data += pack( 'H', len( self.magicSensorArray ) )
-        for ms in self.magicSensorArray:
-            data += pack('B', ms)
-
-
-        # need to read 18B, read array
-        self.read( length = len( data ), expect = data )
-
-
-    def register_user( self ):
-
-        # generate user value
-        user = User()
-
-        user.weight = random.randint( 0x0000, 0xffff )
-        user.height = random.randint( 0x0000, 0xffff )
-        user.user_id = random.randint( 0x0000, 0xffff )
-
-        num_fields = 2
-        weight_key = 1
-        height_key = 2
-
-        data = pack( 'B', num_fields )
-        data += pack( 'H', user.user_id )
-        data += pack( '=BH', weight_key, user.weight )
-        data += pack( 'B', height_key )
-        data += pack( 'H', user.height )
-
-        self.send_message( Type.REGISTER_USER, data )
-
-        code = 0
-        found = False
-
-        # is this user ID already in the list?
-        for x in self.userArray:
-            if x.user_id == user.user_id:
-                found = True
-
-        if found == True: # already in user list
-            code = ErrorCodes.ERROR_DUPLICATE_USER
-        elif len ( self.userArray ) >= 7: # too many users
-            code = ErrorCodes.ERROR_USER_FULL
-        else: # good, add it
-            code = ErrorCodes.NO_ERROR
-            self.userArray.append( user )
-
-        self.expect_message( Type.REGISTER_USER, code )
-
-        
-    def set_current_user( self ):
-
-        # select user id from the valid id list
-        var = random.choice(self.userArray).user_id
-
-        self.currentUser.user_id = var
-
-        message = pack( 'H', var )
-
-        self.send_message( Type.CHANGE_CURRENT_USER, message )
-
-        # expect reponse
-        self.expect_message( Type.CHANGE_CURRENT_USER, ErrorCodes.NO_ERROR )
-
-    def register_sensor(self):
-        # 2b sync
-        # 2b type
-        # 2b len
-        # DATA
-        # 2b sensor id
-        # 4b sensor mac
-        sensor_id = random.randint( 0x0000, 0xffff )
-        selection = random.choice( self.magicSensorArray )
-        sensor_mac = selection << 24
-        sensor_mac += random.randint( 0x000000, 0xffffff )
-
-        data = pack( 'H', sensor_id )
-        data += pack( 'I', sensor_mac )
-
-        self.send_message( Type.REGISTER_SENSOR, data )
-
-        if self.currentUser.user_id == 0xff:
-            self.expect_message( Type.REGISTER_SENSOR, ErrorCodes.ERROR_NO_USER )
-            return
-        
-        found = False
-
-        # is this sensor ID already in the list?
-        for x in self.sensorArray:
-            if x[2] == sensor_mac and self.currentUser.user_id == x[1]:
-                # this user has already registered this sensor mac
-                found = True
-            if x[0] == sensor_id and self.currentUser.user_id == x[1]:
-                # this user has already registered this sensor mac
-                found = True
-
-        # verify we have 3 or less sensors for this user
-        count = 0
-        for x in self.sensorArray:
-            if self.currentUser.user_id == x[1]:
-                count += 1
-
-        if found:
-            # repeat sensor
-            self.expect_message( Type.REGISTER_SENSOR, ErrorCodes.ERROR_DUPLICATE_SENSOR )
-        else:
-            if count >= 3:
-                self.expect_message( Type.REGISTER_SENSOR, ErrorCodes.ERROR_FULL_SENSORS )
-                return
-            else:    
-                # expect reponse
-                self.expect_message( Type.REGISTER_SENSOR, ErrorCodes.NO_ERROR )
-                self.sensorArray.append( ( sensor_id, self.currentUser.user_id, sensor_mac ) )
-
-       
-
-    def send_sensor_data(self):
-
-        # 90% real, 10% not real
-        ran = random.randint( 0, 9 )
-        if ran > 8:
-            # 10% chance
-            # choose non-real sensor
-            sensor_id = random.randint( 0x0000, 0xffff )
-            found = True
-
-            # make sure the random number we chose is not a real sensor id
-            while found == True:
-                found = False
-                for sid in self.sensorArray:
-                    if sid[0] == sensor_id:
-                        found = True
-                        sensor_id = random.randint( 0x0000, 0xffff )
-
-            # now we have a sensor id that is not valid
-            # send an intentionally incorrect request
-            packet_data = ''
-
-            packet_data += pack('H', sensor_id )
-
-            data = random.randint( 0x0000, 0xffff )
-            packet_data += pack('H', data )
-            
-            self.send_message( Type.INPUT_SENSOR_DATA, packet_data )
-
-            # expect error
-            self.expect_message( Type.INPUT_SENSOR_DATA, ErrorCodes.ERROR_SENSOR_NOT_REGISTERED )
-        else:    
-            # this should be successful
-
-            # choose random sensor in the array
-            if not self.sensorArray:
-                return
-
-            valid_sensors = []
-            for sensor in self.sensorArray:
-                if sensor[ 1 ] == self.currentUser.user_id:
-                    valid_sensors.append( sensor )
-
-            if not valid_sensors:
-                return
-
-            chosenSensor = random.choice( valid_sensors )
-
-            packet_data = ''
-
-            # sensor id
-            packet_data += pack('H', chosenSensor[0] )
-
-            # random data to send
-            data = random.randint( 0x0000, 0xffff )
-            packet_data += pack('H', data )
-            
-            self.send_message( Type.INPUT_SENSOR_DATA, packet_data )
-
-            self.expect_message( Type.INPUT_SENSOR_DATA, ErrorCodes.NO_ERROR )
-
-
-    def request_sensors(self):
-        # send request to system to list all attached sensors
-        # system responds with ID and MAC of each sensor
-
-        self.send_message( Type.REQUEST_SENSORS, pack('B', 0 ) )
-
-        data = pack( '2B', 0xc3, 0x3c )
-
-        # add type
-        data = data + pack( 'H', 0x0033 )
-
-        pkt_data = ''
-
-        count = 0
-
-        for user in self.userArray:
-            if count >= 7:
-                break
-            for sensor in self.sensorArray:
-                if sensor[1] == user.user_id:
-                    # generate expected content
-                    pkt_data += pack( 'H', sensor[0] )
-                    pkt_data += pack( 'I', sensor[2] )
-                    
-        pkt_len = len( pkt_data )
-        # add the length of the data
-        data = data + pack( 'H', pkt_len ) 
-
-        data += pkt_data
-
-        self.read(length=len(data), expect=data)
-        
-
-    def remove_sensor(self):
-        
-        # 90% real, 10% not real
-        ran = random.randint( 0, 9 )
-        if ran > 8:
-            # 10% chance
-            # choose non-real sensor
-            sensor_id = random.randint( 0x0000, 0xffff )
-            found = True
-
-            while found == True:
-                found = False
-                for sid in self.sensorArray:
-                    if sid[0] == sensor_id:
-                        found = True
-                        sensor_id = random.randint( 0x0000, 0xffff )
-
-            # now we have a sensor id that is not valid
-            # send an intentionally incorrect request
-            self.send_message( Type.REMOVE_SENSOR, pack('H', sensor_id ) )
-
-            # expect error
-            self.expect_message( Type.REMOVE_SENSOR, ErrorCodes.ERROR_SENSOR_NOT_REGISTERED )
-        else:    
-            # this should be successful
-
-            # choose random sensor in the array
-            if not self.sensorArray:
-                return
-
-            valid_sensors = []
-            for sensor in self.sensorArray:
-                if sensor[ 1 ] == self.currentUser.user_id:
-                    valid_sensors.append( sensor )
-
-            if not valid_sensors:
-                return
-
-            chosenSensor = random.choice( valid_sensors )
-
-            self.send_message( Type.REMOVE_SENSOR, pack('H', chosenSensor[0] ) )
-
-            self.expect_message( Type.REMOVE_SENSOR, ErrorCodes.NO_ERROR )
-
-            self.sensorArray.remove( chosenSensor )
-            
-
-    def end(self):
-        self.send_message( Type.END, pack('B', 0 ) )
-
-
-
-
-
-
-
-
-
-
-
+        self.text = ''
+        self.search_str = ''
+        self.match = 'PARTIAL'
+
+    def menu(self):
+        self._read('\n')
+        self._read(self.menu_str)
+        self._read_status_bar()
+        self._read(self.select_str)
+
+    def enter_text(self):
+        self.write('1\n')
+        self._read(self.enter_text_str)
+        self.text = random_text()
+        self.write(self.text)
+        self.write('\n')
+        self.write('\n')
+        self.write('\n')
+
+    def enter_search(self):
+        self.write('2\n')
+        self._read(self.enter_search_str)
+        self.search_str = random_search_str()
+        self.write(self.search_str)
+        self.write('\n')
+
+    def line_set_partial_match(self):
+        self.write('3\n')
+        self.match = 'PARTIAL'
+
+    def line_set_exact_match(self):
+        self.write('4\n')
+        self.match = 'ALL'
+
+    def print_text(self):
+        self.write('5\n')
+        self._read_text()
+
+    def print_search(self):
+        self.write('6\n')
+        self._read_search_str()
+
+    def search_text(self):
+        self.write('7\n')
+        if not self.text:
+            self._read(self.no_text_str)
+        elif not self.search_str:
+            self._read(self.no_search_str)
+
+        for line in self.text.split('\n'):
+            if not line:
+                continue
+            if self.match == 'ALL':
+                match = re.findall(self.search_str, line)
+                if "".join(match) == line:
+                    self._read(line)
+                    self._read('\n')
+            elif self.match == 'PARTIAL':
+                match = re.findall(self.search_str, line)
+                if ''.join(match):
+                    self._read(line)
+                    self._read('\n')
+
+    def quit(self):
+        self.write('8\n')
+        self._read(self.exit_str)
 
 

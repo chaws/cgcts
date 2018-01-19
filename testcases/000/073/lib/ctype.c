@@ -113,7 +113,7 @@ int cgc_isspace(int c)
 
 int cgc_isupper(int c)
 {
-  return (unsigned int) (c - 'A') < 26;
+  return (unsigned int ) c - 'A' < 26;
 }
 
 int cgc_isxdigit(int c)

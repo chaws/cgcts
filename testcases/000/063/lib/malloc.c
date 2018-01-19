@@ -96,6 +96,8 @@ void *cgc_malloc(cgc_size_t size)
   if (size % ALIGNMENT != 0)
     size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
 
+  if (size >= 0x80000000)
+    return NULL;
   size += HEADER_PADDING;
 
   struct blk_t *blk = NULL;
@@ -116,7 +118,7 @@ void *cgc_malloc(cgc_size_t size)
 
   /* Split the block into two pieces if possible */
   cgc_size_t sdiff = blk->size - size;
-  if (sdiff > 2*HEADER_PADDING) {
+  if (sdiff > 2 * HEADER_PADDING) {
     struct blk_t *nb = (struct blk_t *)((intptr_t)blk + size);
 
     nb->size = sdiff;

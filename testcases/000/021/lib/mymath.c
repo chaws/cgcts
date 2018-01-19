@@ -1,6 +1,6 @@
 /*
 
-Author: Jason Williams <jdw@cromulence.co>
+Author: Jason Williams <jdw@cromulence.com>
 
 Copyright (c) 2014 Cromulence LLC
 

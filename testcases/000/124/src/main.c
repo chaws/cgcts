@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,187 +20,306 @@
  * THE SOFTWARE.
  *
  */
-#include "libcgc.h"
-#include "cgc_ctype.h"
-#include "cgc_stdarg.h"
 #include "cgc_stdlib.h"
 #include "cgc_string.h"
 #include "cgc_ctype.h"
+#include "cgc_readuntil.h"
 
-#include "cgc_accel.h"
-#include "cgc_accelio.h"
-#include "cgc_convert.h"
+#include "cgc_lsimp.h"
 
-#define ASSIGN "ASSIGN"
-#define CLEAR "CLEAR "
-#define REPR "REPR "
-#define SHOW "SHOW "
-#define TABLE "TABLE"
-#define EXIT "EXIT"
+#define CURRENT_VER ((char) 103)
+#define MAX_BUF_LEN 2048
 
-#define BAD_CLEAR_CMD -8
-#define BAD_ASSIGN_CMD -4
-#define BAD_SHOW_CMD -2
-#define BAD_INPUT -1
-#define CMD_SUCCESS 0
-#define EXIT_CODE 1
+lsimp_msg_t *cgc_head = NULL, *cgc_tail = NULL;
 
-#define LINE_SIZE 512
+enum op_t {
+  OP_QUEUE = 0,
+  OP_PROCESS = 1,
+  OP_QUIT = 2
+};
 
-static void cgc_print_table() {
-   cgc_print_assigned_cells();
-}
+typedef struct data_node {
+  lsimp_data_t *data;
+  struct data_node *next;
+} data_node_t;
 
-static int cgc_readline(int fd, char *line, cgc_size_t line_size)
+data_node_t* cgc_sorted(data_node_t *list)
 {
-    cgc_size_t i;
-    cgc_size_t rx;
+  if (list)
+  {
+    data_node_t *s = NULL, *next = list, *cur = NULL, *c = NULL;;
+    if (list->next == NULL)
+      return list;
 
-    for (i = 0; i < line_size; i++) {
-        if (cgc_receive(fd, line, 1, &rx) != 0 || rx == 0)
-            cgc_exit(0);
-        if (*line == '\n')
+    while (next)
+    {
+      cur = next;
+      next = cur->next;
+      if (s == NULL || cur->data->seq < s->data->seq)
+      {
+        cur->next = s;
+        s = cur;
+      }
+      else
+      {
+        c = s;
+        while (c)
+        {
+          if (c->next == NULL || cur->data->seq < c->data->seq)
+          {
+            cur->next = c->next;
+            c->next = cur;
             break;
-        line++;
+          }
+          c = c->next;
+        }
+      }
     }
-
-    if (i == line_size && *line != '\n')
-        return -1;
-    else if (*line != '\n')
-        return 1;
-    else
-        *line = '\0';
-
-    return 0;
+    return s;
+  }
+  return NULL;
 }
 
-static int cgc_parse_line(char *line)
+void cgc_queue_msg(lsimp_msg_t *msg)
 {
-    int is_repr = 0;
-    cgc_size_t i;
-    char tmp[32];
-    char *tok;
-    char val_str[LINE_SIZE];
-    char *cell_str;
+  if (msg == NULL)
+    return;
 
-    if (cgc_strtrim(line, LINE_SIZE, TRIM_FRONT) == -1)
-        return BAD_INPUT;
+  if (cgc_head == NULL)
+    cgc_head = cgc_tail = msg;
+  else
+  {
+    cgc_tail->next = msg;
+    cgc_tail = msg;
+  }
+  cgc_printf("QUEUED\n");
+}
 
-    cgc_memcpy(tmp, line, cgc_strlen(SHOW));
-    for (i = 0; i < cgc_strlen(SHOW); i++)
-        tmp[i] = cgc_toupper(tmp[i]);
-
-    if (cgc_memcmp(tmp, SHOW, cgc_strlen(SHOW)) == 0)
-        goto show_cmd;
-
-    cgc_memcpy(tmp, line, cgc_strlen(REPR));
-    for (i = 0; i < cgc_strlen(REPR); i++)
-        tmp[i] = cgc_toupper(tmp[i]);
-
-    if (cgc_memcmp(tmp, REPR, cgc_strlen(REPR)) == 0) {
-        is_repr = 1;
-        goto show_cmd;
+void cgc_clear_queue()
+{
+  if (cgc_head)
+  {
+    lsimp_msg_t *msg = cgc_head, *old = msg;
+    while (msg)
+    {
+      if (msg->type == LMT_KEYX)
+      {
+        if (msg->keyx.key)
+          cgc_free(msg->keyx.key);
+      }
+      else if (msg->type == LMT_DATA)
+      {
+        if (msg->data.data)
+          cgc_free(msg->data.data);
+      }
+      else if (msg->type == LMT_TEXT)
+      {
+        if (msg->text.msg)
+          cgc_free(msg->text.msg);
+      }
+      old = msg;
+      msg = msg->next;
+      cgc_free(old);
     }
+  }
+  cgc_printf("QUEUE CLEARED\n");
+}
 
-    cgc_memcpy(tmp, line, cgc_strlen(CLEAR));
-    for (i = 0; i < cgc_strlen(CLEAR); i++)
-        tmp[i] = cgc_toupper(tmp[i]);
+void cgc_process()
+{
+  int ttl = 0;
+  lsimp_keyx_t *keyx = NULL;
+  lsimp_helo_t *helo = NULL;
+  data_node_t *dchain = NULL, *dtail = NULL;
+  lsimp_msg_t *msg = cgc_head;
 
-    if (cgc_memcmp(tmp, CLEAR, cgc_strlen(CLEAR)) == 0)
-        goto clear_cmd;
+  if (cgc_head)
+  {
+    while (msg)
+    {
+      if (helo && ttl > helo->ttl)
+        break;
+      if (msg->type == LMT_HELO)
+      {
+        if (helo == NULL)
+        {
+          if (msg->helo.version == CURRENT_VER)
+          {
+            helo = &msg->helo;
+            cgc_printf("HELO [VERSION %d] [SECURE %s] [TTL %d]\n",
+                helo->version, helo->secure_mode ? "on" : "off", helo->ttl);
+          }
+          else
+            cgc_printf("INVALID VERSION\n");
+        }
+      }
+      else if (msg->type == LMT_KEYX)
+      {
+        if (helo == NULL)
+          break;
+        if (keyx == NULL)
+        {
+          if (!helo->secure_mode)
+          {
+            cgc_printf("KEYX IN NON-SECURE\n");
+            break;
+          }
+          if (msg->keyx.key_len == 0)
+          {
+            cgc_printf("NO KEY\n");
+            break;
+          }
 
-    // Use sizeof to include null terminator (vs cgc_strlen)
-    cgc_memcpy(tmp, line, sizeof(EXIT));
-    for (i = 0; i < sizeof(EXIT); i++)
-        tmp[i] = cgc_toupper(tmp[i]);
+          keyx = &msg->keyx;
 
-    if (cgc_memcmp(tmp, EXIT, sizeof(EXIT)) == 0)
-        goto exit_cmd;
-
-    goto assign_cmd;
-
-show_cmd:
-    cgc_strtrim(line, LINE_SIZE, TRIM_BACK);
-    cgc_memcpy(tmp, &line[cgc_strlen(SHOW)], sizeof(TABLE));
-    for (i = 0; i < sizeof(TABLE); i++)
-        tmp[i] = cgc_toupper(tmp[i]);
-
-    // Use sizeof to include null terminator (vs cgc_strlen)
-    if (cgc_memcmp(tmp, TABLE, sizeof(TABLE)) == 0) {
-        cgc_print_table();
-        return CMD_SUCCESS;
-    } else if (cgc_valid_cell_id(&line[cgc_strlen(SHOW)]) != -1) {
-        cell_str = cgc_show_cell(&line[cgc_strlen(SHOW)], is_repr, val_str, LINE_SIZE);
-        if (is_repr)
-            cgc_printf("Cell Repr: %s\n", cell_str);
+          cgc_printf("KEYX ");
+          cgc_printf("[OPTION ");
+          if ((keyx->option & 0x0F) == 0x07)
+            cgc_printf("prepend | ");
+          else
+            cgc_printf("append | ");
+          if ((keyx->option & 0xF0) == 0x30)
+          {
+            cgc_printf("inverted] ");
+            int i;
+            for (i = 0; i < keyx->key_len; ++i)
+              keyx->key[i] = ~keyx->key[i];
+          }
+          else
+            cgc_printf("as-is] ");
+          cgc_printf("[LEN %d]\n", keyx->key_len);
+        }
+      }
+      else if (msg->type == LMT_DATA)
+      {
+        if (helo == NULL)
+          break;
+        if (!helo->secure_mode)
+        {
+          cgc_printf("DATA IN NON-SECURE\n");
+          break;
+        }
+        if (keyx == NULL)
+        {
+          cgc_printf("DATA BEFORE KEYX\n");
+          break;
+        }
+        cgc_printf("DATA [SEQ %d] [LEN %d]\n", msg->data.seq, msg->data.data_len);
+        if (dchain == NULL)
+        {
+          if ((dchain = (data_node_t *)cgc_malloc(sizeof(data_node_t))) != NULL)
+          {
+            dchain->data = &msg->data;
+            dchain->next = NULL;
+            dtail = dchain;
+          }
+        }
         else
-            cgc_printf("Cell Value: %s\n", cell_str);
-        return CMD_SUCCESS;
-    } else {
-        return BAD_SHOW_CMD;
+        {
+          if ((dtail->next = (data_node_t *)cgc_malloc(sizeof(data_node_t))) != NULL)
+          {
+            dtail = dtail->next;
+            dtail->data = &msg->data;
+            dtail->next = NULL;
+          }
+        }
+      }
+      else if (msg->type == LMT_TEXT)
+      {
+        if (helo == NULL)
+          break;
+        if (helo->secure_mode)
+        {
+          cgc_printf("TEXT IN SECURE\n");
+          break;
+        }
+        if (msg->text.msg_len == 0)
+        {
+          cgc_printf("NO TEXT MSG\n");
+          break;
+        }
+        cgc_printf("TEXT [LEN %d] [MSG %s]\n", msg->text.msg_len, msg->text.msg);
+      }
+      msg = msg->next;
+      ttl++;
     }
+  }
 
-clear_cmd:
-    if (cgc_clear_cell(&line[cgc_strlen(CLEAR)]) != 0)
-        return BAD_CLEAR_CMD;
+  if (helo == NULL)
+    cgc_printf("HELO MISSING\n");
 
-    return CMD_SUCCESS;
+  if (dchain)
+  {
+    // dtail is wrong after this, but it's okay
+    data_node_t *p = cgc_sorted(dchain);
+    cgc_printf("SECURE MESSAGE:\n");
+    int seq = 1, old = 0;
+    while (p)
+    {
+      if (old == p->data->seq)
+      {
+        cgc_printf("(SEQ #%d DUP)", old);
+        p = p->next;
+        continue;
+      }
+      if (seq != p->data->seq)
+        cgc_printf("(SEQ #%d MISSING)", seq);
+      else
+      {
+        if (cgc_decode_data(keyx, p->data))
+          cgc_printf("%s", p->data->data);
+        p = p->next;
+      }
+      old = seq++;
+    }
+    cgc_printf("\n");
+  }
 
-assign_cmd:
-    tok = cgc_strsep(&line, "=");
-    if (tok == NULL || line == NULL)
-        return BAD_INPUT;
-
-    if (cgc_set_cell(tok, line, LINE_SIZE) != 0)
-        return BAD_ASSIGN_CMD;
-
-    return CMD_SUCCESS;
-
-exit_cmd:
-    return EXIT_CODE;
+  cgc_printf("PROCESS DONE\n");
+  cgc_clear_queue();
+  cgc_head = cgc_tail = NULL;
 }
 
-int main(int cgc_argc, char *cgc_argv[]) {
-    char line[LINE_SIZE];
-    cgc_init_sheet();
-    int cgc_exit = 0;
-    int line_status;
-
-    do {
-        cgc_printf("Accel:-$ ");
-        line_status = cgc_readline(STDIN, line, LINE_SIZE);
-        if(line_status != 0) {
-            cgc_printf("\n");
-            continue;
-        }
-
-        switch (cgc_parse_line(line)) {
-            case BAD_CLEAR_CMD:
-                cgc_printf("Error clearing cell\n");
-                break;
-            case BAD_ASSIGN_CMD:
-                cgc_printf("Error assigning cell. Valid Cells: A0-ZZ99\n");
-                break;
-            case BAD_SHOW_CMD:
-                cgc_printf("Error showing data. Try SHOW TABLE or SHOW [A0-ZZ99]\n");
-                break;
-            case BAD_INPUT:
-                cgc_printf("Bad input\n");
-                break;
-            case CMD_SUCCESS:
-                cgc_printf("Success.\n");
-                break;
-            case EXIT_CODE:
-                cgc_exit = 1;
-                cgc_printf("Exiting...\n");
-                return 0;
-            default:
-                cgc_printf("Unknown Input\n");
-                break;
-        }
-    } while (!cgc_exit);
-
-    cgc_printf("Unsupported signal. Exiting...\n");
-    return 0;
+void cgc_quit()
+{
+  cgc_printf("QUIT\n");
+  cgc_exit(0);
 }
 
+int main(int cgc_argc, char *cgc_argv[])
+{
+  unsigned int len;
+  char buf[MAX_BUF_LEN];
+  lsimp_msg_t *msg;
+
+  while (1)
+  {
+    if (cgc_read_n(STDIN, (char *)&len, sizeof(len)) <= 0)
+      return -1;
+    if (len > MAX_BUF_LEN || len < sizeof(int))
+      return -1;
+    if (cgc_read_n(STDIN, (char *)&buf, len) <= 0)
+      return -1;
+
+    switch (*(int *)buf)
+    {
+      case OP_QUEUE:
+        msg = cgc_parse_msg(buf + sizeof(int), len - sizeof(int));
+        if (msg != NULL)
+          cgc_queue_msg(msg);
+        else
+          cgc_printf("FAILED TO QUEUE\n");
+        break;
+      case OP_PROCESS:
+        cgc_process();
+        break;
+      case OP_QUIT:
+        cgc_quit();
+        break;
+      default:
+        return -1;
+    }
+  }
+
+  return 0;
+}

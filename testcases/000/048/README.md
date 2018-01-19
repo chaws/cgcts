@@ -1,35 +1,61 @@
-# Filesystem_Command_Shell
-
-## Author Information
-
-"Steve Wood" <swood@cromulence.com>
+# KPRCA-00047
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Kaprica Security (KPRCA)
 
-## Description
+## Description:
 
-This service implements a command line shell-like interface to an underlying filesystem--providing highlevel commands that encapsulate the lower level API calls of the filesystem.
+This service implements an optical character recognition engine. It takes in
+simple drawings of letters and tries to determine what the drawing says. It
+either returns to the user a successful result or an error message.
 
 ### Feature List
-The filesystem supports "regular" files, and files mapped to a malloc'ed memory region.  Commands are provided to create these files, read and write to them, copy them, and finally to erase them.  In addition, the filesystem supports file ownership and "others" permissions so that access to individual files can be restricted or shared as the file owner desires.  When started, the shell presents with a login prompt that uses data from the magic page for authentication information.  However, the shell does allow for "guest" access using a built-in account with hardcoded credentials.
 
+The OCR engine accepts only a predefined format for the images which it will
+process. This format has a special header on the first line, the dimensions of
+the image on the next line and the data comprising the image on the remaining
+lines of the input file. The image data is an array of bytes. The OCR engine
+walks over the image data attempting to match a subsection of the image data
+against predefined character templates. The matching algorithm allows for some
+fuzziness. If a character template is successfully matched against that
+character is copied to a result buffer and the window is shifted past the
+character. If no character is successfully matched against for the current
+window then the window is simply shifted over one column and the matching
+process begins again. When the window hits the end of the array the matching
+process is finished. The concatenation of all successful matches are returned
+to the user. If no successful matches occurred then an error message is
+returned to the user.
 
 ## Vulnerability
-The filesystem allocates one "block" of space to a file directory.  As the block size is decided when the filesystem is initialized, the maximum number of directory entries is variable and is calculated during the initialization.  In one calculation used to calculate the maximum number of files, the programmer forgets to subtract static overhead data from the total before dividing by the size of a directory entry, resulting in an off-by-one error on the maximum count.  If this maximum number of files is created, the last one will overflow into the next block of storage space--overwriting up to 8 bytes of data there.  
+
+The first vulnerability for this service occurs when the number of characters has
+been matched exceeds a predefined size of the result buffer. When this happens
+the remaining successfully matched characters are copied past the end of
+a result buffer located on the stack.
+
+The second vulnerability for this service occurs in the calloc for this
+service. The user controls the size value that is passed to calloc and the
+malloc here improperly checks the requested size which allows for an integer
+overflow and for improper sizes. This results in malloc claiming to have
+succeed when it in actuality did not allocate the requested size. calloc then
+attempts to set the requested size of bytes on the returned buffer which
+results in a segfault.
 
 ### Generic class of vulnerability
-Off By One
+ * Buffer overflow
+ * Unchecked array index
+ * Integer Overflow
 
 ### CWE classification
-CWE-193 Off By One
+  * CWE-121: Stack-based Buffer Overflow
+  * CWE-787: Out-of-bounds Write
+  * CWE-190: Integer Overflow or Wraparound
 
 ## Challenges
-For the initial startup condition of this service, the block that can be overwritten is already allocated to a file created during initialization of the system.  The block overwritten is essentially its "i-node" block, which has a list of the blocks containing the files data.  Overwriting this data will most likely result in a crash and the read of some other service memory area, but not the magic page.  Any attempt to write to this file will cause the file to be truncated to zero length first, clearing and releasing this corrupt block.  
 
-To successfully exploit this vulnerability, the exiting file using that block must be deleted and a file of the memory mapped type must be created first.  For this file type, these overwritten block does not contain pointers to other blocks containing data, but instead holds the pointer and length of the memory malloc'ed for this file.  By manipulating the filename used in the final file creation that overflows the directory, the pointer in this block can be overwritten to point to the magic page.  The amount of program understanding required to successfully exploit this vulnerability makes this one difficult.
+This service requires that the system attempting to identify flaws in it be
+able to deal with the following obstacles.
 
-	Finding Vulnerability 1: easy
-	Proving Vulnerability 1: hard
-	Fixing Vulnerability 1: easy 
-
+  * Large input spaces
+  * Large binary sizes
+  * Ability to generate arbitrary data that fits a strict set of constraints.

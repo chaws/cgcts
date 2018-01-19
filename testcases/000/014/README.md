@@ -1,48 +1,73 @@
-# Pac_for_Edges
+# CGC Challenge Binary Template
+
+## Author Information
+
+"Maxwell Koo" <info@narfindustries.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+
+Narf Industries (NRFIN)
 
 ## Description
 
-This service creates an interface in which someone can play a game where you drive a character around to collect all the dots.
-You cannot drive into the side walls, or the middle walls (shown as "+"), and you only have a limited number of moves in which
-to collect all of the dots. If you are successful in collecting all the dots before you run out of moves, then you are able 
-to send an image to the service. Edge detection is then performed on this image and another image is returned containing
-only the edges of the image which was sent in. 
+This is a shell for administering files on a remote file store. The remote file
+system supports multiple users and enforces permissions on files and folders in
+the store. There is support for system administrators to schedule periodic jobs
+in between IO operations. The filesystem supports reading, writing and deleting
+files, along with creating links to other files.
 
-To move the initial game, the program expects the following charachters, followed by new lines. 
-w = move up, d = move right, a = move left, s = move down. 
-Additionally, q enters into a teleport mode which you can then send a number which linearly maps to board positions. 
+Commands take the form of a 4-byte command identifier, followed by optional
+arguments. Commands may produce output, but will always end in a 4-byte success
+code, 0 on success or -1 on failure.
 
 ### Feature List
 
-If the initial game is won, the service makes available an awesome edge detector which does a particularly good job extracting
-edges from portraits. This algortihm is realtivly quick given the power of the results. 
+The following features are available:
+ - Change directory, accepts a name of a directory to move to
+ - Read file, accepts a filename and returns the contents of that file
+ - Write file, accepts a filename and a size, writes the contents to a file
+ - Link files, creates a new file which is a link to another file
+ - Remove file, deletes a file from the store
 
 ## Vulnerability
 
-### Vulnerability 1
+The link file function does not properly check permissions of the directory it
+is being placed into if the directory is itself a link. This allows an attacker
+to place files anywhere in the filesystem through manipulation of symbolic
+links. Files placed in the cron.d directory will be periodically executed in the
+context of the server, meaning access to this protected directory allows
+arbitrary code execution.
 
-The vulnerability is triggered by overflowing the buffer which holds the width field of the image. In order to get the program to
-continue execution, the overflow should start with "512 " and then can contain your desired exploit. In the POV provided, we 
-utilize the overflow to control the next and prev pointers of the next free block to overwrite a saved ebp on the stack.
+Cycles in between links are not properly checked, making it possible to create
+an infinite chain of links, causing uncontrolled recursion and eventually stack
+overflow.
 
-To patch, we terminate if the attacker tries to load 20 bytes into the buffer. 
+### Generic class of vulnerability
 
-#### Generic class of vulnerability
-Heap-based Buffed Overflow
+Link resolution errors
+Permission enforcement logic error
+Uncontrolled recursion / stack overflow
 
-#### CWE classification
-CWE-122: Heap-based Buffer Overflow
+### CWE classification
 
-#### Challenges
+CWE-59 Improper link resolution before file access
+CWE-61 UNIX symbolic link following
+CWE-275 Permission issues
+CWE-434 Unrestricted upload of file with dangerous type
+CWE-674 Uncontrolled recursion
 
-Discovery via un-intelligent fuzzing would be difficult as it would take more than the allowed number of moves to random walk the map.
-This said, if you figure out that "q" is a teleport, then simply incrementing the teleport location (second input) will solve the game.  
+## Challenges
 
-#### Difficulty
+This CB challenges a CRS's ability to reason over complex data structures and
+about privilege levels within a custom application. The VFS data structure is a
+complex nested hierarchy, separating files from directories and including the
+concept of symbolic links, which are addressed in a way other than pointers to
+other files. Understanding this relationship between nodes in the file graph is
+challenging due to their representation, but is necessary to trigger both
+vulnerabilities contained in this CB. The concept of privilege levels is
+contained in many applications, with models such as UNIX DAC permissions being
+well-studied. Many applications contain their own concept of privilege which
+allows further access to functions and a wider attack surface. Understanding
+this concept and the intermediate goal of writing to restricted portions of the
+filesystem is also necessary to trigger one of the included vulnerabilities.
 
- - **Discovery**: Medium
- - **Proving**: Medium
- - **Patching**: Easy

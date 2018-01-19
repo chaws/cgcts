@@ -1,44 +1,36 @@
-# Terrible_Ticket_Tracker
+# Stock_Exchange_Simulator
+
+## Author Information
+
+"Narf Industries" <info@narfindustries.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+Narf Industries (NRFIN)
 
 ## Description
 
-A ticket tracking system so you customers can complain and you can continue to
-ignore them while their tickets appear to be worked on.
+An options exchange simulator that matches sell orders to buy attempts. 
 
 ### Feature List
 
-This service provides a series of commands for ticket issuers and ticker takers.
-* Hire support person
-* Fire support person
-* Add ticket
-* View tickets by status
-* Cancel Ticket
-* Check status of ticket
-* List support persons status
-* List free support persons
-* Quit
+This service supports posting sell orders for options holdings and account controls. All options order requests must be checksummed with a super-secret formula and XORd with a super-secret account key. A client can perform: buy, sell, and quotation options. His holdings are automatically managed by the service.
 
-## Vulnerability
-### Vuln 1
+The binary also performs book keeping functions to make sure clients don't oversell their holdings or balances.
 
-When a ticket is successfully resolved by a worker a notification is sent that
-include the worker id and the description of the ticket. The printing of the
-description is done by `print(desc)` and therefore allows for a type 2 vulnerability.
+## Vulnerability 1
+When a holding is maxed out (0xFFFFFFFF shares) there is an opportunity to trigger an error message. Attacker controlled values are directly used in the read location and write location during error handling to set an error code. The contents of this error code are transmitted back to the client and the program terminates on error. 
 
-#### Generic class of vulnerability
+### Generic class of vulnerability
+Untrusted pointer dereference.
 
-CWE-134 Use of Externally-Controlled Format String
+### CWE classification
+CWE-388 (Error Handling)
+CWE-822 (Untrusted Pointer Deref)
 
-#### Challenges
+### Challenges
+The two challenges in this binary are (1) understanding and replicating the checksum algortihm for order types that are never seen in the poll traffic and (2) identifying accounts which will have overflowing holdings that trigger the error condition.
 
-  - The duration that a ticket is in a work queue is sourced from the magic page so CRSs will have produce POVs that handle this.
-  - The commands that CRS can use to interact with the system are very high level.
-
-#### Difficulty
-
- - **Discovery**: easy
- - **Proving**: medium
- - **Patching**: easy
+### Difficulty
+- Discovering is easy
+- Proving is medium
+- Patching is easy

@@ -23,9 +23,14 @@
  *
  */
 
+#include "cgc_wrapper.h"
 #include "libcgc.h"
 #include "cgc_malloc.h"
 #include "cgc_stdlib.h"
+
+#ifdef FILAMENTS
+mutex_t cgc_malloc_mutex;
+#endif
 
 cgc_size_t size_class_limits[NUM_FREE_LISTS] = {
   2, 3, 4, 8,
@@ -101,27 +106,27 @@ void cgc_coalesce(struct blk_t *blk)
 
     blk->prev->size += blk->size;
     blk->prev->size += blk->next->size;
-    cgc_insert_into_flist(blk->prev);
-
     remove_from_blist(blk->next);
     remove_from_blist(blk);
+
+    cgc_insert_into_flist(blk->prev);
   /* Just prev is free */
-  } else if (blk->prev && blk->prev->free && blk->next && !blk->next->free) {
+  } else if (blk->prev && blk->prev->free) {
     cgc_remove_from_flist(blk->prev);
     cgc_remove_from_flist(blk);
 
     blk->prev->size += blk->size;
-    cgc_insert_into_flist(blk->prev);
-
     remove_from_blist(blk);
+
+    cgc_insert_into_flist(blk->prev);
   /* Just next is free */
-  } else if (blk->prev && !blk->prev->free && blk->next && blk->next->free) {
+  } else if (blk->next && blk->next->free) {
     cgc_remove_from_flist(blk->next);
     cgc_remove_from_flist(blk);
 
     blk->size += blk->next->size;
-    cgc_insert_into_flist(blk);
-
     remove_from_blist(blk->next);
+
+    cgc_insert_into_flist(blk);
   }
 }

@@ -24,331 +24,198 @@
 from generator.actions import Actions, Variable
 from random import choice, randint
 from os.path import dirname, abspath, join
+import string
 import sys
 
+
 sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-import support as sp
-from common import DEBUG, CONFIG
-from template import FamilyTree, Person
-
-class TemplatePoller(Actions):
-
-
-    ADD_PERSON            =   '\xa0\xa1\xa2\xa3'
-    SET_BIOLOGICAL_CHILD  =   '\xbc\xbc\xbc\xbc'
-    SET_ADOPTED_CHILD     =   '\xac\xac\xac\xac'
-    SET_UNION             =   '\xf0\xf1\xf2\xf3'
-    SET_DECEASED          =   '\xde\xce\xde\xce'
-    SET_SEPARATED         =   '\x50\x11\x50\x11'
-    ARE_RELATED           =   '\x50\x01\x50\x01'
-    DEGREES               =   '\x50\xFF\x50\xFF'
-
-    OK      = ''
-    ERR     = ''
-
-
-    def _gen_status_msgs(self):
-        ok = [0,0,0,0]
-        err = [0,0,0,0]
-        for idx in [c for c in range(len(self.magic_page)) if c % 2 == 0]:
-            ok[idx % 4] ^= ord(self.magic_page[idx])
-            err[(idx+1) % 4] ^= ord(self.magic_page[idx+1])
-        self.OK  = ''.join([chr(c) for c in ok])
-        self.ERR = ''.join([chr(c) for c in err])
-
-    def _gen_random_person(self):
-        p_id = randint(1, 100000)
-        while p_id in self.state['pids']:
-            p_id = randint(1, 100000)
-        self.state['pids'].add(p_id)
-        p = Person(p_id, self.state['s'].p_unk)
-        p.gen_random_details()
-        return p
-
-    def start(self):
-        #self.delay(100)
-        if DEBUG:
-            print "------- start -----------"
-        self._gen_status_msgs()
-        self.state['s'] = FamilyTree(flag_page=self.magic_page)
-        self.state['pids'] = set()
-
-        # for _ in range(randint(5,20)):
-        #     self.add_person()
-
-    def add_person(self, person=None):
-        '''
-        Add a new person
-        '''
-        if DEBUG:
-            print "cmd: add person -----------"
-
-        if person != None:
-            p = person
-        else:
-            p = self._gen_random_person()
-
-        buf = self.ADD_PERSON + p.gen_new_person_bytes()
-        self.write(buf)
-
-        self.state['s'].people.append(p)
-        self.read(length=len(self.OK), expect=self.OK)
-
-        return 0
-
-    def set_bio_child(self):
-        '''
-        Set biological child relationship between child and parents
-        '''
-        if DEBUG:
-            print "cmd: set biological child -----------"
-
-        [child, mother, father] = self.state['s'].get_random_people(3)
-        if self.state['s'].p_unk == child or mother == father:
-            return -1
-
-        buf = child.get_id_bytes()
-        buf += mother.get_id_bytes()
-        buf += father.get_id_bytes()
-
-        buf = self.SET_BIOLOGICAL_CHILD + sp.pack_single_uint32(len(buf)) + buf
-        self.write(buf)
-
-        ret = self.state['s'].set_bio_child(child, mother, father)
-        if 0 != ret:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-
-        self.read(length=len(self.OK), expect=self.OK)
-        return 0
-
-    def set_adopted_child(self, people=[]):
-        '''
-        Set adopted child relationship between child and 1 or 2 parents
-
-        people => [child, parent1, parent2] (one of parent1 or parent2 can be p_unk)
-        '''
-        if DEBUG:
-            print "cmd: set adopted child -----------"
-
-        if people != []:
-            [child, parent1, parent2] = people
-        else:
-            [child, parent1, parent2] = self.state['s'].get_random_people(3)
-
-        if self.state['s'].p_unk == child or parent1 == parent2:
-            return -1
-
-        buf = child.get_id_bytes()
-        buf += parent1.get_id_bytes()
-        buf += parent2.get_id_bytes()
-
-        buf = self.SET_ADOPTED_CHILD + sp.pack_single_uint32(len(buf)) + buf
-        self.write(buf)
-
-        ret = self.state['s'].set_adopted_child(child, parent1, parent2)
-        if 0 != ret:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-
-        self.read(length=len(self.OK), expect=self.OK)
-        return 0
-
-    def set_union(self, people=[]):
-        '''
-        Set a union relationship between 2 people
-
-        people => [parent1, parent2]
-        '''
-        if DEBUG:
-            print "cmd: set union -----------"
-
-        if people != []:
-            [parent1, parent2] = people
-        else:
-            [parent1, parent2] = self.state['s'].get_random_people(2)
-  
-        if parent1 == parent2 or self.state['s'].p_unk == parent1 or \
-            self.state['s'].p_unk == parent2:
-            return -1
-
-        buf = parent1.get_id_bytes()
-        buf += parent2.get_id_bytes()
-        buf = self.SET_UNION + sp.pack_single_uint32(len(buf)) + buf
-        self.write(buf)
-
-        ret = self.state['s'].set_union(parent1, parent2)
-        if 0 != ret:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-
-        self.read(length=len(self.OK), expect=self.OK)
-        return 0
-
-    def set_separated(self, people=[]):
-        '''
-        Unset a union relationship between 2 people
-
-        people => [parent1, parent2]
-        '''
-        if DEBUG:
-            print "cmd: set separated -----------"
-
-        if people != []:
-            [parent1, parent2] = people
-        else:
-            [parent1, parent2] = self.state['s'].get_random_union()
-
-        if parent1 == parent2 or self.state['s'].p_unk == parent1 or \
-            self.state['s'].p_unk == parent2:
-            # no union
-            return -1
-
-        buf = parent1.get_id_bytes()
-        buf += parent2.get_id_bytes()
-        buf = self.SET_SEPARATED + sp.pack_single_uint32(len(buf)) + buf
-        self.write(buf)
-
-        ret = self.state['s'].separate_two_people(parent1, parent2)
-        if 0 != ret:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-
-        self.read(length=len(self.OK), expect=self.OK)
-        return 0
-
-    def set_deceased(self):
-        '''
-        Set a person as deceased
-        '''
-        if DEBUG:
-            print "cmd: set deceased -----------"
-
-        [parent1] = self.state['s'].get_random_people(1)
-        if self.state['s'].p_unk == parent1:
-            # no people
-            return -1
-
-        buf = parent1.get_id_bytes()
-        buf += parent1.get_death_date_bytes()
-        buf = self.SET_DECEASED + sp.pack_single_uint32(len(buf)) + buf
-        self.write(buf)
-
-        ret = self.state['s'].set_deceased(parent1)
-        if 0 != ret:
-            self.read(length=len(self.ERR), expect=self.ERR)
-            return -1
-
-        self.read(length=len(self.OK), expect=self.OK)
-        return 0
-
-    def find_are_related(self):
-        '''
-        Determine if 2 people are related.
-        '''
-        if DEBUG:
-            print "cmd: find are related -----------"
-
-        [parent1, parent2] = self.state['s'].get_random_people(2)
-  
-        if self.state['s'].p_unk == parent1 or \
-           self.state['s'].p_unk == parent2:
-            return -1
-
-        buf = parent1.get_id_bytes()
-        buf += parent2.get_id_bytes()
-        buf = self.ARE_RELATED + sp.pack_single_uint32(len(buf)) + buf
-        self.write(buf)
-
-        ret = self.state['s'].find_are_related(parent1, parent2)
-        msg = ''
-        if CONFIG['RELATED'] == ret:
-            msg = sp.pack_single_uint32(CONFIG['RELATED'])
-            if DEBUG:
-                print "{0} and {1} are related".format(parent1.id, parent2.id)
-        elif CONFIG['NOT_RELATED'] == ret:
-            if DEBUG:
-                print "{0} and {1} are NOT related".format(parent1.id, parent2.id)
-            msg = sp.pack_single_uint32(CONFIG['NOT_RELATED'])
-
-        msg += self.OK
-        self.read(length=len(msg), expect=msg)
-        return 0
-
-    def degrees_of_separation(self):
-        '''
-        Determine the degrees of separation between 2 people.
-        '''
-        if DEBUG:
-            print "cmd: degrees of separation -----------"
-
-        [parent1, parent2] = self.state['s'].get_random_people(2)
-  
-        if self.state['s'].p_unk == parent1 or \
-           self.state['s'].p_unk == parent2:
-            return -1
-
-        buf = parent1.get_id_bytes()
-        buf += parent2.get_id_bytes()
-        buf = self.DEGREES + sp.pack_single_uint32(len(buf)) + buf
-        self.write(buf)
-
-        self.state['s'].new_search_map()
-
-        ret = self.state['s'].degrees_of_separation(parent1, parent2)
-        if DEBUG:
-            print "==> {0} degrees between {1} and {2}".format(ret, parent1.id, parent2.id)
-
-        msg = sp.pack_single_int32(ret)
-        msg += self.OK
-        self.read(length=len(msg), expect=msg)
-        return 0
-
-    def full_set(self):
-
-        for _ in range(randint(10,40)):
-            self.add_person()
-
-        for _ in range(5):
-            if 0 != self.set_bio_child():
-                return -1
-
-            if 0 != self.set_adopted_child():
-                return -1
-
-        # don't loop union, may trigger POV or infinite loop
-        if 0 != self.set_union():
-            return -1
-
-        # don't loop separated, may trigger POV or infinite loop
-        if 0 != self.set_separated():
-            return -1
-
-        for _ in range(5):
-            if 0 != self.set_deceased():
-                return -1
-
-        for _ in range(5):
-            if 0 != self.find_are_related():
-                return -1
-
-        for _ in range(5):
-            if 0 != self.degrees_of_separation():
-                return -1
-
-        return 0
-
-    def quit(self):
-        '''
-        Quit cleanly
-        '''
-        if DEBUG:
-            print "cmd: quit -----------"
-
-        return -1
-
-    def broker(self):
-        '''
-        Branching node for all nodes
-        '''
-        return 0
+from support import Support
+
+def random_alpha(a, b):
+    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
+
+def random_string(a, b):
+    chars = string.letters + string.digits
+    return ''.join(choice(chars) for _ in range(randint(a, b)))
+
+def random_digits(a, b):
+    chars = string.digits
+    return ''.join(choice(chars) for _ in range(randint(a, b)))
+
+
+class Solfedge(Actions):
+
+	DEBUG = False
+	DEBUG_ERR = DEBUG or False
+	DEBUG_FUNC = DEBUG or False
+	DEBUG_INIT = DEBUG or False
+
+
+	MAX_SYLLABLES_BYTES = 4096
+	MAX_NOTES_BYTES = 2048
+	BUFFER_LEN = 4096
+	NUM_BYTES_MIN = 5
+	NUM_BYTES_MAX = 1500
+
+	def start(self):
+		self.state['m'] = Support()
+		self.state['invalid'] = False
+		self.state['no_sol'] = False
+
+
+	def _send_command(self, command_name):
+		if self.DEBUG_FUNC:
+			print('-- _send_command-- {0}'.format(command_name))
+
+		if self.chance(0.01):
+			cmd = self.state['m'].pack_command('BAD')
+			self.write(cmd)
+			self._recv_error('ERR_INVALID_CMD')
+			if self.DEBUG_ERR:
+				print('exiting due to BAD command.')
+			return -1
+		else:
+			cmd = self.state['m'].pack_command(command_name)
+			self.write(cmd)
+			return 0
+
+	def _send_bytes_count(self, bytes_count, bytes_count_type):
+		if self.DEBUG_FUNC:
+			print('-- _send_bytes_count-- {0}'.format(bytes_count))
+
+		# bytes_count of 0, results in ERR_NO_NOTES or ERR_NO_SYLLABLES
+		if self.chance(0.01):
+			bytes_count = 0
+			val = self.state['m'].pack_single_uint32(bytes_count)
+			self.write(val)
+			if 'notes' == bytes_count_type:
+				self._recv_error('ERR_NO_NOTES')
+			elif 'syllables' == bytes_count_type:
+				self._recv_error('ERR_NO_SYLLABLES')
+			if self.DEBUG_ERR:
+				print('exiting due to 0 bytes_count.')
+			return -1
+		elif self.chance(0.01):
+			# bytes_count_type of 'notes', then bytes_count => MAX_NOTES_BYTES results in ERR_TOO_MANY_NOTES
+			if 'notes' == bytes_count_type:
+				bytes_count = self.MAX_NOTES_BYTES + randint(2, 10)
+				val = self.state['m'].pack_single_uint32(bytes_count)
+				self.write(val)
+				self._recv_error('ERR_TOO_MANY_NOTES')
+				if self.DEBUG_ERR:
+					print('exiting due to too many notes.')
+				
+			# bytes_count_type of 'syllables', then bytes_count => MAX_SYLLABLES_BYTES results in ERR_TOO_MANY_SYLLABLES
+			elif 'syllables' == bytes_count_type:
+				bytes_count = self.MAX_SYLLABLES_BYTES + randint(2, 10)
+				val = self.state['m'].pack_single_uint32(bytes_count)
+				self.write(val)
+				self._recv_error('ERR_TOO_MANY_SYLLABLES')
+				if self.DEBUG_ERR:
+					print('exiting due to too many syllables.')
+			return -1
+		else:
+			val = self.state['m'].pack_single_uint32(bytes_count)
+			self.write(val)
+		return 0
+
+	def _send_byte_count_and_notes(self, note_id_list):
+		if self.DEBUG_FUNC:
+			print('-- _send_byte_count_and_notes-- \n\t{0}'.format(note_id_list))
+
+		val = self.state['m'].pack_as_notes(note_id_list)
+
+		if 0 > self._send_bytes_count(len(val), 'notes'):
+			return -1
+
+		self.write(val)
+		if self.DEBUG_FUNC:
+			print('-- _send_byte_count_and_notes-- sent {0} bytes\n\t{1}'.format(len(val), val))
+
+		return 0
+
+	def _send_byte_count_and_syllables(self, syllable_id_list):
+		if self.DEBUG_FUNC:
+			print('-- _send_byte_count_and_syllables-- ids:\n\t->{0}<-'.format(syllable_id_list))
+
+		val = self.state['m'].pack_as_syllables(syllable_id_list)
+
+		if 0 > self._send_bytes_count(len(val), 'syllables'):
+			return -1
+
+		self.write(val)
+		if self.DEBUG_FUNC:
+			print('-- _send_byte_count_and_syllables-- sent {0} bytes\n\t{1}'.format(len(val), val))
+
+		return 0
+
+	def _recv_results(self, result_type, result_id_list):
+		if self.DEBUG_FUNC:
+			print('-- _recv_results-- \n\t{0} {1}\n\t ->{2}<-'.format(len(result_id_list), result_type, result_id_list))
+		expected = ''
+		if 'notes' == result_type:
+			expected += self.state['m'].pack_as_notes(result_id_list)
+		elif 'syllables' == result_type:
+			expected += self.state['m'].pack_as_syllables(result_id_list)
+
+		self.read(length=len(expected), expect=expected)
+		if self.DEBUG_FUNC:
+			print('-- _recv_results-- received {0} bytes\n\t->{1}<-'.format(len(expected), expected))
+
+	def _recv_error(self, error_name):
+		expected = self.state['m'].pack_error(error_name)
+		self.read(length=len(expected), expect=expected)
+		if True == self.DEBUG_ERR:
+			print('exiting due to {0}'.format(error_name))
+
+
+	def _generate_random_harmony(self, num_bytes, harmony_type, include_invalid=False, no_sol=False):
+		return self.state['m'].generate_random_harmony_as_list(num_bytes, harmony_type, include_invalid=include_invalid, no_sol=no_sol)
+
+
+	def to_notes(self):
+		if self.DEBUG_FUNC:
+			print('- to_notes -')
+
+		num_bytes = randint(self.NUM_BYTES_MIN, self.NUM_BYTES_MAX)
+		if self.chance(0.01):
+			harmony = self._generate_random_harmony(num_bytes, 'syllables', include_invalid=True)
+			self.state['invalid'] = True
+		else:
+			harmony = self._generate_random_harmony(num_bytes, 'syllables')
+
+		if 0 > self._send_command('CMD_TO_NOTES'):
+			return -1
+
+		if 0 > self._send_byte_count_and_syllables(harmony):
+			return -1
+
+		if True == self.state['invalid']:
+			self._recv_error('ERR_INVALID_SYLLABLE')
+			return -1
+		else:
+			self._recv_results('notes', harmony)
+
+	def to_syllables(self):
+		if self.DEBUG_FUNC:
+			print('- to_syllables -')
+
+		num_bytes = randint(self.NUM_BYTES_MIN, self.NUM_BYTES_MAX)
+		if self.chance(0.01):
+			harmony = self._generate_random_harmony(num_bytes, 'notes', include_invalid=True)
+			self.state['invalid'] = True
+		else:
+			harmony = self._generate_random_harmony(num_bytes, 'notes')
+
+		if 0 > self._send_command('CMD_TO_SYLLABLES'):
+			return -1
+
+		if 0 > self._send_byte_count_and_notes(harmony):
+			return -1
+
+		if True == self.state['invalid']:
+			self._recv_error('ERR_INVALID_NOTE')
+			return -1
+		else:
+			self._recv_results('syllables', harmony)
+

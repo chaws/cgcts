@@ -1,4 +1,4 @@
-CHAL=CableGrindLlama
+CHAL=Personal_Fitness_Manager
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,261 +20,43 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fcommon -o lib/libdupe.c.o -c lib/libdupe.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fcommon -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fcommon -o src/cablegrind.c.o -c src/cablegrind.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fcommon -o src/cablegrindprotos.c.o -c src/cablegrindprotos.c
-	$(CC) $(FLAGS) -o CableGrindLlama_patched lib/libc.c.o lib/libdupe.c.o src/service.c.o src/cablegrind.c.o src/cablegrindprotos.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o lib/cutil_string.cc.o -c lib/cutil_string.cc
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/math.c.o -c lib/math.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/string.c.o -c lib/string.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/sensor.cc.o -c src/sensor.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/user.cc.o -c src/user.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/common.cc.o -c src/common.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/sensor_manager.cc.o -c src/sensor_manager.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/service.cc.o -c src/service.cc
+	$(CXX) $(FLAGS) -o Personal_Fitness_Manager_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/cutil_string.cc.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/sensor.cc.o src/user.cc.o src/common.cc.o src/sensor_manager.cc.o src/service.cc.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o lib/libdupe.c.o -c lib/libdupe.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o src/cablegrind.c.o -c src/cablegrind.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o src/cablegrindprotos.c.o -c src/cablegrindprotos.c
-	$(CC) $(FLAGS) -o CableGrindLlama lib/libc.c.o lib/libdupe.c.o src/service.c.o src/cablegrind.c.o src/cablegrindprotos.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o lib/cutil_string.cc.o -c lib/cutil_string.cc
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/math.c.o -c lib/math.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/string.c.o -c lib/string.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/sensor.cc.o -c src/sensor.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/user.cc.o -c src/user.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/common.cc.o -c src/common.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/sensor_manager.cc.o -c src/sensor_manager.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/service.cc.o -c src/service.cc
+	$(CXX) $(FLAGS) -o Personal_Fitness_Manager lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/cutil_string.cc.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/sensor.cc.o src/user.cc.o src/common.cc.o src/sensor_manager.cc.o src/service.cc.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_99 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_99/pov.c.o -c pov_99/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_98 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_98/pov.c.o -c pov_98/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_97 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_97/pov.c.o -c pov_97/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_95 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_95/pov.c.o -c pov_95/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_93 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_93/pov.c.o -c pov_93/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_92 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_92/pov.c.o -c pov_92/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_9 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_9/pov.c.o -c pov_9/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_89 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_89/pov.c.o -c pov_89/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_86 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_86/pov.c.o -c pov_86/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_87 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_87/pov.c.o -c pov_87/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_84 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_84/pov.c.o -c pov_84/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_94 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_94/pov.c.o -c pov_94/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_82 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_82/pov.c.o -c pov_82/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_81 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_81/pov.c.o -c pov_81/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_80 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_80/pov.c.o -c pov_80/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_79 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_79/pov.c.o -c pov_79/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_78 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_78/pov.c.o -c pov_78/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_31 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_31/pov.c.o -c pov_31/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_30 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_30/pov.c.o -c pov_30/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_32 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_32/pov.c.o -c pov_32/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_29 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_29/pov.c.o -c pov_29/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_20 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_20/pov.c.o -c pov_20/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_105 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_105/pov.c.o -c pov_105/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_26 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_26/pov.c.o -c pov_26/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_49 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_49/pov.c.o -c pov_49/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_60 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_60/pov.c.o -c pov_60/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_24 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_24/pov.c.o -c pov_24/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_66 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_66/pov.c.o -c pov_66/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_22 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_22/pov.c.o -c pov_22/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_72 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_72/pov.c.o -c pov_72/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_88 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_88/pov.c.o -c pov_88/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_41 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_41/pov.c.o -c pov_41/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_16 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_16/pov.c.o -c pov_16/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_15 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_15/pov.c.o -c pov_15/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_12 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_12/pov.c.o -c pov_12/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_101 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_101/pov.c.o -c pov_101/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_100 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_100/pov.c.o -c pov_100/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_28 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_28/pov.c.o -c pov_28/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_38 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_38/pov.c.o -c pov_38/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_103 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_103/pov.c.o -c pov_103/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_113 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_113/pov.c.o -c pov_113/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_110 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_110/pov.c.o -c pov_110/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_18 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_18/pov.c.o -c pov_18/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_118 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_118/pov.c.o -c pov_118/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_10 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_10/pov.c.o -c pov_10/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_19 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_19/pov.c.o -c pov_19/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_25 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_25/pov.c.o -c pov_25/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_96 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_96/pov.c.o -c pov_96/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_85 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_85/pov.c.o -c pov_85/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_112 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_112/pov.c.o -c pov_112/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_115 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_115/pov.c.o -c pov_115/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_33 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_33/pov.c.o -c pov_33/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_64 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_64/pov.c.o -c pov_64/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_21 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_21/pov.c.o -c pov_21/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_34 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_34/pov.c.o -c pov_34/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_46 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_46/pov.c.o -c pov_46/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_67 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_67/pov.c.o -c pov_67/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_48 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_48/pov.c.o -c pov_48/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_106 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_106/pov.c.o -c pov_106/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_71 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_71/pov.c.o -c pov_71/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_108 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_108/pov.c.o -c pov_108/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_102 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_102/pov.c.o -c pov_102/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_116 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_116/pov.c.o -c pov_116/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_109 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_109/pov.c.o -c pov_109/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_117 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_117/pov.c.o -c pov_117/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_11 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_11/pov.c.o -c pov_11/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_104 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_104/pov.c.o -c pov_104/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_58 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_58/pov.c.o -c pov_58/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_111 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_111/pov.c.o -c pov_111/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_91 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_91/pov.c.o -c pov_91/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_90 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_90/pov.c.o -c pov_90/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_54 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_54/pov.c.o -c pov_54/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_14 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_14/pov.c.o -c pov_14/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_45 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_45/pov.c.o -c pov_45/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_114 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_114/pov.c.o -c pov_114/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_35 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_35/pov.c.o -c pov_35/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_40 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_40/pov.c.o -c pov_40/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_36 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_36/pov.c.o -c pov_36/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_83 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_83/pov.c.o -c pov_83/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_37 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_37/pov.c.o -c pov_37/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_42 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_42/pov.c.o -c pov_42/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_23 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_23/pov.c.o -c pov_23/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_59 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_59/pov.c.o -c pov_59/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_43 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_43/pov.c.o -c pov_43/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_47 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_47/pov.c.o -c pov_47/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_13 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_13/pov.c.o -c pov_13/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_63 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_63/pov.c.o -c pov_63/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_5 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_5/pov.c.o -c pov_5/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_70 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_70/pov.c.o -c pov_70/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_50 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_50/pov.c.o -c pov_50/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_51 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_51/pov.c.o -c pov_51/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_52 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_52/pov.c.o -c pov_52/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_8 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_8/pov.c.o -c pov_8/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_39 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_39/pov.c.o -c pov_39/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_55 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_55/pov.c.o -c pov_55/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_7 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_7/pov.c.o -c pov_7/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_17 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_17/pov.c.o -c pov_17/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_75 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_75/pov.c.o -c pov_75/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_56 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_56/pov.c.o -c pov_56/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_57 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_57/pov.c.o -c pov_57/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_107 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_107/pov.c.o -c pov_107/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_6 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_6/pov.c.o -c pov_6/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_44 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_44/pov.c.o -c pov_44/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_61 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_61/pov.c.o -c pov_61/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_27 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_27/pov.c.o -c pov_27/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_62 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_62/pov.c.o -c pov_62/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_53 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_53/pov.c.o -c pov_53/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_65 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_65/pov.c.o -c pov_65/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_68 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_68/pov.c.o -c pov_68/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_69 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_69/pov.c.o -c pov_69/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_73 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_73/pov.c.o -c pov_73/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_74 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_74/pov.c.o -c pov_74/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_76 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_76/pov.c.o -c pov_76/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_77 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_77/pov.c.o -c pov_77/pov.c
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_8 pov_8/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_9 pov_9/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_109 pov_109/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_108 pov_108/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_103 pov_103/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_3 pov_3/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_4 pov_4/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_106 pov_106/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_105 pov_105/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_104 pov_104/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_58 pov_58/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_59 pov_59/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_56 pov_56/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_57 pov_57/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_54 pov_54/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_55 pov_55/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_52 pov_52/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_53 pov_53/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_50 pov_50/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_51 pov_51/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_118 pov_118/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_110 pov_110/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_111 pov_111/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_112 pov_112/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_113 pov_113/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_114 pov_114/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_115 pov_115/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_116 pov_116/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_117 pov_117/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_73 pov_73/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_49 pov_49/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_48 pov_48/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_45 pov_45/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_44 pov_44/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_47 pov_47/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_46 pov_46/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_41 pov_41/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_40 pov_40/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_43 pov_43/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_42 pov_42/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_102 pov_102/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_101 pov_101/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_100 pov_100/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_107 pov_107/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_5 pov_5/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_78 pov_78/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_79 pov_79/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_6 pov_6/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_70 pov_70/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_71 pov_71/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_72 pov_72/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_7 pov_7/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_74 pov_74/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_75 pov_75/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_76 pov_76/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_77 pov_77/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_67 pov_67/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_66 pov_66/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_65 pov_65/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_64 pov_64/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_63 pov_63/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_62 pov_62/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_61 pov_61/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_60 pov_60/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_69 pov_69/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_68 pov_68/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_12 pov_12/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_13 pov_13/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_10 pov_10/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_11 pov_11/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_16 pov_16/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_17 pov_17/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_14 pov_14/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_15 pov_15/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_18 pov_18/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_19 pov_19/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_98 pov_98/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_99 pov_99/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_92 pov_92/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_93 pov_93/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_90 pov_90/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_91 pov_91/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_96 pov_96/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_97 pov_97/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_94 pov_94/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_95 pov_95/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_89 pov_89/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_88 pov_88/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_81 pov_81/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_80 pov_80/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_83 pov_83/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_82 pov_82/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_85 pov_85/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_84 pov_84/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_87 pov_87/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_86 pov_86/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_38 pov_38/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_39 pov_39/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_34 pov_34/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_35 pov_35/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_36 pov_36/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_37 pov_37/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_30 pov_30/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_31 pov_31/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_32 pov_32/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_33 pov_33/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_29 pov_29/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_28 pov_28/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_23 pov_23/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_22 pov_22/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_21 pov_21/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_20 pov_20/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_27 pov_27/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_26 pov_26/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_25 pov_25/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CableGrindLlama_pov_24 pov_24/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -fno-exceptions -fno-rtti -O0 -g -pedantic -o pov_1/pov_1.c.o -c pov_1/pov_1.c
+	$(CXX) $(FLAGS) -o Personal_Fitness_Manager_pov_1 pov_1/pov_1.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_99/pov.c.o pov_98/pov.c.o pov_97/pov.c.o pov_95/pov.c.o pov_93/pov.c.o pov_92/pov.c.o pov_9/pov.c.o pov_89/pov.c.o pov_86/pov.c.o pov_87/pov.c.o pov_84/pov.c.o pov_94/pov.c.o pov_82/pov.c.o pov_81/pov.c.o pov_80/pov.c.o pov_79/pov.c.o pov_78/pov.c.o pov_31/pov.c.o pov_30/pov.c.o pov_32/pov.c.o pov_29/pov.c.o pov_20/pov.c.o pov_105/pov.c.o pov_26/pov.c.o pov_49/pov.c.o pov_60/pov.c.o pov_24/pov.c.o pov_66/pov.c.o pov_22/pov.c.o pov_72/pov.c.o pov_88/pov.c.o pov_2/pov.c.o pov_41/pov.c.o pov_16/pov.c.o pov_15/pov.c.o pov_12/pov.c.o pov_3/pov.c.o pov_101/pov.c.o pov_100/pov.c.o pov_28/pov.c.o pov_38/pov.c.o pov_103/pov.c.o pov_113/pov.c.o pov_110/pov.c.o pov_18/pov.c.o pov_118/pov.c.o pov_1/pov.c.o pov_10/pov.c.o pov_19/pov.c.o pov_25/pov.c.o pov_96/pov.c.o pov_85/pov.c.o pov_112/pov.c.o lib/libc.c.o lib/libdupe.c.o src/service.c.o src/cablegrind.c.o src/cablegrindprotos.c.o pov_115/pov.c.o pov_33/pov.c.o pov_64/pov.c.o pov_21/pov.c.o lib/libc.c.o lib/libdupe.c.o src/service.c.o src/cablegrind.c.o src/cablegrindprotos.c.o pov_34/pov.c.o pov_46/pov.c.o pov_67/pov.c.o pov_48/pov.c.o pov_106/pov.c.o pov_71/pov.c.o pov_108/pov.c.o pov_102/pov.c.o pov_116/pov.c.o pov_109/pov.c.o pov_117/pov.c.o pov_11/pov.c.o pov_104/pov.c.o pov_58/pov.c.o pov_111/pov.c.o pov_91/pov.c.o pov_90/pov.c.o pov_54/pov.c.o pov_14/pov.c.o pov_45/pov.c.o pov_114/pov.c.o pov_35/pov.c.o pov_40/pov.c.o pov_36/pov.c.o pov_83/pov.c.o pov_37/pov.c.o pov_4/pov.c.o pov_42/pov.c.o pov_23/pov.c.o pov_59/pov.c.o pov_43/pov.c.o pov_47/pov.c.o pov_13/pov.c.o pov_63/pov.c.o pov_5/pov.c.o pov_70/pov.c.o pov_50/pov.c.o pov_51/pov.c.o pov_52/pov.c.o pov_8/pov.c.o pov_39/pov.c.o pov_55/pov.c.o pov_7/pov.c.o pov_17/pov.c.o pov_75/pov.c.o pov_56/pov.c.o pov_57/pov.c.o pov_107/pov.c.o pov_6/pov.c.o pov_44/pov.c.o pov_61/pov.c.o pov_27/pov.c.o pov_62/pov.c.o pov_53/pov.c.o pov_65/pov.c.o pov_68/pov.c.o pov_69/pov.c.o pov_73/pov.c.o pov_74/pov.c.o pov_76/pov.c.o pov_77/pov.c.o CableGrindLlama_pov_99 CableGrindLlama_pov_98 CableGrindLlama_pov_97 CableGrindLlama_pov_95 CableGrindLlama_pov_93 CableGrindLlama_pov_92 CableGrindLlama_pov_9 CableGrindLlama_pov_89 CableGrindLlama_pov_86 CableGrindLlama_pov_87 CableGrindLlama_pov_84 CableGrindLlama_pov_94 CableGrindLlama_pov_82 CableGrindLlama_pov_81 CableGrindLlama_pov_80 CableGrindLlama_pov_79 CableGrindLlama_pov_78 CableGrindLlama_pov_31 CableGrindLlama_pov_30 CableGrindLlama_pov_32 CableGrindLlama_pov_29 CableGrindLlama_pov_20 CableGrindLlama_pov_105 CableGrindLlama_pov_26 CableGrindLlama_pov_49 CableGrindLlama_pov_60 CableGrindLlama_pov_24 CableGrindLlama_pov_66 CableGrindLlama_pov_22 CableGrindLlama_pov_72 CableGrindLlama_pov_88 CableGrindLlama_pov_2 CableGrindLlama_pov_41 CableGrindLlama_pov_16 CableGrindLlama_pov_15 CableGrindLlama_pov_12 CableGrindLlama_pov_3 CableGrindLlama_pov_101 CableGrindLlama_pov_100 CableGrindLlama_pov_28 CableGrindLlama_pov_38 CableGrindLlama_pov_103 CableGrindLlama_pov_113 CableGrindLlama_pov_110 CableGrindLlama_pov_18 CableGrindLlama_pov_118 CableGrindLlama_pov_1 CableGrindLlama_pov_10 CableGrindLlama_pov_19 CableGrindLlama_pov_25 CableGrindLlama_pov_96 CableGrindLlama_pov_85 CableGrindLlama_pov_112 CableGrindLlama_patched CableGrindLlama_pov_115 CableGrindLlama_pov_33 CableGrindLlama_pov_64 CableGrindLlama_pov_21 CableGrindLlama CableGrindLlama_pov_34 CableGrindLlama_pov_46 CableGrindLlama_pov_67 CableGrindLlama_pov_48 CableGrindLlama_pov_106 CableGrindLlama_pov_71 CableGrindLlama_pov_108 CableGrindLlama_pov_102 CableGrindLlama_pov_116 CableGrindLlama_pov_109 CableGrindLlama_pov_117 CableGrindLlama_pov_11 CableGrindLlama_pov_104 CableGrindLlama_pov_58 CableGrindLlama_pov_111 CableGrindLlama_pov_91 CableGrindLlama_pov_90 CableGrindLlama_pov_54 CableGrindLlama_pov_14 CableGrindLlama_pov_45 CableGrindLlama_pov_114 CableGrindLlama_pov_35 CableGrindLlama_pov_40 CableGrindLlama_pov_36 CableGrindLlama_pov_83 CableGrindLlama_pov_37 CableGrindLlama_pov_4 CableGrindLlama_pov_42 CableGrindLlama_pov_23 CableGrindLlama_pov_59 CableGrindLlama_pov_43 CableGrindLlama_pov_47 CableGrindLlama_pov_13 CableGrindLlama_pov_63 CableGrindLlama_pov_5 CableGrindLlama_pov_70 CableGrindLlama_pov_50 CableGrindLlama_pov_51 CableGrindLlama_pov_52 CableGrindLlama_pov_8 CableGrindLlama_pov_39 CableGrindLlama_pov_55 CableGrindLlama_pov_7 CableGrindLlama_pov_17 CableGrindLlama_pov_75 CableGrindLlama_pov_56 CableGrindLlama_pov_57 CableGrindLlama_pov_107 CableGrindLlama_pov_6 CableGrindLlama_pov_44 CableGrindLlama_pov_61 CableGrindLlama_pov_27 CableGrindLlama_pov_62 CableGrindLlama_pov_53 CableGrindLlama_pov_65 CableGrindLlama_pov_68 CableGrindLlama_pov_69 CableGrindLlama_pov_73 CableGrindLlama_pov_74 CableGrindLlama_pov_76 CableGrindLlama_pov_77
+	rm -f pov_1/pov_1.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/cutil_string.cc.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/sensor.cc.o src/user.cc.o src/common.cc.o src/sensor_manager.cc.o src/service.cc.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/cutil_string.cc.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/sensor.cc.o src/user.cc.o src/common.cc.o src/sensor_manager.cc.o src/service.cc.o Personal_Fitness_Manager_pov_1 Personal_Fitness_Manager_patched Personal_Fitness_Manager

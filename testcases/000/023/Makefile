@@ -1,4 +1,4 @@
-CHAL=simple_integer_calculator
+CHAL=HighFrequencyTradingAlgo
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,39 +20,23 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/stack.c.o -c src/stack.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/trie.c.o -c src/trie.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/lib.c.o -c lib/lib.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/ltypes.c.o -c src/ltypes.c
-	$(CC) $(FLAGS) -o simple_integer_calculator_patched lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/stack.c.o src/trie.c.o src/service.c.o src/ltypes.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o HighFrequencyTradingAlgo_patched lib/lib.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/stack.c.o -c src/stack.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/trie.c.o -c src/trie.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/lib.c.o -c lib/lib.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/ltypes.c.o -c src/ltypes.c
-	$(CC) $(FLAGS) -o simple_integer_calculator lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/stack.c.o src/trie.c.o src/service.c.o src/ltypes.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o HighFrequencyTradingAlgo lib/lib.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o simple_integer_calculator_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o simple_integer_calculator_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o simple_integer_calculator_pov_3 pov_3/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o simple_integer_calculator_pov_4 pov_4/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CXX) $(FLAGS) -o HighFrequencyTradingAlgo_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o HighFrequencyTradingAlgo_pov_2 pov_2/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_4/pov.c.o pov_3/pov.c.o pov_2/pov.c.o pov_1/pov.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/stack.c.o src/trie.c.o src/service.c.o src/ltypes.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/stack.c.o src/trie.c.o src/service.c.o src/ltypes.c.o simple_integer_calculator_pov_4 simple_integer_calculator_pov_3 simple_integer_calculator_pov_2 simple_integer_calculator_pov_1 simple_integer_calculator_patched simple_integer_calculator
+	rm -f pov_1/pov.c.o pov_2/pov.c.o lib/lib.c.o src/service.c.o lib/lib.c.o src/service.c.o HighFrequencyTradingAlgo_pov_1 HighFrequencyTradingAlgo_pov_2 HighFrequencyTradingAlgo_patched HighFrequencyTradingAlgo

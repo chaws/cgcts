@@ -1,50 +1,88 @@
-# OTPSim
+# TAINTEDLOVE Challenge Binary
+
+## Author Information
+
+"Narf Industries" <info@narfindustries.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+
+Narf Industries (NRFIN)
 
 ## Description
 
-OTPSim provides a way to simulate an OTP (One Time Pad) code generation with limited sessions. When a client initiates the session with the handshake command, the client can generate up to 3 OTP codes of customizable length, unless the session is extended. The extension resets the counter back to 0, allowing the client to generate 3 more OTP codes. The service also provides a way to verify.
+The dynamic rodent duo have noted a concerning lack of development in doomsday devices in recent decades and have decided to throw their own (tiny) fedoras into the ring.
+
+To maximize the scariness of their doomsday device, the mice have decided to base their design on a mouse trap.  And what's more scary than a mouse trap?  To be specific, the mice seek to develop a quantum-nanotechnology-graphene-cold-fusion-superconducting trap that will snap space and time on itself!
+
+As you may expect, the construction of such a device involves a bunch of fancy math that few people even pretend to understand.  Luckily for the mice (and unlikely for the rest of existence), one of the mice has collected enough box tops from his cheese snacks to send away for the powerful TL-83 calculator for the bargain-bin price of only $97.60 shipping and handling.
+
+The mice's doomsday development has been stymied by frequent TL-83 crashes.  It is your task, should you choose to accept it, to identify exploitable vulnerabilities in the TL-83's functionality.  Such flaws will be used in social engineering campaigns against the mice in a high-tech effort to deny, degrade (or at least delay) doomsday device development. 
+
+No pressure.
 
 ### Feature List
 
+This CB designed to gauge CRS' ability to precisely (see Note 1) track tainted user input and its effects on program state.  It contains multiple vulnerabilities, each guarded by some taint tracking challenge based on the issues enumerated in (1).  Competitors are distinguished by which vulnerabilities they discover and mitigate.  Effort has been taken to make these vulnerabilities difficult to identify by other mechanisms in order to promote correlation between competitive success and sophistication of taint tracking ability.
 
-```
-- Handshake
-- Generate OTP token
-- Extend the session
-- Reset seed value and index
-- Verify token
-- Quit
-```
+A CRS that overtaints is not sound.  Such CRSs run the risk of reporting false positives, tracking taint down errant and / or irrelevant paths.  This can present  Denial of Service situations that further vulnerability discovery.  Conversely, a CRS that undertaints is not complete.  Such CRSs run the risk of reporting false negatives, failing to report on a legitimate vulnerabilities, directly impacting competitor score.
 
-## Vulnerability
+The CB offers the user an opaque binary interface for fake quantum calculations.  The user is expected to provide buffers of varying length and the CB will respond in 1 and 4 byte output buffers.  The exact functionality of the "quantum calculations" doesn't actually map to real world computations.
 
-### Vuln 1
-- Extension feature receives random non-null bytes from the client and transmits the same content back (with a null byte prepended, indiciating success).
-- The client controls the size field to let the service know how much of random bytes it should expect to read.
-- However, the service fails to check if it actually has received said number of bytes -- it reads until a null byte or up to the max stack buffer size (8192).
-- So, when a malicious client sets the size large, but sends less data than what it promised, memory beyond the random bytes (from the client) is read from the stack -- which may contain sensitive data.
-- Since OTPSim uses secret page to generate token data, a malicious client can force the generation of an OTP token, which fills stack memory with data from secret page.
-- Because the stack isn't initialized with the extension function, the memory can be leaked.
+Calculations available to the CRS:
+1) entanglement_razzmatazz
+2) causality_poppycock
+3) heisenberg_hooey
+4) relativistic_jabberwock
 
-#### Generic class of vulnerability
+These functions implement same-numbered analysis challenges enumerated in Challenges section below.
 
-Buffer Over-read
+## Vulnerabilities
 
-#### CWE classification
+The vulnerabilities guarded by taint tracking challenges are designed to be difficult to identify via other means.  All the vulnerabilities amount to an OOB (Out Of Bounds) memory access.  The OOB access is symbolically indexed, indexed against a symbolically-sized allocation or both.  
 
-CWE-126: Buffer Over-read
+Symbolic indices / allocations are intended to deter purely static analyses.
 
-#### Challenges
+Purely dynamic analyses are similarly deterred as explained in previous sections.
 
-- Handshake involves some bit-arithmetic challenge/response procedure
-- Need to realize that the stack memory isn't initialized, and may contain secret page data by forcing the service to generate OTP token
-- Although there isn't a memory corruption (at least not intended), it is very real-world (Heartbleed) type of bug.
+Successful competitors will blend static and dynamic approaches to drive execution to vulnerable flows and will precisely track taint in order to understand how to trigger the vulnerable conditions.
 
-#### Difficulty
+Note: Added '-Wno-int-to-void-pointer-cast' to the CFLAGS in the Makefile because we intentionally up-cast an (unsigned char) -> (void *).Yes, it's part of one of the vulns.
 
- - **Discovery**: medium
- - **Proving**: hard
- - **Patching**: easy
+### CWE classification
+
+120: Buffer Overflow
+121: Stack-Based Buffer Overflow
+122: Heap-Based Buffer Overflow
+125: Out-of-Bounds Read
+787: Out-of-Bounds Write
+476: NULL Pointer Dereference
+
+## Challenges
+
+The following taint-tracking and forward symbolic execution challenges are presented to the CRSs, very roughly in order of difficulty:
+1) (Overtaint) Ignore / Throw Out (Most) Input
+	- Take in a lot of input.
+	- Do complex & irrelevant operations with the majority of the input.  Throw result out.
+	- Conditionally branch to vulnerable blocks based on some small subset of the input.
+	- Challenge: terminate taint on input that isn't actually meaningfully used.
+2) (Overtaint) Sanitize Input
+	- Take in a lot of binary input, but "sanitize" much of it (e.g. modulo the input some limit to prevent OOB access). 
+	- Do complex, seemingly dangerous operations with the sanitized input - things that would be dangerous if it weren't sanitized.
+	- Fail to sanitize some small subset of the binary input.
+	- Challenge: terminate taint on input when input has been sanitized.
+3) (Overtaint & Undertaint) Use "Unusual" Means to Terminate or Propagate Taint
+	- Constify via taint XORed with itself.
+	- Constify / propagate via float / integer conversion semantics.
+	- Constify / propagate via syscalls (reflect the same or a constant value from a syscall).
+4) (Overtaint & Undertaint) Symbolic Memory Accesses
+	- Store / load with symbolic addresses.
+	- Test CRS ability to propagate (or not) taint through aliased (or not) memory accesses (see Note 2).
+	- Challenge: remain precise in the face of (non-)aliased memory accesses.
+
+Note 1: Precision is defined as the minimization of both overtaint and undertaint, as used in (1).
+
+Note 2: Aliased memory accesses are defined as accesses to the same memory location.  Analysis is complicated by: (1) having to reason about symbolic addresses and whether they are equivalent, (2) a taint engine memory model that supports aliasing.
+
+## Bibliography
+
+(1) "All You Ever Wanted to Know About Dynamic Taint Tracking and Forward Symbolic Execution..." by E.J. Schwartz, et al.

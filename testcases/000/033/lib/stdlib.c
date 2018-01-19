@@ -1,8 +1,8 @@
 /*
 
-Copyright (c) 2015 Cromulence LLC
+Author: Jason Williams <jdw@cromulence.com>
 
-Authors: Cromulence <cgc@cromulence.com>
+Copyright (c) 2014 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,276 +23,609 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
+#include "libcgc.h"
 #include "cgc_stdlib.h"
 #include "cgc_stdint.h"
-#include "cgc_stdio.h"
-#include "cgc_ctype.h"
 
-
-#define LONG_MIN (0x80000000L)
-#define LONG_MAX (0x7FFFFFFFL)
-
-uint64_t randState[512];
-uint32_t randIndex;
-uint8_t a, b, c;
-uint64_t mult;
-
-void cgc_srand(void)
+int cgc_memcpy( void *dest, void *src, cgc_size_t n )
 {
-	cgc_memcpy((uint8_t *)&randState, (uint8_t *)0x4347c000, sizeof(randState));
-	randIndex = 0;
-	a = 12;
-	b = 25;
-	c = 27;
-	mult = *(uint64_t *)0x4347c004;
+        cgc_size_t index = 0;
+
+        while ( index < n ) {
+                ((char*)dest)[index] = ((char*)src)[index];
+                index++;
+        }
+
+        return index;
 }
 
-uint32_t cgc_rand( void )
-{	
-	uint64_t r = randState[randIndex];
-	r = r ^ (r >> a);
-	r = r ^ (r << b);
-	r = r ^ (r >> c);
-	randState[randIndex++] = r;
-	randIndex = randIndex % 512;
-	uint64_t big = (uint64_t)r * mult;
-	return ((r * mult) >> 32);
+int cgc_islower( int c )
+{
+        if ( c >= 0x61 && c <= 0x7a )
+                return 1;
+        else
+                return 0;
 }
 
-uint32_t cgc_random_in_range(uint32_t min, uint32_t max)
+int cgc_isupper( int c )
 {
-	if (min > max)
-		return 0;
-	if (min == max)
-		return min;
-
-	uint32_t value;
-	uint32_t delta = max - min;
-
-	uint32_t scale_divider = (0xffffffff) / delta;
-	value = cgc_rand();
-	return min + (value / scale_divider);
+        if ( c >= 0x41 && c <= 0x5a )
+                return 1;
+        else
+                return 0;
 }
 
-void cgc_populate_random_string( char * s, uint32_t length )
+int cgc_isalpha( int c )
 {
+        return cgc_islower( c ) | cgc_isupper( c );
+}
+
+int cgc_isalnum( int c )
+{
+        return cgc_isalpha( c ) | cgc_isdigit( c );
+}
+
+int cgc_isspace( int c )
+{
+    if ( c == ' ' ||
+         c == '\t' ||
+         c == '\n' ||
+         c == '\v' ||
+         c == '\f' ||
+         c == '\r' )
+        return 1;
+    else
+        return 0;
+}
+
+int cgc_isdigit( int c )
+{
+    if ( c >= '0' && c <= '9' )
+        return 1;
+    else
+        return 0;
+}
+
+int cgc_isnan( double val )
+{
+    return __builtin_isnan( val );
+}
+
+int cgc_isinf( double val )
+{
+    return __builtin_isinf( val );
+}
+
+double cgc_atof(const char* str)
+{
+    if ( str == NULL )
+        return 0.0;
+
+    double val = 0.0;
+    double scale = 0.1;
+    int sign = 1;
+    int part;
+
+    // Skip whitespace
+    while ( cgc_isspace( str[0] ) )
+        str++;
+
+    part = 0; // First part (+/-/./number is acceptable)
+
+    while( str[0] != '\0' )
+    {
+        if ( str[0] == '-' )
+        {
+            if ( part != 0 )
+                return 0.0;
+
+            sign = -1;
+            part++;
+        }
+        else if ( str[0] == '+' )
+        {
+            if ( part != 0 )
+                return 0.0;
+
+            part++;
+        }
+        else if ( str[0] == '.' )
+        {
+            if ( part == 0 || part == 1 )
+                part = 2;
+            else
+                return 0.0;
+        }
+        else if ( cgc_isdigit( *str ) )
+        {
+            if ( part == 0 || part == 1 )
+            {
+                // In integer part
+                part = 1;
+                val = (val * 10.0) + (*str - '0');
+            }
+            else if ( part == 2 )
+            {
+                val += ((*str - '0') * scale);
+                scale /= 10.0;
+            }
+            else
+            {
+                // part invalid
+                return 0.0;
+            }
+        }
+        else
+            break;
+
+        str++;
+    }
+
+    return (sign * val);
+}
+
+
+int cgc_atoi(const char* str)
+{
+    if ( str == NULL )
+        return 0;
+
+    int integer_part = 0;
+    int sign = 1;
+    int part;
+    int digit_count = 0;
+
+    // Skip whitespace
+    while ( cgc_isspace( str[0] ) )
+        str++;
+
+    part = 0; // First part (+/-/number is acceptable)
+
+    while( str[0] != '\0' )
+    {
+        if ( str[0] == '-' )
+        {
+            if ( part != 0 )
+                return 0;
+
+            sign = -1;
+            part++;
+        }
+        else if ( str[0] == '+' )
+        {
+            if ( part != 0 )
+                return 0;
+
+            part++;
+        }
+        else if ( cgc_isdigit( *str ) )
+        {
+            if ( part == 0 || part == 1 )
+            {
+                // In integer part
+                part = 1;
+                integer_part = (integer_part * 10) + (*str - '0');
+
+                digit_count++;
+
+                if ( digit_count == 10 )
+                    break;
+            }
+            else
+            {
+                // part invalid
+                return 0;
+            }
+        }
+        else
+            break;
+
+        str++;
+    }
+
+    return (sign * integer_part);
+}
+
+char *cgc_strcpy( char *dest, char *src )
+{
+    cgc_size_t i;
+
+    for ( i = 0; ; i++ )
+    {
+        if ( src[i] == '\0' )
+            break;
+
+        dest[i] = src[i];
+    }
+    dest[i] = '\0';
+
+    return (dest);
+}
+
+char *cgc_strncpy( char *dest, const char *src, cgc_size_t n )
+{
+    cgc_size_t i;
+
+    for ( i = 0; i < n && src[i] != '\0'; i++)
+        dest[i] = src[i];
+    for ( ; i < n; i++)
+        dest[i] = '\0';
+
+    return (dest);
+}
+
+void cgc_bzero( void *buff, cgc_size_t len )
+{
+    cgc_size_t index = 0;
+    unsigned char *c = buff;
+
+    if ( buff == NULL ) {
+        goto end;
+    }
+
+    if ( len == 0 ) {
+        goto end;
+    }
+
+    for ( index = 0; index < len; index++ ) {
+        c[index] = 0x00;
+    }
+
+end:
+    return;
+}
+
+void *cgc_memset(void *s, int c, cgc_size_t n)
+{
+    unsigned char *t = (unsigned char *)s;
+    while (--n)
+        t[n] = (unsigned char)c;
+    t[n] = (unsigned char)c;
+    return(s);
+}
+
+int cgc_strcmp( const char *s1, const char *s2 )
+{
+    while ( *s1 && (*s1 == *s2) )
+    {
+      s1++,s2++;
+    }
+    return (*(const unsigned char *)s1 - *(const unsigned char *)s2);
+}
+
+char *cgc_strncat ( char *dest, const char *src, cgc_size_t n )
+{
+    cgc_size_t dest_len = cgc_strlen(dest);
+    cgc_size_t i;
+
+    if (dest == NULL || src == NULL)
+    {
+      return(dest);
+    }
+    for (i = 0; i < n && src[i] != '\0'; i++)
+    {
+      dest[dest_len+i] = src[i];
+    }
+    dest[dest_len+i] = '\0';
+
+    return(dest);
+}
+
+cgc_size_t cgc_receive_until( char *dst, char delim, cgc_size_t max )
+{
+    cgc_size_t len = 0;
+    cgc_size_t rx = 0;
+    char c = 0;
+
+    while( len < max ) {
+        dst[len] = 0x00;
+
+        if ( cgc_receive( STDIN, &c, 1, &rx ) != 0 ) {
+            len = 0;
+            goto end;
+        }
+
+	if (rx == 0) {
+		len = 0;
+		goto end;
+	}
+
+        if ( c == delim ) {
+            goto end;
+        }
+
+        dst[len] = c;
+        len++;
+    }
+end:
+    return len;
+}
+
+cgc_size_t cgc_strcat( char *dest, char*src )
+{
+    cgc_size_t length = 0;
+    cgc_size_t start = 0;
+
+    if ( dest == NULL || src == NULL) {
+        goto end;
+    }
+
+    start = cgc_strlen( dest );
+
+    for ( ; src[length] != 0x00 ; start++, length++ ) {
+        dest[start] = src[length];
+    }
+
+    length = start;
+end:
+    return length;
+}
+
+cgc_size_t cgc_strlen( char * str )
+{
+    cgc_size_t length = 0;
+
+    if ( str == NULL ) {
+        goto end;
+    }
+
+    while ( str[length] ) { length++; }
+
+end:
+    return length;
+}
+
+cgc_size_t cgc_itoa( char *out, cgc_size_t val, cgc_size_t max )
+{
+    cgc_size_t length = 0;
+    cgc_size_t end = 0;
+    cgc_size_t temp = 0;
+
+    if ( out == NULL ) {
+        goto end;
+    }
+
+    // Calculate the needed length
+    temp = val;
+    do {
+        end++;
+        temp /= 10;
+    } while ( temp );
+
+    // ensure we have enough room
+    if ( end >= max ) {
+        goto end;
+    }
+
+    length = end;
+
+    // Subtract one to skip the null
+    end--;
+
+    do {
+        out[end] = (val % 10) + 0x30;
+        val /= 10;
+        end--;
+    } while ( val );
+
+    out[length] = 0x00;
+end:
+    return length;
+}
+
+void cgc_puts( char *t )
+{
+    cgc_size_t size;
+    cgc_size_t total_sent = 0;
+    cgc_size_t len;
+
+    if (!t) {
+       return;
+    }
+
+    len = cgc_strlen(t);
+
+    while (total_sent < len) {
+        if (cgc_transmit(STDOUT, t+total_sent, len-total_sent, &size) != 0) {
+            return;
+        }
+        total_sent += size;
+    }
+    size = 0;
+    while (size != 1) {
+        if (cgc_transmit(STDOUT, "\n", 1, &size) != 0) {
+            return;
+        }
+    }
+}
+
+char *cgc_strchr(const char *s, int c) {
+	while (*s != '\0') {
+		if (*s == c) {
+			return((char *)s);
+		}
+		s++;
+	}
+	if (*s == c) {
+		return((char *)s);
+	}
+	return(NULL);
+}
+
+char *cgc_token = NULL;
+char *cgc_prev_str = NULL;
+unsigned int cgc_prev_str_len = 0;
+char *cgc_prev_str_ptr = NULL;
+char *cgc_strtok(char *str, const char *delim) {
+	char *start;
+	char *end;
+	char *t;
 	int i;
-	for (i=0; i < length - 1; i++)
-	{
-		s[i] = cgc_random_in_range(0x41, 0x71);
+
+	// invalid input
+	if (delim == NULL) {
+		return(NULL);
 	}
-	s[i] = '\0';
-}
-
-
-int cgc_atoi( const char *pStr )
-{
-	int value = 0;
-	int negative = 0;
-
-	while ( cgc_isspace( *pStr ) )
-		pStr++;
-
-	if ( *pStr == '\0' )
-		return 0;
-
-	if ( *pStr == '-' )
-	{
-		negative = 1;
-		pStr++;
-	}
-
-	// Read in string
-	while ( cgc_isdigit( *pStr ) )
-		value = (value * 10) + (*pStr++ - '0');
-
-	if ( negative )
-		return (-value);
-	else
-		return value;	
-}
-
-double cgc_atof( char *pStr )
-{
-	double whole;
-	double fraction = 0.0;
-	char *pWhole = pStr;
-	char *pFraction;
 	
-	// find the decimal point
-	pFraction = pStr;
-	while ( *pFraction != '\0' ) 
-	{
-		if (*pFraction == '.')
-		{
-			*pFraction = '\0';
-			pFraction++;
-			break;
+	// called on existing string
+	if (str == NULL) {
+		if (cgc_prev_str == NULL) {
+			return(NULL);
 		}
-		pFraction++;
-	}
-	
-	// convert the whole part
-	whole = cgc_atoi(pWhole);
-
-	// convert the fractional part
-	if (*pFraction != '\0') {
-		fraction = cgc_atoi(pFraction);
-		while ( pFraction != '\0' && cgc_isdigit( *pFraction ) ) {
-			fraction /= 10.0;
-			pFraction++;
+		// already parsed through end of original str
+		if (cgc_prev_str_ptr >= cgc_prev_str+cgc_prev_str_len) {
+			return(NULL);
+		}
+	} else {
+		// called with new string, so free the old one
+		if (cgc_prev_str) {
+			cgc_deallocate(cgc_prev_str, cgc_prev_str_len);
+			cgc_prev_str = NULL;
+			cgc_prev_str_len = 0;
+			cgc_prev_str_ptr = NULL;
 		}
 	}
 
-	return ( whole + fraction );
-	
-}
-	
-
-char *cgc_strcpy( char *pDest, const char *pSrc )
-{
-	char *pDestReturn = pDest;
-
-	while ( *pSrc != '\0' )
-		*pDest++ = *pSrc++;
-
-	*pDest = '\0'; 
-
-	return (pDestReturn);
-}
-
-char *cgc_strncpy( char *pDest, const char *pSrc, cgc_size_t maxlen )
-{
-	cgc_size_t n;
-
-	for ( n = 0; n < maxlen; n++ )
-	{
-		if ( pSrc[n] == '\0' )
-			break;
-
-		pDest[n] = pSrc[n];
+	// not been called before, so make a copy of the string
+	if (cgc_prev_str == NULL) {
+		if (cgc_strlen(str) > 4096) {
+			// too big
+			return(NULL);
+		} 
+		cgc_prev_str_len = cgc_strlen(str);
+		if (cgc_allocate(cgc_prev_str_len, 0, (void *)&cgc_prev_str)) {
+			return(NULL);
+		}
+		cgc_strcpy(cgc_prev_str, str);
+		cgc_prev_str_ptr = cgc_prev_str;
 	}
 
-	for ( ; n < maxlen; n++ )
-		pDest[n] = '\0';
+	str = cgc_prev_str_ptr;
 
-	return (pDest);
-}
-
-void *cgc_memcpy( void *pDest, const void *pSource, cgc_size_t nbytes )
-{
-	void *pDestReturn = pDest;
-
-	while ( nbytes >= 4 )
-	{
-		*((uint32_t*)pDest) = *((uint32_t*)pSource);
-
-		pDest += 4;
-		pSource += 4;
-		nbytes-=4;		
-	}
-
-	while ( nbytes > 0 )
-	{
-		*((uint8_t*)pDest) = *((uint8_t*)pSource);
-
-		pDest++;
-		pSource++;
-		nbytes--;
-	}
-
-	return (pDestReturn);
-}
-
-long int cgc_strtol( const char *str, char **endptr, int base )
-{
-	long int value = 0;
-	int neg = 0;
-
-	if ( str == NULL )
-		return (0);
-
-	if ( base >= 16 )
-		base = 16;
-
-	// Skip whitespace	
-	while ( cgc_isspace( *str ) )
-		str++;
-
-	if ( *str == '-' )
-	{
-		neg = 1;
+	// make sure the string isn't starting with a delimeter
+	while (cgc_strchr(delim, str[0]) && str < cgc_prev_str+cgc_prev_str_len) {
 		str++;
 	}
-	else if ( *str == '+' )
-		str++;
-
-	if ( (base == 16 || base == 0) && *str == '0' && (*(str+1) == 'x' || *(str+1) == 'X') )
-	{
-		str+=2;
-		base = 16;
-	}
-	else if ( (base == 0 || base == 2 ) && *str == '0' && (*(str+1) == 'b' || *(str+1) == 'B') )
-	{
-		str+=2;
-		base = 2;
+	if (str >= cgc_prev_str+cgc_prev_str_len) {
+		return(NULL);
 	}
 
-	if ( base == 0 )
-	{
-		if ( *str == '0' )
-		{
-			base = 8;
+	// find the earliest next delimiter
+	start = str;
+	end = str+cgc_strlen(str);
+	for (i = 0; i < cgc_strlen((char *)delim); i++) {
+		if ((t = cgc_strchr(start, delim[i]))) {
+			if (t != NULL && t < end) {
+				end = t;
+			}
 		}
-		else
-			base = 10;
 	}
-
-	unsigned long cutoff_value = 0;
-	if ( neg )
-		cutoff_value = -(unsigned long)LONG_MIN;
-	else
-		cutoff_value = (unsigned long)LONG_MAX;
-	long int cutlim_value = cutoff_value % (unsigned long)base;
 	
-	cutoff_value /= base;
+	// populate the new token
+	cgc_token = start;
+	*end = '\0';
 
-	while ( *str != '\0' )
-	{
-		int c = *str;
+	cgc_prev_str_ptr = end+1;
 
-		if ( cgc_isdigit( c ) )
-			c -= '0';
-		else if ( cgc_isalpha(c) )
-		{
-			if ( cgc_isupper(c) )
-				c -= ('A' - 10);
-			else
-				c -= ('a' - 10);
-		}
-		else
-			break;
-	
-		if ( c >= base )
-			break;
-
-		if ( value > cutoff_value || (value == cutoff_value && c > cutlim_value) )
-			break;
-		else
-		{
-			value *= base;
-			value += c;
-		}
-
-		str++;	
-	}
-
-	// Check if we should set endptr
-	if ( endptr )
-		*endptr = (char *)str;
-
-	if ( neg )
-		return -value;
-	else
-		return value;	
+	return(cgc_token);
 }
+
+cgc_ssize_t cgc_write( const void *buf, cgc_size_t count )
+{
+	cgc_size_t size;
+	cgc_size_t total_sent = 0;
+
+	if (!buf) {
+		return(0);
+	}
+
+	while (total_sent < count) {
+		if (cgc_transmit(STDOUT, buf+total_sent, count-total_sent, &size) != 0) {
+			return(total_sent);
+		}
+		total_sent += size;
+	}	
+
+	return(total_sent);
+
+}
+
+char *cgc_strdup(char *s) 
+{
+        char *retval;
+
+        if (!s) {
+                return(NULL);
+        }
+
+        if (cgc_allocate(cgc_strlen(s)+1, 0, (void *)&retval)) {
+                return(NULL);
+        }
+
+        cgc_bzero(retval, cgc_strlen(s)+1);
+        cgc_strcpy(retval, s);
+
+        return(retval);
+}
+
+heap_metadata *cgc_heap_manager = NULL;
+
+
+void *cgc_calloc(cgc_size_t count, cgc_size_t size) {
+    void *ret;
+    ret = cgc_malloc(size * count);
+    cgc_memset(ret, 0, size * count);
+    return ret;
+}
+
+void cgc_free(void *ptr) {
+    heap_header *chunkHeader;
+    heap_block_header *blockHead;
+
+    chunkHeader = (heap_header*)(((char*)ptr)-sizeof(heap_header));
+    chunkHeader->flags = FREE_FLAG;
+    blockHead = (heap_block_header *)((int)&ptr & 0xfffff000);
+    blockHead->remaining_size+=chunkHeader->size;
+    return;
+}
+
+void *cgc_malloc(cgc_size_t size) {
+    heap_block_header *blockHead;
+    if (cgc_heap_manager == NULL) {
+        void *mallocPtr;
+        //this is our first allocation.
+        cgc_allocate(4096, 0, &mallocPtr);
+        cgc_heap_manager = mallocPtr;
+        cgc_heap_manager->mem_commit = 4096;
+        cgc_heap_manager->mem_inuse = sizeof(cgc_heap_manager);
+        cgc_heap_manager->mem_free = 4096-cgc_heap_manager->mem_inuse;
+        cgc_allocate(4096, 0, (void *)&cgc_heap_manager->blocks);
+        cgc_memset(cgc_heap_manager->blocks, 0, 4096);
+        blockHead = (heap_block_header *)cgc_heap_manager->blocks;
+        blockHead->remaining_size = 4096-sizeof(heap_block_header);
+        blockHead->next = NULL;
+    }
+    blockHead = (heap_block_header *)cgc_heap_manager->blocks;
+    if(size > blockHead->remaining_size) {
+        cgc_allocate(4096, 0, (void *)&blockHead->next);
+        if(blockHead->next == NULL) {
+            cgc_puts("Not enough space available to allocate more heap.  Failure.");
+            cgc__terminate(-1);
+        }
+        blockHead = blockHead->next;
+        blockHead->remaining_size = 4096-sizeof(heap_block_header);
+    } else {
+        heap_header *chunkHeader;
+        blockHead->remaining_size-=size;
+        chunkHeader = (heap_header *)blockHead->data;
+
+        while((chunkHeader->flags & INUSE_FLAG) && (chunkHeader->size < size+sizeof(heap_header)))
+            chunkHeader = (heap_header *)(((void *)(chunkHeader)+sizeof(heap_header)) + chunkHeader->size);
+        chunkHeader->size = size;
+        chunkHeader->flags = INUSE_FLAG;
+        return (char *)chunkHeader+sizeof(heap_header);
+    }
+    return 0;
+}
+
+

@@ -19,485 +19,247 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
+#include "libcgc.h"
+#include "cgc_libc.h"
 #include "cgc_service.h"
 
-/* 	The FRAG Protocol:
-	---------------------------------------------------------------------------
+void cgc_identityMap(Message* message)
+{
 
-	Background:
-	----------
-	The point of this CB isn't to test understanding of a complex fragmentation 
-	routine, but rather test reasoning about excessive stack consumption and 
-	control over consumption via function recursion. The fragmentation routine 
-	employed here is therefore a toy, used only as a means to an end and would 
-	probably make for a very bad fragmentation routine in any real protocol.
-
-	The biggest potential problem with this toy de-fragmentation algorithm is 
-	that a viable optimization would be to just drop all bytes with the 
-	fragment bit set and append all others to CT.  This would require a either 
-	a substantial static understanding of the algorithm or a probabilistic 
-	dynamic heuristic.  In either case, it's probably a somewhat impressive feat 
-	for a CRS so we allow for the possibility of this optimization, essentially 
-	rewarding CRSs who figure it out.
-
-	How it Works:
-	------------
-	The most significant bit in each byte signifies whether the other 7 bits in 
-	the byte represent the number of fragments (immediately following, possibly 
-	nested), or raw ciphertext (CT) data that should be appended to ct[].
-
-	Execution can expand in breadth (many loop iterations due to a high number
-	of fragmented packets) or depth (many bytes indicating fragmentation, 
-	triggering recursion). The vulnerability (stack exhaustion) will only be 
-	triggered due to excessive depth (excessive recursion).  
-
-	The ability to execute "wide" / high-breadth execution traces distracts 
-	from the problematic logic and allows for somewhat non-trivial pollers.
-
-	In other words, for each byte:
-	bit 0: do the other 7 bits represent fragment count?
-		the bit is set:
-			bit 1-7: # of fragments, call it X
-			triggers recursion into defrag(X)
-				next X bytes are looped over, appended to ct[] if not 
-				fragmented or further recursed if fragmented
-		not fragmented:
-			bit 1-7: ciphertext
-			These bits are appended to a ciphertext buffer to be XOR'ed at end.
-			These bits are not packed, so they still occupy 8 bits in ct[].
-
-	Examples:
-	--------
-	example0 (no fragment):
-	0AAA AAAA | 0BBB BBBB | 0CCC CCCC | ...
-	- 0AAA AAAA: not fragmented, ct[ct_index++] = 0AAA AAAA; rx_index++
-	- 0BBB BBBB: not fragmented, ct[ct_index++] = 0BBB BBBB; rx_index++
-	- 0CCC CCCC: not fragmented, ct[ct_index++] = 0CCC CCCC; rx_index++ 
-	end ct[] = 0AAA AAAA 0BBB BBBB 0CCC CCCC ...
-
-	example1 (empty fragment):
-	1000 0000 | 0AAA AAAA | 0BBB BBBB | ...
-	- 1000 0000: 0 frags, recurse defrag(0)
-		(return from defrag)
-	- 0AAA AAAA: not fragmented, ct[ct_index++] = 0AAA AAAA; rx_index++
-	- 0BBB BBBB: not fragmented, ct[ct_index++] = 0BBB BBBB; rx_index++
-	end ct[] = 0AAA AAAA 0BBB BBBB ...
-
-	example2 (single fragment):
-	1000 0001 | 0AAA AAAA | 0BBB BBBB | ...
-	- 1000 0001: 1 frags, recurse degrag(1)
-		1) 0AAA AAAA: not fragmented ct[ct_index++] = 0AAA AAAA; rx_index++
-		(return from defrag)
-	- 0BBB BBBB: not fragmented, ct[ct_index++] = 0BBB BBBB; rx_index++
-	end ct[] = 0AAA AAAA 0BBB BBBB ...
-
-	example3 (breadth fragment):
-	1000 0011 | 0AAA AAAA | 0BBB BBBB | 0CCC CCCC | ...
-	- 1000 0011: 3 frags, recurse into defrag(3)
-		1) 0AAA AAAA: not fragmented, ct[ct_index++] = 0AAA AAAA; rx_index++
-		2) 0BBB BBBB: not fragmented, ct[ct_index++] = 0BBB BBBB; rx_index++
-		3) 0CCC CCCC: not fragmented, ct[ct_index++] = 0CCC CCCC; rx_index++
-		(return from defrag)
-	end ct[]: 0AAA AAAA 0BBB BBBB 0CCC CCCC ...
-
-	example4 (nested fragment):
-	1000 0010 | 1000 0001 | 0AAA AAAA | 0BBB BBBB
-	- 1000 0010: 2 frags, recurse into defrag(2)
-		1) 1000 0001: 1 frags, recurse into defrag(1) 
-			1) 0AAA AAAA: not fragmented, append 0AAA AAAA to ct[]; rx_index++
-			(return from defrag)
-		2) 0BBB BBBB: not fragmented, append 0BBB BBBB to ct[]; rx_index++
-		(return from defrag)
-	end ct[] = 0AAA AAAA 0BBB BBBB ...
-
-	example5 (nested, more complex):
-	1000 0010 | 0AAA AAAA | 1000 0001 | 1000 0001 | 0BBB BBBB
-	- 1000 0010: 2 frags, recurse into defrag(2)
-		1) 0AAA AAAA: not fragmented; append 0AAA AAAA to ct[]; rx_index++
-		2) 1000 0001: 1 frags, recurse defrag(1)
-			1) 1000 0001: 1 frags, recurse defrag(1)
-				1) 0BBB BBBB: not fragmented, append 0BBB BBBB to ct[]; rx_index++
-				(return from defrag)
-			(return from defrag)
-		(return from defrag)
-	end ct[] = 0AAA AAAA 0BBB BBBB ...
- */
-	
-
-#ifdef DEBUG
-static inline unsigned int getesp() {
-	unsigned int esp;
-	__asm__("movl %%esp, %0\n" : "=g" (esp));
-	return esp;
 }
-#endif
-// ^ DEBUG
 
-int cgc_defrag(cgc_size_t fragments) {
+void cgc_constantMap(Message* message)
+{
+		message->value[PERM_FIELD] = 1;
 
-	int ret = SUCCESS;
-	unsigned char byte;
-	cgc_size_t i = 0;
+}
 
-	cgc_depth++;
+void cgc_absoluteValueMap(Message* message)
+{
+	// Vuln: Use unsigned int for absolute value conversion
+	unsigned short absoluteVal;
+	short mask;
+	short i;
 
 #ifdef PATCHED
-	if (MAX_DEPTH < cgc_depth) {
-#ifdef DEBUG
-	    fprintf(cgc_stderr, 
-	    	"[D] defrag(%03d) | exceeded MAX_DEPTH (%03d); depth = %03d\n", 
-	    	fragments, MAX_DEPTH, depth);
-#endif
-	    ret = ERRNO_EXCEEDED_MAX_DEPTH;
-	    goto bail_defrag;
-	}
+	for(i = LENGTH_FIELD; i < NUM_VALS; i++) {
+#else
+	for(i = LENGTH_FIELD; i < NUM_VALS-2; i++) {
 #endif
 
-	// Per CGC kernel source, the stack is hard-coded to:
-	// 1) Grow down from 0xbaaab000
-	// 2) Have a maximum length is 0x800000 bytes
-	// We should therefore expect #PF beyond 0xBA2AB000.
-	// From core: 
-	// 0xba3a9000->0xbaaab000 at 0x00002000: load3 ALLOC LOAD CODE HAS_CONTENTS
-
-	// Let's trigger this condition with 128 or more recursions.
-	// Each recursion would therefore need to consume: 
-	// 0x800000 / 128 = 0x10000 bytes
-	unsigned char bogus[SZ_BOGUS] = { 0 };
-	// Empirically, this function occupies about SZ_BOGUS + 0x70 bytes total.
-
-#ifdef DEBUG
-	// Keep it the same over the lifespan of a recursion.
-	unsigned int esp = getesp();
+#ifdef PATCHED
+		if(SHRT_MIN == message->value[i]) {
+			message->value[i] = SHRT_MAX;
+		} else {
+#else
 #endif
-
-#ifdef DEBUG
-    fprintf(cgc_stderr, 
-    	"[D] ENTER: defrag(%03d) | (depth, esp) = (%03d, 0x%08x) | rx_index = %03d; ct_index = %03d\n", 
-    	fragments, depth, esp, rx_index, ct_index);
-#endif
-
-    // Loop over fragments.
-    for (i = 0; i < fragments; i++) {
-
-    	// Bail if we're about to go off the end of the RX buffer.
-		if (BUF_RX_SZ <= cgc_rx_index) {
-#ifdef DEBUG
-	    	fprintf(cgc_stderr, 
-	    		"[D] defrag(%03d) | exhausted RX_BUF; bailing...\n", 
-	    		fragments);
-#endif
-			ret = ERRNO_EXHAUSTED_RX;
-			goto bail_defrag;
+			mask = message->value[i] >> (sizeof(short) * CHAR_BIT - 1);
+			absoluteVal = (message->value[i] + mask) ^ mask;
+			message->value[i] = absoluteVal;
+#ifdef PATCHED	
 		}
+#else
+#endif
+	}
 
-    	byte = rx_buf[cgc_rx_index];
-    	cgc_rx_index++;
+}
 
-		if (IS_FRAGMENTED(byte)) {
+int cgc_modulus(short n, short M) {
+	short result;
+	if (M == 0)
+		return n;
+	//result = ((n % M) + M) % M;
+	result = n % M;
+	return result;
+}
 
-			// If it's fragmented, we recurse, passing in the number of 
-			// fragments as argument.
-			if (SUCCESS != (ret = cgc_defrag(GET_DATA(byte)))) {		
-				goto bail_defrag;
-			}
-			
-		} else {	
+void cgc_modulusCoordinatesWithDimensions(Message* message)
+{
 
-			// If it's not fragmented, we append the byte to ct[].
-			ct[cgc_ct_index] = byte;
+	message->value[X_FIELD] = cgc_modulus(message->value[X_FIELD], message->value[LENGTH_FIELD]);
+	message->value[Y_FIELD] = cgc_modulus(message->value[Y_FIELD], message->value[WIDTH_FIELD]);
 
-#ifdef DEBUG
-		    fprintf(cgc_stderr, 
-		    	"[D] defrag(%03d) | not fragged; (before XOR) ct[%03d] = 0x%02x\n", 
-		    	fragments, ct_index, byte);
+}
+
+void cgc_processMessage(Worker* worker)
+{
+	Message* message;
+	message = worker->inbox;
+
+	if(message != NULL) {
+		worker->processMessage(message);
+		worker->outbox = message;
+		worker->inbox = NULL;
+	}
+}
+
+
+void cgc_receiveMessage(Message* message) {
+	cgc_size_t bytes_read = 0;
+	cgc_size_t message_size;
+	char *message_ptr;
+
+	message_ptr = (char *) message;
+	message_size = sizeof(Message) - sizeof(short**) - 2;
+
+	while(message_size) {
+		if(cgc_receive(STDIN, message_ptr++, 1, &bytes_read))
+			cgc__terminate(ERROR_FAILED_RECV);
+
+		message_size--;
+	}
+}
+
+void cgc_sendMessage(Message* message) {
+
+	if(cgc_transmit_all(STDOUT, (char *) message, sizeof(Message) - sizeof(short**)))
+		cgc__terminate(ERROR_FAILED_SEND);
+
+}
+
+void cgc_swap (Worker *workerA, Worker *workerB)
+{
+ 	void (* temp)(Message* );
+	temp = workerA->processMessage;
+	workerA->processMessage = workerB->processMessage;
+	workerB->processMessage = temp;
+
+}
+
+void cgc_permute(Worker* list, int start, int end, int* index, int stop)
+{
+	int j;
+	
+	if((*index) == stop)
+		return;
+
+	if(start == end)
+	{
+		(*index)++;
+	}
+	else 
+	{
+		for(j = start; j <= end; j++)
+		{
+			cgc_swap(&list[start], &list[j]);
+			cgc_permute(list, start+1, end, index, stop);
+			if((*index) != stop)
+				cgc_swap(&list[start], &list[j]);
+			else
+				break;
+		}
+	}
+
+}
+
+void cgc_computeResult(Message *message)
+{
+	short x, y;
+	x = message->value[X_FIELD];
+	y = message->value[Y_FIELD];
+
+	if(message->result == NULL) {
+		int ret;
+		short *result_data;
+
+		ret = cgc_allocate(message->value[LENGTH_FIELD]*sizeof(short*), 0, (void **) &message->result);
+		if (ret != 0)
+			cgc__terminate(1);
+
+		ret = cgc_allocate(message->value[LENGTH_FIELD]*message->value[WIDTH_FIELD]*sizeof(short), 0, (void **) &result_data);
+		if (ret != 0)
+			cgc__terminate(1);
+
+		int i;
+		for(i=0; i<message->value[LENGTH_FIELD]; i++)
+			message->result[i] = result_data + i * message->value[WIDTH_FIELD];
+	}
+
+	int i;
+	for(i=0; i < message->value[LENGTH_FIELD]*message->value[WIDTH_FIELD]; i++)
+	{
+		message->result[x][y] = 1;
+
+#ifdef PATCHED
+		x = message->value[LENGTH_FIELD] - x;
+		if( message->value[X_FIELD] >= x)
+			x = message->value[X_FIELD] - x;
+		else
+			x = message->value[LENGTH_FIELD] - x + message->value[X_FIELD];
+
+		y = message->value[WIDTH_FIELD] - y;
+		if( message->value[Y_FIELD] >= y)
+			y = message->value[Y_FIELD] - y;
+		else
+			y = message->value[WIDTH_FIELD] - y + message->value[Y_FIELD];
+		
+#else
+		x = cgc_modulus(x+message->value[X_FIELD], message->value[LENGTH_FIELD]);
+		y = cgc_modulus(y+message->value[Y_FIELD], message->value[WIDTH_FIELD]);
 #endif
 
-		    cgc_ct_index++;
-			
-			// NOTE: We don't need to check ct_index bounds so long as 
-			// sizeof(ct) == sizeof(rx_buf) because ct_index is incremented a 
-			// subset of the times rx_index is incremented.  
-			// Revisit this if this assumption changes.
-    	}
+	}
 
-	} // END: fragment loop
-
-bail_defrag:
-    cgc_depth--;
-	return ret;
 }
-
-void cgc_exercise_stack(void){
-	// We need to force mapping of the entirety (or most) of the stack space
-	// because the kernel is lazy and near the bottom of the stack probably 
-	// isn't accessible without this.
-	unsigned char bogus[STACK_SZ-0x1000] = { 0 };
-}
-
 
 int main(int cgc_argc, char *cgc_argv[]) {
+	Message* message = NULL;
+	Worker worker[4] = {0};
+	int i;
+	int index;
+	int ret;
 
-    int ret = SUCCESS;
-    cgc_size_t state = STATE_CONNTERM;
-    cgc_size_t expected_rx_bytes = CONNTERM_SZ; 
-    cgc_size_t i = 0;
+	ret = cgc_allocate(sizeof(Message), 0, (void **) &message);
+	if(ret != 0)
+		cgc__terminate(1);
 
-#ifdef DEBUG
-	fprintf(cgc_stderr, "[D] main | --------------- new run ---------------\n");
-#endif
+	cgc_receiveMessage(message);
 
-	cgc_exercise_stack();
+	worker[0].processMessage = cgc_identityMap;
+	worker[1].processMessage = cgc_constantMap;
+	worker[2].processMessage = cgc_absoluteValueMap;
+	worker[3].processMessage = cgc_modulusCoordinatesWithDimensions;
 
-	// From the README, we store a pointer to the OTP at a low stack address.
-	void *ppotp = (void *)(STACK_LIMIT + 0x10000);
-	unsigned char *potp = cgc_otp;
-	((void **)ppotp)[0] = potp;
-	// Henceforth, when we reference OTP, we do so via a double-dereference 
-	// that passes through STACK_LIMIT + 0x10000.
+	index = 0; 
 
-    // Main loop.
-    while(1) {
+	cgc_permute(worker, 0, 3, &index, message->value[PERM_FIELD]);
 
-    	////
-    	// STATE-AGNOSTIC GET-THE-PACKET CODE
-    	////
+	while(1) {
 
-        rx_bytes = 0;
-        cgc_memset(rx_buf, 0, BUF_RX_SZ);
-        if (SUCCESS != (ret = cgc_receive_all(STDIN, (void *)&rx_buf, BUF_RX_SZ, &rx_bytes))) { 
-#ifdef DEBUG
-            fprintf(cgc_stderr, "[E] main | failed pkt receive\n");
-#endif
-            ret = ERRNO_RECV;
-            goto bail_main;
-        }
+		worker[0].inbox = message;
 
-        // If we got the EXIT packet, bail gracefully.
-        if (sizeof(PKT_EXIT)-1 == rx_bytes && 
-        	0 == cgc_memcmp((const char *)&rx_buf, (const char *)&PKT_EXIT, sizeof(PKT_EXIT)-1)) {
+		for(i=3; i>=0; i--) {
+			cgc_processMessage(&worker[i]);
 
-        	if (SUCCESS != (ret = cgc_transmit_all(STDOUT, &PKT_EXIT_ACK, sizeof(PKT_EXIT_ACK)-1, NULL))) { 
-#ifdef DEBUG
-	            fprintf(cgc_stderr, "[E] main | failed transmitting PKT_EXIT_ACK\n");
-#endif
-                ret = ERRNO_TRANSMIT;
-                goto bail_main;
-	        }
+			if(i<3)
+				worker[i+1].inbox = worker[i].outbox;
+		}
 
-#ifdef DEBUG
-	       	fprintf(cgc_stderr, 
-	       		"[D] main | just sent PKT_EXIT_ACK; it starts with: 0x%02x 0x%02x\n", 
-	       		PKT_EXIT_ACK[0], PKT_EXIT_ACK[1]);
-#endif
+		if(worker[3].outbox != NULL) {
 
-        	goto bail_main;
-        }
+			cgc_computeResult(worker[3].outbox);
 
-        // Verify we received enough bytes for the type of message we expect.
-        if (rx_bytes != expected_rx_bytes) {
-#ifdef DEBUG
-	        fprintf(cgc_stderr, 
-	        	"[D] main | rx_bytes == %d != %d; transmit ()ing PKT_INVALID_SZ...\n", 
-	        	rx_bytes, expected_rx_bytes);
-#endif
-	        if (SUCCESS != (ret = cgc_transmit_all(STDOUT, &PKT_INVALID_SZ, sizeof(PKT_INVALID_SZ)-1, NULL))) { 
-#ifdef DEBUG
-	            fprintf(cgc_stderr, "[E] main | failed transmitting PKT_INVALID_SZ\n");
-#endif
-	            ret = ERRNO_TRANSMIT;
-	            goto bail_main;
-	        }
+			cgc_sendMessage(worker[3].outbox);
 
-#ifdef DEBUG
-	       	fprintf(cgc_stderr, 
-	       		"[D] main | just sent PKT_INVALID_SZ; it starts with: 0x%02x 0x%02x\n", 
-	       		PKT_INVALID_SZ[0], PKT_INVALID_SZ[1]);
-#endif
+			ret = cgc_deallocate(worker[3].outbox->result[0], worker[3].outbox->value[LENGTH_FIELD]*worker[3].outbox->value[WIDTH_FIELD]*sizeof(short));
+			if (ret != 0)
+				cgc__terminate(2);
 
-	        continue; // Get the next packet.
-        }
+			ret = cgc_deallocate(worker[3].outbox->result, worker[3].outbox->value[LENGTH_FIELD]*sizeof(short*));
+			if (ret != 0)
+				cgc__terminate(2);
 
-        ////
-        // PACKET LOOKS LEGIT; PROCESS ACCORDING TO STATE
-        ////
+			ret = cgc_deallocate(worker[3].outbox, sizeof(Message));
+			if (ret != 0)
+				cgc__terminate(2);
+		}
 
-        switch(state) {
+		ret = cgc_allocate(sizeof(Message), 0, (void **) &message);
+		if(ret != 0)
+			cgc__terminate(1);
 
-        	////
-        	// STATE_CONNTERM
-        	////
+		cgc_receiveMessage(message);
+	}
 
-        	// In STATE_CONNTERM, we look for MSG_CONNTERM and advance state
-			// when we see it.  If we see anything else, we send an ERROR message.
-        	case STATE_CONNTERM:
 
-        		// We DON'T get CONNTERM, then send error packet, listen for 
-        		// next packet.
-	            if (0 != cgc_memcmp((const char *)&rx_buf, (const char *)&cgc_PKT_CONNTERM, sizeof(cgc_PKT_CONNTERM)-1)) {
-
-	                if (SUCCESS != (ret = cgc_transmit_all(STDOUT, &PKT_CONNTERM_ERR, sizeof(PKT_CONNTERM_ERR)-1, NULL))) { 
-#ifdef DEBUG
-	                    fprintf(cgc_stderr, "[E] main | failed transmitting PKT_CONNTERM_ERR\n");
-#endif
-	                    ret = ERRNO_TRANSMIT;
-	                    goto bail_main;
-	                }
-
-#ifdef DEBUG
-		       	fprintf(cgc_stderr, 
-		       		"[D] main | just sent PKT_CONNTERM_ERR; it starts with: 0x%02x 0x%02x\n", 
-		       		PKT_CONNTERM_ERR[0], PKT_CONNTERM_ERR[1], sizeof(PKT_CONNTERM_ERR));
-		       	fprintf(cgc_stderr, 
-	            	"[D] main | STATE_CONNTERM: expected CONNTERM, didn't get it.\n");
-#endif      
-
-	            	continue; // Get the next packet.
-	        	}
-
-	        	// If we haven't continued, we got CONNTERM; we need to ACK.
-				if (SUCCESS != (ret = cgc_transmit_all(STDOUT, &PKT_CONNTERM_ACK, sizeof(PKT_CONNTERM_ACK)-1, NULL))) { 
-#ifdef DEBUG
-                    fprintf(cgc_stderr, "[E] main | failed transmitting PKT_CONNTERM_ACK\n");
-#endif
-                    ret = ERRNO_TRANSMIT;
-                    goto bail_main;
-                }
-
-#ifdef DEBUG
-		       	fprintf(cgc_stderr, 
-		       		"[D] main | just sent PKT_CONNTERM_ACK; it starts with: 0x%02x 0x%02x\n", 
-		       		PKT_CONNTERM_ACK[0], PKT_CONNTERM_ACK[1]);
-#endif  
-
-	            state = STATE_OTP;
-	            expected_rx_bytes = OTP_SZ;
-#ifdef DEBUG
-	            fprintf(cgc_stderr, 
-	            	"[D] main | STATE_CONNTERM: got CONNTERM; state advanced to STATE_OTP.\n");
-#endif 
-        		break; // STATE_CONNTERM
-
-        	////
-        	// STATE_OTP
-        	////
-
-        	// STATE_OTP simply copies buffer into OTP, advances to STATE_MSG.
-        	case STATE_OTP:
-
-	            cgc_memcpy(((unsigned char **)ppotp)[0], rx_buf, sizeof(cgc_otp));
-	            state = STATE_MSG;
-	            expected_rx_bytes = MSG_SZ;
-
-#ifdef DEBUG
-	            fprintf(cgc_stderr, 
-	            	"[D] main | STATE_OTP: memcpy()ed into OTP; advanced to STATE_MSG\n");
-#endif 
-
-				if (SUCCESS != (ret = cgc_transmit_all(STDOUT, &PKT_OTP_ACK, sizeof(PKT_OTP_ACK)-1, NULL))) { 
-#ifdef DEBUG
-                    fprintf(cgc_stderr, "[E] main | failed transmitting PKT_OTP_ACK; ret = %d\n", ret);
-#endif
-                    ret = ERRNO_TRANSMIT;
-                    goto bail_main;
-                }
-
-#ifdef DEBUG
-		       	fprintf(cgc_stderr, 
-		       		"[D] main | just sent PKT_OTP_ACK; it starts with: 0x%02x 0x%02x\n", 
-		       		PKT_OTP_ACK[0], PKT_OTP_ACK[1]);
-#endif
-
-        		break;
-
-        	////
-        	// STATE_MSG
-        	////
-
-        	case STATE_MSG:
-
-        		// If we get the CONNTERM message, reset state to OTP.
-        		if (0 == cgc_memcmp((const char *)&rx_buf, (const char *)&cgc_PKT_CONNTERM, sizeof(cgc_PKT_CONNTERM)-1)) {
-#ifdef DEBUG
-	            	fprintf(cgc_stderr, 
-	            		"[D] main | STATE_MSG: got CONNTERM; resetting to STATE_OTP\n");
-#endif 
-        			state = STATE_OTP;
-        			expected_rx_bytes = OTP_SZ;
-        			continue; // Get the next packet.
-        		}
-
-        		// Error message; we should be generating not receive()ing them.
-        		// This makes the protocol *slightly* more complicated.  In such 
-        		// cases, we just mirror the error message back to the CRS.
-        		if (0xFF == rx_buf[0]) {
-#ifdef DEBUG
-            		fprintf(cgc_stderr, "[D] main | got error msg; reflecting...\n");
-#endif    			
-            		if (SUCCESS != (ret = cgc_transmit_all(STDOUT, &rx_buf, sizeof(rx_buf)-1, NULL))) { 
-#ifdef DEBUG
-	                    fprintf(cgc_stderr, "[E] main | during error reflection transmit ()\n");
-#endif
-	            	}
-
-#ifdef DEBUG
-			       	fprintf(cgc_stderr, 
-			       		"[D] main | just sent rx_buf; it starts with: 0x%02x 0x%02x\n", 
-			       		rx_buf[0], rx_buf[1]);
-#endif
-
-	            	continue; // Get the next packet.
-        		}
-
-        		// Okay, so we have a packet that is neither CONNTERM nor ERROR.
-        		// We actually have to handle this one.
-	        	cgc_rx_index = 0;
-	        	cgc_ct_index = 0;
-	        	cgc_memset(ct, 0, sizeof(ct));
-	        	// Base condition: entire message is treated as fragments.
-	        	cgc_defrag(BUF_RX_SZ); 
-
-	        	// defrag() will have the affect of dropping all bytes with 
-	        	// fragment flags.  A discussion on the implications of this 
-	        	// algorithmic reduction can be found at the top of this file.
-
-	        	// Once they're dropped, we need to XOR with OTP (looped over).
-	        	for (i = 0; i < cgc_ct_index; i++) {
-	        		ct[i] = ct[i] ^ (((unsigned char **)ppotp)[0])[i % OTP_SZ];
-	        	}
-
-	        	tx_bytes = 0;
-	            if (SUCCESS != (ret = cgc_transmit_all(STDOUT, &ct, cgc_ct_index, &tx_bytes))) { 
-#ifdef DEBUG
-                    fprintf(cgc_stderr, "[E] main | failed transmitting response to MSG\n");
-#endif
-                    ret = ERRNO_TRANSMIT;
-                    goto bail_main;
-	            }
-
-#ifdef DEBUG
-		       	fprintf(cgc_stderr, 
-		       		"[D] main | just sent XOR'ed ct (%03d bytes); it starts with: 0x%02x 0x%02x 0x%02x 0x%02x\n", 
-		       		tx_bytes, ct[0], ct[1], ct[2], ct[3]);
-#endif
-
-        		break; // STATE_MSG
-
-        	////
-        	// INVALID STATE
-        	////
-        	// Should never happen.
-        	default:
-#ifdef DEBUG
-            	fprintf(cgc_stderr, "[E] main | invalid state; bailing...\n");
-#endif
-            	ret = ERRNO_INVALID_STATE;
-            	goto bail_main;
-            	break;
-        }
-    }
-
-bail_main:
-    return ret;
-}  
+}

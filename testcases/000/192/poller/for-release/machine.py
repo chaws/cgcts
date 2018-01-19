@@ -1,208 +1,402 @@
+#!/usr/bin/env python
+
 from generator.actions import Actions
-import random
-import string
+from struct import *
+from random import *
+import ctypes as ct
+import struct
 
-I_LOOP = 0
-I_ADD = 1
-I_XOR = 2
-I_LD = 3
-I_SUB = 4
+class MyClass(Actions):
 
-def random_upper(size):
-    alphanum = string.ascii_uppercase
-    return ''.join(random.choice(alphanum) for c in range(size))
-
-def random_byte():
-    return chr(random.randint(0, 255))
-
-def reg_num(r):
-    reg_map = {
-        'b': 0,
-        'c': 1,
-        'd': 2,
-        'e': 3,
-        'h': 4,
-        'l': 5,
-        'a': 7
-    }
-    return reg_map[r]
-
-def insns_to_bytes(insns):
-    s = ''
-    for i in insns:
-        if i[0] == I_LOOP:
-            s += '\x18\xFE'
-        if i[0] == I_ADD:
-            if isinstance(i[1], int):
-                s += '\xC6' + chr(i[1])
-            else:
-                s += chr(0x80 | reg_num(i[1]))
-        if i[0] == I_XOR:
-            if isinstance(i[1], int):
-                s += '\xEE' + chr(i[1])
-            else:
-                s += chr(0xA8 | reg_num(i[1]))
-        if i[0] == I_SUB:
-            if isinstance(i[1], int):
-                s += '\xD6' + chr(i[1])
-            else:
-                s += chr(0x90 | reg_num(i[1]))
-        if i[0] == I_LD:
-            if isinstance(i[2], int):
-                s += chr(0x06 | reg_num(i[1]) << 3) + chr(i[2])
-            else:
-                s += chr(0x40 | (reg_num(i[1]) << 3) | reg_num(i[2]))
-    return s
-
-def simulate(insns):
-    class r: pass
-    r.f = 0xB0
-    r.a = 0x01
-    r.b = 0x00
-    r.c = 0x13
-    r.d = 0x00
-    r.e = 0xD8
-    r.h = 0x01
-    r.l = 0x4D
-    r.sp = 0xFFFE
-    r.pc = 0x0150
-
-    def get_reg(n):
-        regmap = {
-            'b': r.b,
-            'c': r.c,
-            'd': r.d,
-            'e': r.e,
-            'h': r.h,
-            'l': r.l,
-            'a': r.a
-        }
-        return regmap[n]
-
-    def set_reg(n, x):
-        x = x & 0xff
-        if n == 'b':
-            r.b = x
-        if n == 'c':
-            r.c = x
-        if n == 'd':
-            r.d = x
-        if n == 'e':
-            r.e = x
-        if n == 'h':
-            r.h = x
-        if n == 'l':
-            r.l = x
-        if n == 'a':
-            r.a = x
-
-    def m(x, y):
-        return (x << 8) | y
-
-    for i in insns:
-        if i[0] == I_LOOP:
-            break
-        if i[0] == I_ADD:
-            if isinstance(i[1], int):
-                r.a = (r.a + i[1]) & 0xff
-                r.pc += 2
-            else:
-                r.a = (r.a + get_reg(i[1])) & 0xff
-                r.pc += 1
-        if i[0] == I_SUB:
-            if isinstance(i[1], int):
-                r.a = (r.a - i[1]) & 0xff
-                r.pc += 2
-            else:
-                r.a = (r.a - get_reg(i[1])) & 0xff
-                r.pc += 1
-        if i[0] == I_XOR:
-            if isinstance(i[1], int):
-                r.a = (r.a ^ i[1]) & 0xff
-                r.pc += 2
-            else:
-                r.a = (r.a ^ get_reg(i[1])) & 0xff
-                r.pc += 1
-        if i[0] == I_LD:
-            x = 0
-            if isinstance(i[2], int):
-                x = i[2] & 0xff
-                r.pc += 2
-            else:
-                x = get_reg(i[2])
-                r.pc += 1
-            set_reg(i[1], x)
-
-    return m(r.a, r.f), m(r.b, r.c), m(r.d, r.e), m(r.h, r.l), r.sp, r.pc
-
-class Game(Actions):
     def start(self):
-        self.state['instructions'] = []
+        self.delay(50)
+        self.CFS_LOGIN          = "\x00"
+        self.CFS_DIR            = "\x01"
+        self.CFS_READ           = "\x02"
+        self.CFS_WRITE          = "\x03"
+        self.CFS_WRITE_APPEND   = "\x04"
+        self.CFS_DEL            = "\x05"
+        self.CFS_RENAME         = "\x06"
 
-    def insn(self):
-        pass
+        self.RESP_SUCCESS               = "\x00"
+        self.RESP_LOGIN_FAILED          = "\x01"
+        self.RESP_SYSTEM_FAILURE        = "\x02"
+        self.RESP_INVALID_FILE          = "\x03"
+        self.RESP_DELETE_FAILED         = "\x04"
+        self.RESP_RENAME_FAILED         = "\x05"
+        self.RESP_TOO_MANY_OPEN_FILES   = "\x06"
 
-    def send_rom(self):
-        self.state['instructions'] += [(I_LOOP,)]
-        #print len(self.state['instructions'])
+        self.dll = ct.CDLL('build/patched/so/CROMU_00055.so')
+        self.seed_prng = self.dll.seed_prng
+        self.seed_prng.argtypes = [ ct.c_uint ]
+        self.seed_prng.restype = None
+        self.random_in_range = self.dll.random_in_range
+        self.random_in_range.argtypes = [ ct.c_uint, ct.c_uint ]
+        self.random_in_range.restype = ct.c_uint
 
-        ROM = ''
-        # interrupt vectors
-        while len(ROM) < 0x100:
-            ROM += random_byte()
+        self.RootUser = "root"
+        self.RootPassword = "rootpasswd"
+        self.MaxFiles = 10
 
-        ROM += '\x00\xC3\x50\x01' # hdr (code)
-        ROM += random_upper(0x30) # hdr (logo)
-        ROM += random_upper(0x10) # hdr (title)
-        ROM += '\x00\x00\x00' # hdr (new_pub + sgb_flags)
-        ROM += '\x00' # hdr (cart_type)
-        ROM += '\x00' # hdr (rom_size)
-        ROM += '\x00' # hdr (ram_size)
-        ROM += random_byte() # hdr (region)
-        ROM += random_byte() # hdr (publisher)
-        ROM += random_byte() # hdr (version)
-        ROM += random_byte() # hdr (hdr_cksum)
-        ROM += random_byte() + random_byte() # hdr (cksum)
+        # seed the prng from the secret page data
+        self.seed_prng(ct.c_uint(struct.unpack('<L', self.magic_page[0:4])[0]))
 
-        ROM += insns_to_bytes(self.state['instructions'])
-        # padding
-        while len(ROM) < 0x8000:
-            ROM += random_byte()
+        # generate the user password that the cb will use
+        self.UserPassword = ''.join(chr(self.random_in_range(65,122)) for _ in range(10))
 
-        self.write(ROM)
-        self.read(delim='\n', expect='..2JLoading .*\n', expect_format='pcre')
-        self._actions.append(self._wrap('delay', '500'))
+        self.Files = {1: ['passwd', 31, self.RootUser+":"+self.RootPassword+"\nuser:"+self.UserPassword]}
+        self.LoggedIn = 0
 
-    def cmd(self):
-        pass
+    #############################
+    # Helper Funtions
+    #############################
+    def NextInode(self):
+        for inode in range (0, self.MaxFiles):
+            if inode not in self.Files.keys():
+                return inode
 
-    def cmd_help(self):
-        self.write('?')
-        self.read(delim='HELP:')
-        self.read(delim='\n', expect=' (q)uit, (h)elp, (wasd) direction keys, (j) A, (k) B, (u) SELECT, (i) START\n')
+    def FindInode(self, filename):
+        for inode in sorted(self.Files.keys()):
+            if self.Files[inode][0] is filename:
+                return inode
 
-    def cmd_quit(self):
-        af, bc, de, hl, sp, pc = simulate(self.state['instructions'])
+    def random_string(self, min_length, max_length):
+            return ''.join(chr(randint(1,255)) for _ in range(randint(min_length, max_length)))
 
-        self.write('q')
-        self.read(delim='Good-Bye\n')
-        self.read(delim='\n', expect_format='pcre', expect='AF = %02X.., BC = %04X, DE = %04X, HL = %04X\n' %
-            (af >> 8, bc, de, hl))
-        self.read(delim='\n', expect='SP = %04X, PC = %04X\n' % (sp, pc))
+    #############################
+    # Login Tests
+    #############################
+    def TestLogin(self):
+        while self.LoggedIn is not 1:
+            # are we going for a success or failure?
+            if randint(0,1):
+                # success
+                self.comment("Successful login attempt")
+                self.SendLogin(self.RootUser, self.RootPassword, self.RESP_SUCCESS)
+                self.LoggedIn = 1
+            else:
+                # failure
+                self.comment("Bad login attempt")
+                BadUser = self.random_string(1,10)
+                BadPassword = self.random_string(1,10)
+                self.SendLogin(BadUser, BadPassword, self.RESP_LOGIN_FAILED)
 
-    def add_insn(self):
-        opr = random.choice(['a', 'b', 'c', 'd', 'e', 'h', 'l'] + range(0, 255))
-        self.state['instructions'] += [(I_ADD, opr)]
+    def SendLogin(self, username, password, code):
+	# CFS_LOGIN
+        self.write(self.CFS_LOGIN)
+	self.write(chr(len(username)))
+	self.write(chr(len(password)))
+        self.write(username+password)
 
-    def sub_insn(self):
-        opr = random.choice(['a', 'b', 'c', 'd', 'e', 'h', 'l'] + range(0, 255))
-        self.state['instructions'] += [(I_SUB, opr)]
+        # response
+        self.read(length=1, expect=self.CFS_LOGIN)
+        self.read(length=1, expect=code)
+        self.read(length=2, expect=pack("<H", 0))
 
-    def xor_insn(self):
-        opr = random.choice(['a', 'b', 'c', 'd', 'e', 'h', 'l'] + range(0, 255))
-        self.state['instructions'] += [(I_XOR, opr)]
+    def UserLogin(self):
+        # try to log in as the randomly generated user
+        self.SendLogin("user", self.UserPassword, self.RESP_SUCESS)
 
-    def ld_insn(self):
-        dst = random.choice(['a', 'b', 'c', 'd', 'e', 'h', 'l'])
-        opr = random.choice(['a', 'b', 'c', 'd', 'e', 'h', 'l'] + range(0, 255))
-        self.state['instructions'] += [(I_LD, dst, opr)]
+        # log back in as root
+        self.SendLogin(self.RootUser, self.RootPassword, self.RESP_SUCESS)
+
+    #############################
+    # Dir Tests
+    #############################
+    def TestDir(self):
+        # there aren't any real failure scenarios to test with a basic Dir
+        # so just run it
+        self.comment("Successful dir attempt")
+        self.SendDir()
+
+    def SendDir(self):
+        # CFS_DIR
+        self.write(self.CFS_DIR)
+
+        # response
+        self.read(length=1, expect=self.CFS_DIR)
+        self.read(length=1, expect="\x00")
+        self.read(length=2, expect=pack("<H", 80*(len(self.Files.keys())+1)))
+        self.read(length=80, expect="{:<32} {:<32} {:<8} {:<4}\n".format("Filename", "Owner", "Size", "Mode"))
+        for inode in sorted(self.Files.keys()):
+            filename = self.Files[inode][0]
+            size = self.Files[inode][1]
+            self.read(length=80, expect="{:<32} {:<32} {:<8} rw--\n".format(filename, "root", size))
+
+    #############################
+    # Read Tests
+    #############################
+    def TestRead(self):
+        # are we going for a success or failure?
+        if randint(0,1):
+            # success
+            self.comment("Successful read attempt")
+            inode = choice(self.Files.keys())
+            filename = self.Files[inode][0]
+            contents = self.Files[inode][2]
+            offset = randint(0, len(contents)-1)
+            length = randint(1, len(contents)-offset)
+            expected_string = contents[offset:offset+length]
+            self.SendRead(filename, offset, length, self.RESP_SUCCESS, expected_string)
+        else:
+            # failure
+            if randint(0,1) is 0:
+                # invalid file
+                self.comment("Bad read attempt: invalid file")
+                filename = self.random_string(1,10)
+                while filename in [self.Files[inode][0] for inode in self.Files.keys()] or len(filename) is 0:
+                    filename = self.random_string(1,10)
+                offset = 0
+                length = 0
+                expected_string = ""
+                self.SendRead(filename, offset, length, self.RESP_INVALID_FILE, expected_string)
+            else:
+                # invalid offset
+                self.comment("Bad read attempt: invalid offset")
+                inode = choice(self.Files.keys())
+                filename = self.Files[inode][0]
+                offset = len(self.Files[inode][2])+1
+                length = randint(1,10)
+                expected_string = ""
+                self.SendRead(filename, offset, length, self.RESP_SYSTEM_FAILURE, expected_string)
+
+    def SendRead(self, filename, offset, length, code, expected_string):
+        # CFS_READ
+        self.write(self.CFS_READ)
+        self.write(pack("<L",offset))
+        self.write(chr(length))
+        self.write(chr(len(filename)))
+        self.write(filename)
+
+        # response
+        self.read(length=1, expect=self.CFS_READ)
+        self.read(length=1, expect=code)
+        if code is self.RESP_SUCCESS:
+            self.read(length=2, expect=pack("<H", len(expected_string)))
+        else:
+            self.read(length=2, expect=pack("<H", 0))
+        if code is self.RESP_SUCCESS:
+            self.read(length=len(expected_string), expect=expected_string)
+
+    #############################
+    # Write Tests
+    #############################
+    def TestWrite(self):
+        # check if we're at the max number of files 
+        if self.MaxFiles is not len(self.Files.keys()):
+            # success
+            self.comment("Successful write attempt")
+            filename = self.random_string(1,10)
+            while filename in [self.Files[inode][0] for inode in self.Files.keys()] or len(filename) is 0:
+                filename = self.random_string(1,10)
+            string = self.random_string(1,254)
+            self.SendWrite(filename, string, self.RESP_SUCCESS)
+        else:
+            # failure
+            self.comment("Bad write attempt: too many files")
+            filename = self.random_string(1,10)
+            while filename in [self.Files[inode][0] for inode in self.Files.keys()] or len(filename) is 0:
+                filename = self.random_string(1,10)
+            string = self.random_string(1,254)
+            self.SendWrite(filename, string, self.RESP_INVALID_FILE)
+
+    def SendWrite(self, filename, string, code):
+        # CFS_WRITE
+        self.write(self.CFS_WRITE)
+        self.write(chr(len(string)))
+        self.write(chr(len(filename)))
+        self.write(filename)
+        self.write(string)
+
+        # response
+        self.read(length=1, expect=self.CFS_WRITE)
+        self.read(length=1, expect=code)
+        self.read(length=2, expect=pack("<H", 0))
+
+        # update the Files list
+        if code is self.RESP_SUCCESS:
+            self.Files[self.NextInode()] = [ filename, len(string), string ]
+
+    #############################
+    # Write Append Tests
+    #############################
+    def TestWriteAppend(self):
+        # if the only file is passwd, write a file first
+        if len(self.Files.keys()) is 1:
+            filename = self.random_string(1,10)
+            while filename in [self.Files[inode][0] for inode in self.Files.keys()] or len(filename) is 0:
+                filename = self.random_string(1,10)
+            string = self.random_string(1,254)
+            self.SendWrite(filename, string, self.RESP_SUCCESS)
+
+        # are we going for a success or failure?
+        if randint(0,1):
+            # success
+            self.comment("Successful write append attempt")
+            # pick a vaild file that's not the passwd file
+            inode = choice(self.Files.keys())
+            while inode is 0:
+                inode = choice(self.Files.keys())
+    
+            # Append some bytes to it
+            filename = self.Files[inode][0]
+            string = self.random_string(1,10)
+            self.SendWriteAppend(filename, string, self.RESP_SUCCESS)
+        else:
+            # failure
+            self.comment("Bad write append attempt: invalid file")
+            filename = self.random_string(1,10)
+            while filename in [self.Files[inode][0] for inode in self.Files.keys()] or len(filename) is 0:
+                filename = self.random_string(1,10)
+            string = self.random_string(1,10)
+            self.SendWriteAppend(filename, string, self.RESP_INVALID_FILE)
+
+
+    def SendWriteAppend(self, filename, string, code):
+        # CFS_WRITE
+        self.write(self.CFS_WRITE_APPEND)
+        self.write(chr(len(string)))
+        self.write(chr(len(filename)))
+        self.write(filename)
+        self.write(string)
+
+        # response
+        self.read(length=1, expect=self.CFS_WRITE_APPEND)
+        self.read(length=1, expect=code)
+        self.read(length=2, expect=pack("<H", 0))
+
+        # update the Files list
+        if code is self.RESP_SUCCESS:
+            if filename in [self.Files[inode][0] for inode in self.Files.keys()]:
+                # file already exists
+                if code is self.RESP_SUCCESS:
+                    self.Files[self.FindInode(filename)][1] += len(string)
+                    self.Files[self.FindInode(filename)][2] += string
+            else:
+                # new file
+                if code is self.RESP_SUCCESS:
+                    self.Files[self.NextInode()] = [ filename, len(string), string ]
+
+    #############################
+    # Delete Tests
+    #############################
+    def TestDel(self):
+        # if the only file is passwd, write a file first
+        if len(self.Files.keys()) is 1:
+            filename = self.random_string(1,10)
+            while filename in [self.Files[inode][0] for inode in self.Files.keys()] or len(filename) is 0:
+                filename = self.random_string(1,10)
+            string = self.random_string(1,254)
+            self.SendWrite(filename, string, self.RESP_SUCCESS)
+
+        # are we going for a success or failure?
+        if randint(0,1):
+            # success
+            self.comment("Successful delete attempt")
+            # pick a vaild file that's not the passwd file
+            inode = choice(self.Files.keys())
+            while inode is 0:
+                inode = choice(self.Files.keys())
+            filename = self.Files[inode][0]
+            self.SendDel(filename, self.RESP_SUCCESS)
+
+        else:
+            self.comment("Bad delete attempt: invalid file")
+            filename = self.random_string(1,10)
+            while filename in [self.Files[inode][0] for inode in self.Files.keys()] or len(filename) is 0:
+                filename = self.random_string(1,10)
+            self.SendDel(filename, self.RESP_DELETE_FAILED)
+
+    def SendDel(self, filename, code):
+        # CFS_DEL
+        self.write(self.CFS_DEL)
+        self.write(chr(len(filename)))
+        self.write(filename)
+
+        # response
+        self.read(length=1, expect=self.CFS_DEL)
+        self.read(length=1, expect=code)
+        self.read(length=2, expect=pack("<H", 0))
+
+        if code is self.RESP_SUCCESS:
+            # delete the file from the list
+            del self.Files[self.FindInode(filename)]
+
+    #############################
+    # Rename Tests
+    #############################
+    def TestRename(self):
+        # if we only have the 'passwd' file, write one more
+        while len(self.Files.keys()) < 3:
+            filename = self.random_string(1,10)
+            while filename in [self.Files[inode][0] for inode in self.Files.keys()] or len(filename) is 0:
+                filename = self.random_string(1,10)
+            string = self.random_string(1,254)
+            self.SendWrite(filename, string, self.RESP_SUCCESS)
+            
+        # are we going for a success or failure?
+        if randint(0,1):
+            # success
+            self.comment("Successful rename attempt")
+
+            # pick a vaild file that's not the passwd file
+            inode = choice(self.Files.keys())
+            while inode is 0:
+                inode = choice(self.Files.keys())
+            oldfilename = self.Files[inode][0]
+
+            # pick a file that's not in the list at all
+            newfilename = self.random_string(1,10)
+            while newfilename in [self.Files[inode][0] for inode in self.Files.keys()] or len(newfilename) is 0:
+                newfilename = self.random_string(1,10)
+
+            self.SendRename(oldfilename, newfilename, self.RESP_SUCCESS)
+
+        else:
+            # failure
+            if randint(0,1):
+                # pick an invalid source file
+                oldfilename = self.random_string(1,10)
+                while oldfilename in [self.Files[inode][0] for inode in self.Files.keys()] or len(oldfilename) is 0:
+                    oldfilename = self.random_string(1,10)
+
+                # pick a file that's not in the list at all
+                newfilename = self.random_string(1,10)
+                while newfilename in [self.Files[inode][0] for inode in self.Files.keys()] or len(newfilename) is 0:
+                    newfilename = self.random_string(1,10)
+
+                self.SendRename(oldfilename, newfilename, self.RESP_RENAME_FAILED)
+            else: 
+                # pick a valid source file 
+                oldinode = choice(self.Files.keys())
+                while oldinode is 0:
+                    oldinode = choice(self.Files.keys())
+                oldfilename = self.Files[oldinode][0]
+
+                # pick a new file that already exists
+                inode = choice(self.Files.keys())
+                while inode is 0 or oldinode is inode:
+                    inode = choice(self.Files.keys())
+                newfilename = self.Files[inode][0]
+
+                self.SendRename(oldfilename, newfilename, self.RESP_RENAME_FAILED)
+
+    def SendRename(self, oldfilename, newfilename, code):
+        # CFS_RENAME
+        self.write(self.CFS_RENAME)
+        self.write(chr(len(oldfilename)))
+        self.write(chr(len(newfilename)))
+        self.write(oldfilename)
+        self.write(newfilename)
+
+        # response
+        self.read(length=1, expect=self.CFS_RENAME)
+        self.read(length=1, expect=code)
+        self.read(length=2, expect=pack("<H", 0))
+
+        if code is self.RESP_SUCCESS:
+            # change the filename
+            self.Files[self.FindInode(oldfilename)][0] = newfilename
+
+    def end(self):
+	pass

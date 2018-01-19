@@ -1,4 +1,4 @@
-CHAL=CGC_Video_Format_Parser_and_Viewer
+CHAL=User_Manager
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,31 +20,39 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/bitstream.c.o -c src/bitstream.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/parseCVF.c.o -c src/parseCVF.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o CGC_Video_Format_Parser_and_Viewer_patched lib/printf.c.o lib/malloc.c.o lib/mymath.c.o lib/stdlib.c.o src/bitstream.c.o src/parseCVF.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o lib/string.cc.o -c lib/string.cc
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/common.cc.o -c src/common.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/usermessage.cc.o -c src/usermessage.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/usermanager.cc.o -c src/usermanager.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/userdatabase.cc.o -c src/userdatabase.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/doublequeue.cc.o -c src/doublequeue.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/service.cc.o -c src/service.cc
+	$(CXX) $(FLAGS) -o User_Manager_patched lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/common.cc.o src/usermessage.cc.o src/usermanager.cc.o src/userdatabase.cc.o src/doublequeue.cc.o src/service.cc.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/bitstream.c.o -c src/bitstream.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/parseCVF.c.o -c src/parseCVF.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o CGC_Video_Format_Parser_and_Viewer lib/printf.c.o lib/malloc.c.o lib/mymath.c.o lib/stdlib.c.o src/bitstream.c.o src/parseCVF.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o lib/string.cc.o -c lib/string.cc
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/common.cc.o -c src/common.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/usermessage.cc.o -c src/usermessage.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/usermanager.cc.o -c src/usermanager.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/userdatabase.cc.o -c src/userdatabase.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/doublequeue.cc.o -c src/doublequeue.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -O0 -o src/service.cc.o -c src/service.cc
+	$(CXX) $(FLAGS) -o User_Manager lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/common.cc.o src/usermessage.cc.o src/usermanager.cc.o src/userdatabase.cc.o src/doublequeue.cc.o src/service.cc.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o CGC_Video_Format_Parser_and_Viewer_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -fno-exceptions -fno-rtti -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o User_Manager_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/printf.c.o lib/malloc.c.o lib/mymath.c.o lib/stdlib.c.o src/bitstream.c.o src/parseCVF.c.o src/service.c.o lib/printf.c.o lib/malloc.c.o lib/mymath.c.o lib/stdlib.c.o src/bitstream.c.o src/parseCVF.c.o src/service.c.o CGC_Video_Format_Parser_and_Viewer_pov_1 CGC_Video_Format_Parser_and_Viewer_patched CGC_Video_Format_Parser_and_Viewer
+	rm -f pov_1/pov.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/common.cc.o src/usermessage.cc.o src/usermanager.cc.o src/userdatabase.cc.o src/doublequeue.cc.o src/service.cc.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/common.cc.o src/usermessage.cc.o src/usermanager.cc.o src/userdatabase.cc.o src/doublequeue.cc.o src/service.cc.o User_Manager_pov_1 User_Manager_patched User_Manager

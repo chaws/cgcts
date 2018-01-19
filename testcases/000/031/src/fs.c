@@ -1,8 +1,8 @@
 /*
 
-Author: Joe Rogers <joe@cromulence.com>
+Author: Debbie Nuttall <debbie@cromulence.com>
 
-Copyright (c) 2015 Cromulence LLC
+Copyright (c) 2016 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,311 +24,187 @@ THE SOFTWARE.
 
 */
 #include "libcgc.h"
-#include "cgc_stdlib.h"
-#include "cgc_stdio.h"
 #include "cgc_string.h"
-#include "cgc_stdint.h"
+#include "cgc_stdlib.h"
+#include "cgc_malloc.h"
+#include "cgc_stdio.h"
 #include "cgc_fs.h"
-#include "cgc_prng.h"
-#include "cgc_shell.h"
 
-Filesystem FS[MAX_FILES];
-FILE FH[MAX_FILES];
+fs_tree allTrees[MAX_TREES];
+char cgc_serviceTypes[MAX_SERVICE_TYPES][MAX_SERVICE_NAME];
 
-extern environment cgc_ENV;
+void cgc_InitializeFileSystem()
+{
+  // Create Service Types
+  for (int i=0; i< MAX_SERVICE_TYPES; i++)
+  {
+    cgc_populate_random_string(cgc_serviceTypes[i], cgc_random_in_range(MAX_SERVICE_NAME/2, MAX_SERVICE_NAME));
+  }
 
-void cgc_InitFilesystem(void) {
-	char root_passwd[32];
-	char secure_passwd[32];
-	uint8_t i;
-        const char *rand_page = (const char *)0x4347C000;
+  int treeNameLen = cgc_random_in_range(MAX_TREENAME_LEN / 2, MAX_TREENAME_LEN);
+  for (int i=0; i < MAX_TREES - 1; i++)
+  {
+    fs_tree *tree = &allTrees[i];
+    tree->treeID = cgc_rand();
+    cgc_populate_random_string(tree->treeName, treeNameLen - i);
+    cgc_strcpy(tree->serviceType, cgc_serviceTypes[cgc_random_in_range(0, MAX_SERVICE_TYPES - 1)]);
+    int numFiles = cgc_random_in_range(1, MAX_FILES_PER_TREE);
+    int fileIndex = 0;
+    int fileNameLen = cgc_random_in_range(MAX_FILENAME_LEN/2, MAX_FILENAME_LEN);
+    while (numFiles > 0)
+    {
+      char filename[MAX_FILENAME_LEN];
+      cgc_populate_random_string(filename, fileNameLen - numFiles);
+      fs_file *file = cgc_CreateFile(tree, (uint8_t *)filename, 0, FS_MODE_CREATE);
+      int length = cgc_random_in_range(10, MAX_FILESIZE);
+      uint8_t *buffer = cgc_calloc(length);
+      cgc_populate_random_string((char *)buffer, length);
+      cgc_WriteFile(file, buffer, 0, length);
+      cgc_CloseFile(file);
+      cgc_free(buffer);
+      tree->files[fileIndex++] = file;
+      numFiles--;
+    }
+  }
 
-	cgc_bzero(FS, sizeof(FS));
-	cgc_bzero(FH, sizeof(FH));
-
-	// generate a random root password
-	cgc_bzero(root_passwd, 32);
-	for (i = 0; i < 10; i++) {
-		root_passwd[i] = (char)cgc_random_in_range(65,122);
-	}
-	root_passwd[i] = '\0';
-
-	// generate a random secure user password
-	cgc_bzero(secure_passwd, 32);
-	for (i = 0; i < 31; i++) {
-		secure_passwd[i] = (char)cgc_random_in_range(65,122);
-	}
-	secure_passwd[i] = '\0';
-
-	// passwd file
-	cgc_strcpy(FS[0].Filename, "passwd");
-	cgc_strcpy(FS[0].Owner, "root");
-	cgc_strcpy(FS[0].Group, "root");
-	FS[0].Perms = 0x700;
-	cgc_sprintf(FS[0].Data, "$s:secure:secure\ncrs:crs:crs\n$s:root:root", secure_passwd, root_passwd);
-	FS[0].Size = cgc_strlen(FS[0].Data);
-
-	// confidential data file
-	cgc_strcpy(FS[1].Filename, "confidential");
-	cgc_strcpy(FS[1].Owner, "secure");
-	cgc_strcpy(FS[1].Group, "secure");
-	FS[1].Perms = 0x700;
-	// cgc_read starting at 4th byte since we already used the first 4 to seed the prng
-	// but don't use any 4-byte chunks that have NULL's or newlines
-	rand_page+=4;
-	i = 0;
-	while (i < 4) {
-		if (*rand_page == '\0' || *rand_page == '\n') {
-			i = 0;
-			rand_page++;
-			continue;
-		}
-		FS[1].Data[i++] = *rand_page;
-		rand_page++;
-	}
-	FS[1].Size = 4;
+  fs_tree *lastTree = &allTrees[MAX_TREES - 1];
+  lastTree->treeID = cgc_rand();
+  cgc_strcpy(lastTree->treeName, "SOMETREE");
+  cgc_strcpy(lastTree->serviceType, "EYEPSEE");   
+  fs_file *file = cgc_calloc(sizeof(fs_file));
+  cgc_strcpy(file->filename, "NETSTUFF");
+  file->fileID = cgc_rand() & 0xffff;
+  lastTree->files[0] = file;
+  return;
 
 }
 
-void cgc_ListFiles(void) {
-	uint8_t i;
-
-	cgc_puts("Directory listing");
-	cgc_printf("$-32s $-32s $-32s $5s\n\r", "Filename", "Owner", "Group", "Size");
-	for (i = 0; i < MAX_FILES; i++) {
-		if (FS[i].Filename[0] == '\0'){
-			continue;
-		}
-
-		cgc_printf("$-32s $-32s $-32s $5d\n\r", FS[i].Filename, FS[i].Owner, FS[i].Group, FS[i].Size);
-	}
+fs_file *cgc_FindFileByName(fs_tree *tree, uint8_t *filename)
+{
+  for (int i=0; i< MAX_FILES_PER_TREE; i++)
+  {
+    fs_file *file = tree->files[i];
+    if (file != NULL)
+    {
+     if (cgc_strcmp(file->filename, (char *)filename) == 0)
+      {
+        return file;
+      }
+    }
+  }
+  return NULL;
 }
 
-uint16_t cgc_Mode2Perms(char *Mode) {
-	uint16_t Perms = 0;
-
-	if (Mode[0] == 'r')
-		Perms |= PERMS_READ;
-		
-	if (Mode[0] == 'w')
-		Perms |= PERMS_WRITE;
-
-	return(Perms);
-}
- 
-pFILE cgc_fopen(char *Filename, char *Mode, uint8_t Suid) {
-	uint8_t i;
-	uint16_t Perms;
-	pFilesystem FirstAvailableFS = NULL;
-	uint8_t inode;
-
-	if (!Filename || !Mode) {
-		return(NULL);
-	}
-
-	if (cgc_strlen(Filename) > 31) {
-		return(NULL);
-	}
-
-	// make sure we only have 'r' or 'w' in Mode
-	if (cgc_strlen(Mode) > 1) {
-		return(NULL);
-	}
-	if (Mode[0] != 'r' && Mode[0] != 'w') {
-		return(NULL);
-	}
-
-	// look for the requested file
-	for (inode = 0; inode < MAX_FILES; inode++) {
-		if (FS[inode].Filename[0] == '\0' && !FirstAvailableFS) {
-			// found an availale file, keep track of it
-			// in case we need it later
-			FirstAvailableFS = &FS[inode];
-		}
-
-		if (cgc_strcmp(Filename, FS[inode].Filename) == 0) {
-			break;
-		}
-	}
-	if (inode == MAX_FILES) {
-		if (Mode[0] == 'r') {
-			return(NULL);
-		} else {
-			goto success;
-		}
-	}
-
-	// if called from a 'setuid root' function
-	if (Suid || !cgc_strcmp(cgc_ENV.User, "root")) {
-		goto success;
-	}
-
-	// verify user permissions
-	if (!cgc_strcmp(FS[inode].Owner, cgc_ENV.User)) {
-		Perms = (FS[inode].Perms & 0xF00) >> 8;
-		if ((Perms & cgc_Mode2Perms(Mode)) == 0) {
-			return(NULL);
-		} else {
-			goto success;
-		}
-	}
-
-	// verify group permissions
-	if (!cgc_strcmp(FS[inode].Group, cgc_ENV.Group)) {
-		Perms = (FS[inode].Perms & 0xF0) >> 4;
-		if ((Perms & cgc_Mode2Perms(Mode)) == 0) {
-			return(NULL);
-		} else {
-			goto success;
-		}
-	}
-	
-	// verify other permissions
-	Perms = (FS[inode].Perms & 0xF);
-	if ((Perms & cgc_Mode2Perms(Mode)) == 0) {
-		return(NULL);
-	} 
-
-success:
-	// Populate a new file handle and return it
-	for (i = 0; i < MAX_FILES; i++) {
-		if (FH[i].fp == NULL) {
-			break;
-		}
-	}
-	if (i == MAX_FILES) {
-		// no available file handles
-		return(NULL);
-	}
-	if (Mode[0] == 'w') {
-		if (inode == MAX_FILES) { 
-			if (!FirstAvailableFS) {
-				// no available filesystem slots
-				return(NULL);
-			}
-			// create a new file
-			cgc_strcpy(FirstAvailableFS->Filename, Filename);
-			cgc_strcpy(FirstAvailableFS->Owner, cgc_ENV.User);
-			cgc_strcpy(FirstAvailableFS->Group, cgc_ENV.Group);
-			FirstAvailableFS->Perms = 0x700;
-			cgc_bzero(FirstAvailableFS->Data, MAX_FILE_SIZE);
-			FirstAvailableFS->Size = 0;
-			FH[i].fp = FirstAvailableFS;
-			FH[i].mode = PERMS_WRITE;
-		} else {
-			// open the existing file
-			FH[i].fp = &FS[inode];
-			FH[i].mode = PERMS_WRITE;
-			cgc_bzero(FH[i].fp->Data, MAX_FILE_SIZE);
-			FH[i].fp->Size = 0;
-		}
-	} else {
-		FH[i].fp = &FS[inode];
-		FH[i].mode = PERMS_READ;
-	}
-	FH[i].CurrPosition = FH[i].fp->Data;
-
-	return(&FH[i]);
+fs_file *cgc_CreateFile(fs_tree *tree, uint8_t *filename, uint32_t userID, uint32_t mode)
+{
+  fs_file *file = cgc_FindFileByName(tree, filename);
+  if (file == NULL)
+  {
+    if (mode != FS_MODE_CREATE)
+    {
+      // File doesn't exist
+      return NULL;
+    }
+    // Create new file
+    for (int i=0; i < MAX_FILES_PER_TREE; i++)
+    {
+      if (tree->files[i] == NULL)
+      {
+        // Create new file in open slot
+        fs_file *newfile = cgc_calloc(sizeof(fs_file));
+        newfile->fileID = cgc_rand() & 0xffff;
+        int len = cgc_strlen((char *)filename);
+        if (len > MAX_FILENAME_LEN)
+        {
+          len = MAX_FILENAME_LEN;
+        }
+        cgc_strncpy(newfile->filename, (char *)filename, MAX_FILENAME_LEN);
+        newfile->isOpen = 1;
+        tree->files[i] = newfile;
+        return newfile;
+      }
+    }
+    // No open slots
+    return NULL;
+  }
+  
+  if (file->isOpen == 1)
+  {
+    // File already open
+    return NULL;
+  }
+  file->isOpen = 1;
+  return file;
 }
 
-char *cgc_fgets(char *str, uint32_t size, pFILE stream) {
-	uint32_t i;
-
-	if (!str || !stream || size == 0) {
-		return(NULL);
-	}
-
-	if (stream->CurrPosition == NULL) {
-		return(NULL);
-	}
-
-	if (*(stream->CurrPosition) == '\0') {
-		return(NULL);
-	}
-
-	i = 0;
-	while (*(stream->CurrPosition) != '\0' && size-1) {
-		if (*(stream->CurrPosition) == '\n') {
-			stream->CurrPosition++;
-			str[i] = '\0';
-			return(str);
-		}
-		str[i++] = *(stream->CurrPosition++);
-		size--;
-	}
-	str[i] = '\0';
-	return(str);
+void cgc_CloseFile(fs_file *file)
+{
+  if (file != NULL)
+  {
+    file->isOpen = 0;
+  }
 }
 
-uint8_t cgc_fclose(pFILE stream) {
-
-	if (!stream) {
-		return(0);
-	}
-
-	stream->fp = NULL;
-	stream->CurrPosition = NULL;
-
-	return(1);
-
+int cgc_ReadFile(uint8_t *dest, fs_file *file, uint16_t offset, uint16_t length)
+{
+  if ((file == NULL) || (dest == NULL) || (length == 0))
+  {
+    return -1;
+  }
+  if (offset > file->numBytes)
+  {
+    return -1;
+  }
+  if (offset + length > file->numBytes)
+  {
+    length = file->numBytes - offset;
+  }
+  cgc_memcpy(dest, file->bytes + offset, length);
+  return 0;
 }
 
-cgc_size_t cgc_fread(void *restrict ptr, cgc_size_t size, cgc_size_t nitems, FILE *restrict stream) {
-
-	if (!ptr || !stream || size == 0 || nitems == 0) {
-		return(0);
-	}
-
-	if (stream->fp == NULL || stream->CurrPosition == NULL || size*nitems > MAX_FILE_SIZE) {
-		return(0);
-	}
-
-	if (size*nitems > stream->fp->Size) {
-		cgc_memcpy(ptr, stream->fp->Data, stream->fp->Size);
-		return(stream->fp->Size);
-	} else {
-		cgc_memcpy(ptr, stream->fp->Data, size*nitems);
-		return(size*nitems);
-	}
-
-}	
-
-cgc_size_t cgc_fwrite(const void *restrict ptr, cgc_size_t size, cgc_size_t nitems, FILE *restrict stream) {
-
-	if (!ptr || !stream) {
-		return(0);
-	}
-
-	if (stream->fp == NULL || stream->CurrPosition == NULL || size*nitems > MAX_FILE_SIZE || stream->mode != PERMS_WRITE) {
-		return(0);
-	}
-
-	cgc_memcpy(stream->CurrPosition, ptr, size*nitems);
-	stream->fp->Size += size*nitems;
-
-	return(size*nitems);
-
+int cgc_WriteFile(fs_file *file, uint8_t *source, uint16_t offset, uint16_t length)
+{
+  if ((file == NULL) || (source == NULL) || (length == 0))
+  {
+    return -1;
+  }
+  if (offset + length > MAX_FILESIZE)
+  {
+    return -1;
+  }
+  uint8_t *oldData = file->bytes;
+  file->bytes = cgc_calloc(offset + length);
+  if (offset > 0)
+  {
+    if (oldData != NULL)
+    {
+      if (file->numBytes >= offset)
+      {
+        cgc_memcpy(file->bytes, oldData, offset);
+      } else {
+        cgc_memcpy(file->bytes, oldData, file->numBytes);
+      }
+    }
+  }
+  cgc_memcpy(file->bytes + offset, source, length);
+  file->numBytes = offset + length;
+  cgc_free(oldData);
+  return 0;
 }
 
-uint8_t cgc_Dump(char *filename) {
-	FILE *stream;
-	char buf[1024];
-
-	if (!filename) {
-		return(0);
-	}
-
-	if ((stream = cgc_fopen(filename, "r", 0)) == NULL) {
-		cgc_printf("Unable to open file '$s'\n\r", filename);
-		return(0);
-	}
-
-	while (cgc_fgets(buf, 1024, stream)) {
-		cgc_puts(buf);
-	}
-
-	cgc_fclose(stream);
-
-	return(1);
-
-}	
+fs_tree *cgc_FindTreeByPath(uint32_t userID, uint8_t *path, uint8_t *service)
+{
+  for (int i=0; i < MAX_TREES; i++)
+  {
+    fs_tree *tree = &allTrees[i];
+    if (cgc_strcmp(tree->treeName, (char *)path) == 0)
+    {
+      if (cgc_strcmp(tree->serviceType, (char *)service) == 0)
+      {
+        return tree;
+      }
+    }
+  }
+  return NULL;
+}

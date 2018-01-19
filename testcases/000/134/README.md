@@ -2,58 +2,52 @@
 
 ## Author Information
 
-"Nick Davis" <info@narfindustries.com>
+"Dustin Fraze" <df@cromulence.co>
 
 ### DARPA performer group
-
-Narf Industries (NRFIN)
+Cromulence LLC (CROMU)
 
 ## Description
 
-This is the Chuck Norris (joke) Management Protocol (CNMP)
-
-There's an arms race among Chuck Norris joke authors, resulting in a bunch of proprietary joke protocols.  Authors make money licensing joke accessories, necessary for interfacing with their trademarked and totally-better-than-everyone-else protocols.
-
-Humor Corp, noticing a dip in the SNMP market, has decided to move into the joke market.  Today they've announced their just-different-enough CNMP protocol, sure to please all those Chuck Norris fans.
+The yolodex is a service roughly based off fingerd.  Fingerd was chosen because the Morris worm, among the first widespread internet worms, targeted a code execution vulnerability in the finger daemon.
 
 ### Feature List
 
-This service is somewhat inspired by SNMP.  Authors can get and set Chuck Norris jokes on a central server using CNMP, much like information might be referenced with OIDs and described with MIBs in SNMP.
-
-Authors can write a large collection of Chuck Norris jokes and browse them to amuse all of their friends.
-
-Authors can check the total number of jokes in the central server, list all of the jokes, list a specific joke, and have the server show them a randomly selected joke.
-
-The service provides a menu system to assist authors with supported commands.
+This service supports adding, deleting, editing, searching, and sorting contacts, like a rolodex.  It stores a first and last name, phone number, office number, gender, and if the user is known to be a hacker.
 
 ## Vulnerability
 
-Each joke is stored in a fixed-sized buffer (512 bytes) which is 511 chars followed by a '\0'. So, the author can submit jokes that are 511 chars long.
+Editing an existing user holds the incoming change data in a temporary buffer, as to allow a field to remain the same by sending just a newline.  This temporary buffer is recycled for every input the user is allowed to provide.
 
-If a joke is 511 chars long and contains 2 or more format specifiers "~c" for a char buffer, the syslog function call in insert_joke, will result in a user controlled format string bug.
+The structure of a contact buffer is:
 
-* Note: this version of xxprintf uses ~c for char string and ~n for int, which is different from converntional versions.
+	typedef struct _contact {
+		char first[32];
+		char last[32];
+		char phone[16];
+		unsigned short officenum;
+		char gender;
+		char hacker;		
+		unsigned int cookie;
+		int pad;
+		struct _contact *prev; 
+		struct _contact *next;
+	} contact;
 
-Specifically, in joke.c:94, the syslog() function is called with the user provided joke string as its format string. Then in libc.c:117 that format string is provided to vnsprintf() as its format string, and in this case, the args parameter is empty. Thus, when vnsprintf() is retrieving values to replace the format specifiers, in libc.c:271/278, it is reading out of bounds from the memory that directly follows the format specifier.
+The temporary buffer is 32 bytes long.  Although the phone number is 16 bytes long, the yolodex only accepts 14 bytes for input for the phone number ((NNN)NNN-NNNN\n).  If a user provides more than 16-bytes for the last name, and exactly 14 bytes for the phone number, without a newline in the phone number, a null is not read into the temporary data buffer.
 
-Example exploit for this would be a joke like one of the following examples:
+Yolodex will then attempt to copy 14 bytes of phone number + the stale data from last name, until it runs into a NULL.  This allows an overwrite of officenum, gender, hacker, cookie, next, and prev.  Cookie is discussed in challenges.
 
-A minimum case:
-joke1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa~cbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb~c"
-
-An extreme case:
-joke2 = "~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~c~ca"
+If cookie's value is preserved, and next or prev are corrupted, a user could cause a dereference of an invalid pointer, or potentially code execution.
 
 ### Generic class of vulnerability
-
-Uncontrolled Format String
+Buffer Overflow
 
 ### CWE classification
-
-Uncontrolled Format String
-CWE-134
+CWE-787: Out-of-bounds Write
 
 ## Challenges
 
-- Finding the precise joke length and joke contents to reach and then trigger the vuln.
-- Finding that the format specifiers and format string marker used in this version of libc have different meaning from that in stdlib.
+This CB uses "heap cookies" between what is supposed to be user-writable and the metadata about the data structure.  Unlike traditional stack cookies, this cookie is set up once at initialization, and never changed during execution.  Corruption of the cookie forces the application to terminate.
+
+A CRS would have to send crafted data longer than the bounds of the buffer, but short enough to not corrupt the cookie.  A properly crafted input would cause the cookie to be leaked at the end of the phone number.  A CRS would have to then read the cookie, craft a new buffer containing the leaked cookie, plus the overwrite, then trigger a dereference of the overwritten pointer through the detail view.

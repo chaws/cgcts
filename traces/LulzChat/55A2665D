@@ -1,0 +1,8 @@
+cb_1/src/message.c:32 # msg is declared
+cb_1/src/message.c:33 # msg gets allocated memory
+cb_1/src/message.c:38:fix # assign msg->text to NULL, avoiding unwanted data dereferentiation
+cb_1/src/message.c:92 # in case of errors, cgc_free_message is called at msg
+cb_1/src/message.c:100 # checks if msg->text is different then null, which also may be trash
+cb_1/src/message.c:101:CWE908 # call cgc_free to msg->text, that is not guaranteed to be valid
+cb_1/lib/free.c:40 # within cgc_free, msg->text is ptr, which is converted to blk
+cb_1/lib/free.c:42:CWE908 # blk is dereferenced, which might result in undefined behavior

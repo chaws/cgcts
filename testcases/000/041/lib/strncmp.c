@@ -21,21 +21,23 @@
 */
 #include "cgc_strncmp.h"
 
-int cgc_strncmp(const char *str1, const char *str2, cgc_size_t n) {
-	cgc_size_t idx = 0;
+int cgc_strncmp(const char *str1, const char *str2, unsigned int n) {
+	int idx = 0;
 
 	if (0 == n) {
 		return 0;
 	}
 
-	while ((n > idx) &&
-			('\0' != *(str1 + idx)) &&
-			('\0' != *(str2 + idx)) &&
+	while ((n > idx) && ('\0' != *(str1 + idx)) && ('\0' != *(str2 + idx)) &&  
 			(*(str1 + idx) == *(str2 + idx))) {
-		idx++;
+				idx++;
 	}
 
 	if (n == idx) {
+		idx--;
+	}
+
+	if (*(str1 + idx) == *(str2 + idx)) {
 		return 0;
 	} else if (*(str1 + idx) > *(str2 + idx)) {
 		return 1;

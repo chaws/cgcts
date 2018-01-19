@@ -23,27 +23,22 @@
 #ifndef LIBC_H
 #define LIBC_H 1
 
-/*
- This libc implementation is based on NRFIN CQE libc code plus some new code.
- It is ok to release publicly for CFE
-*/
-
 #include "libcgc.h"
 #include "cgc_stdint.h"
 #include "cgc_errno.h"
-#include "cgc_recv_all.h"
-
-#define FLAG_PAGE 0x4347C000
+#include "cgc_memset.h"
+#include "cgc_memcpy.h"
+#include "cgc_send.h"
+#include "cgc_recv_until_delim.h"
+#include "cgc_list.h"
+#include "cgc_strlen.h"
+#include "cgc_xxprintf.h"
+#include "cgc_int2str.h"
+#include "cgc_strncmp.h"
+#include "cgc_hex.h"
 
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE -1
-#define MALLOC_OK(p) do {if (NULL == p) {cgc__terminate(ERRNO_ALLOC);}} while(0);
-
-#define PAGE_SIZE (1 << 12)
-
-#define RECV(buf, sz) do {if (sz != cgc_recv_all((char *)buf, sz)) {cgc__terminate(ERRNO_RECV);}} while(0);
-
-
 
 /**
  * If e doesn't return SUCCESS, return ret;
@@ -51,7 +46,7 @@
  * @param e An expression to compare with SUCCESS
  * @return An error condition if exp doesn't return SUCCESS
  */
-#define FAILBAIL(e) do {if (SUCCESS != (ret = e)) {return ret;}} while(0);
+#define FAILBAIL(e) if (SUCCESS != (ret = e)) {return ret;}
 
 /**
  * Return the lesser of a and b

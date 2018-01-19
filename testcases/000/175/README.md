@@ -1,47 +1,15 @@
-# Water_Treatment_Facility_Simulator
-
-## Author Information
-
-"Joe Rogers" <joe@cromulence.com>
-
-### DARPA performer group
-Cromulence (CROMU)
+# Diophantine Password Wallet
 
 ## Description
 
-This CB simulates the operation of a waste water treatment facility.
+This service is supposed to be a simple service where a user can login to the service and and then *add*, *delete* and *print* out the list of currently stored passwords. The strange thing about this service is that the passwords must all be 3rd power diophantine equations in the form of secret1^3 + secret2^3 + secret3^3 = stored-secret^3. 
 
-### Feature List
+This CB is meant to be a harder version of YAN01_00008, but is also provided to help CRS authors to test their solver integration. What makes this CB more difficult than the other is that, the uint32 numbers are converted into 256bit large ints before addition and multiplication takes place. This and the fact that numbers are entered as ascii decimal numbers and then converted into uint32_t also obfuscates the process.
 
-The simulation includes the following keys systems: Headworks, Activated Sludge Process, Filters, Disinfection Chambers, and several Valves controlling flow between these systems.  The CB provides an operator interface to the simulated plant describing the current state of the various plant systems and allows the operator to make adjustments to plant parameters.  After the operator is given an opportunity to adjust the parameters, the CB simulates an hour of operation using the configured parameters.  It then assesses the effluent water quality and keeps track of any levels which don't meet pre-set standards.  After 24 hours of operation, the simulation ends and an overall pass/fail result is given.  
+## Vulnerabilities
 
-Also, at the end of each simulated hour, new influent values are provided requiring the operator to adjust plant parameters before the next simulation cycle.  These new values might indicate changes in flow, CBOD (carbonaceous biochemical oxygen demand) levels, TSS (Total Suspended Solids), Total Nitrogen, and Total Phosphorous coming into the treatment plant.  
+There is a null pointer dereference vulnerability. The vulnerability arises from the fact that some numbers *d* have more than one solution to a^3 + b^3 + c^3 = d^3, but the CB itself only initializes the function pointers for one set of solutions. In this way, finding the alternative solution will result in a null pointer derefernece. This falls under [CWE-824: Access of Uninitialized Pointer](http://cwe.mitre.org/data/definitions/824.html) and [CWE-476: Null Pointer Derefernece](http://cwe.mitre.org/data/definitions/476.html).
 
-## Vulnerability
-Vulnerability #1: 
-The CB allows the various plant systems to be renamed by the operator.  The code to rename Valve #4 has unsigned to signed conversion error which allows a buffer overflow.  The system name variable is positioned in the data structure before an array of pointers to valve outputs and before several system parameters such as the flow rate.  Normally this valve's first output would point to the Effluent system.  The output pointer is later used in the SimulateEffluent function to calculate values such as flow rates in that system's structure.  The function uses the flow rate from the valve along with the output pointer to update the effluent data structure's flow rate.
+## Notes
 
-EBP and EIP can be controlled using these steps:
-- Run the plant successfully for 24 hours
-- Choose to rename valve 4
-- Use the buffer overflow to overwrite the valve output pointer setting it to a stack address aligned over the stack of the SimulateEffluent function
-- Set the valve 4 flow rate to a value of the CRS' choosing
-- End the simulation which will cause one last SimulateEffluent to be called and saved EBP and EIP of that function to be overwritten.
-
-### Generic class of vulnerability
-Vulnerability #1:
-Unsigned to Signed Conversion Error
-Buffer Overflow
-
-### CWE classification
-CWE-196: Unsigned to Signed Conversion Error
-CWE-131: Incorrect Calculation of Buffer Size
-
-## Challenges
-Vulnerability #1: 
-A type 1 PoV for this CB is challenging because the CRS must successfully operate the simulated plant for 24 hours.  This requires a thorough understanding of the formulas and floating-point math used to calculate the plant's operation and the proper setting of plant controls each simulated hour so that the resulting effluent meets the pre-set water quality standards.
-
-Subjective Quantification:
-Discovering - Medium
-Proving - Hard
-Fixing - Easy
+The CB itself doesn't actually check to make sure that the passwords stored in the database satisfy the constraint mentioned in the description.

@@ -38,7 +38,7 @@ unbuffered:
         }
         else
         {
-            if (transmit_xlat(stream->fd, stream->xlat_map, ptr, size) != 0)
+            if (cgc_transmit_xlat(stream->fd, stream->xlat_map, ptr, size) != 0)
                 return -1;
         }
         return size;

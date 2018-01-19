@@ -1,0 +1,14 @@
+src/service.c:57 # req is declared
+src/service.c:59 # req is heap-allocated: req->recv[1044] and req->resp[1024]
+src/service.c:62 # rearrange req to stay at the end of the memory page
+src/service.c:67 # reads input from user into req->recv
+src/service.c:71 # checks if the input starts with William's identifier
+src/service.c:72 # process input according to William's strategy
+src/members.c:112 # checks if req->recv for the string '<3'
+src/members.c:113 # calls matching function
+src/members.c:70 # dst is pointing to req->resp
+src/members.c:103:CWE131 # req->resplen is storing req->recv's length instead of req->resp's
+src/service.c:88:CWE125 # prints (cgc_sendline) req->resp up to req->resplen characters to STDOUT
+lib/libc.c:53 # calls cgc_sendall on req->resp and req->resplen
+lib/libc.c:37 # iterate over req->resp `req->resplen` times
+lib/libc.c:38:CWE125 # reads the character at buf, which is a cursor of req->resp and may point to over the 1024th char

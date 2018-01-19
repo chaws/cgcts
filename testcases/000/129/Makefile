@@ -1,4 +1,4 @@
-CHAL=Scrum_Database
+CHAL=No_Paper._Not_Ever._NOPE
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,49 +20,55 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/input.c.o -c lib/input.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/init_database.c.o -c src/init_database.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/sprints.c.o -c src/sprints.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/commands.c.o -c src/commands.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/utility.c.o -c src/utility.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/obf_strings.c.o -c src/obf_strings.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/backlogitems.c.o -c src/backlogitems.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/product.c.o -c src/product.c
-	$(CC) $(FLAGS) -o Scrum_Database_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o lib/input.c.o src/init_database.c.o src/sprints.c.o src/commands.c.o src/utility.c.o src/service.c.o src/obf_strings.c.o src/backlogitems.c.o src/product.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/send.c.o -c lib/send.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/xxprintf.c.o -c lib/xxprintf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/recv_all.c.o -c lib/recv_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/sendall.c.o -c lib/sendall.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/char.c.o -c lib/char.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/int2str.c.o -c lib/int2str.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/read_all.c.o -c lib/read_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/hex.c.o -c lib/hex.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/taxpayer.c.o -c src/taxpayer.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/comms.c.o -c src/comms.c
+	$(CXX) $(FLAGS) -o No_Paper._Not_Ever._NOPE_patched lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/service.c.o src/taxpayer.c.o src/comms.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/input.c.o -c lib/input.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/init_database.c.o -c src/init_database.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/sprints.c.o -c src/sprints.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/commands.c.o -c src/commands.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/utility.c.o -c src/utility.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/obf_strings.c.o -c src/obf_strings.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/backlogitems.c.o -c src/backlogitems.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/product.c.o -c src/product.c
-	$(CC) $(FLAGS) -o Scrum_Database lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o lib/input.c.o src/init_database.c.o src/sprints.c.o src/commands.c.o src/utility.c.o src/service.c.o src/obf_strings.c.o src/backlogitems.c.o src/product.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/send.c.o -c lib/send.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/xxprintf.c.o -c lib/xxprintf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/recv_all.c.o -c lib/recv_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/sendall.c.o -c lib/sendall.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/char.c.o -c lib/char.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/int2str.c.o -c lib/int2str.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/read_all.c.o -c lib/read_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/hex.c.o -c lib/hex.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/taxpayer.c.o -c src/taxpayer.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/comms.c.o -c src/comms.c
+	$(CXX) $(FLAGS) -o No_Paper._Not_Ever._NOPE lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/service.c.o src/taxpayer.c.o src/comms.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov1.c.o -c pov_1/pov1.c
-	$(CC) $(FLAGS) -o Scrum_Database_pov_1 pov_1/pov1.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -pedantic -O0 -o pov_2/pov_2.c.o -c pov_2/pov_2.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -pedantic -O0 -o pov_1/pov_1.c.o -c pov_1/pov_1.c
+	$(CXX) $(FLAGS) -o No_Paper._Not_Ever._NOPE_pov_1 pov_1/pov_1.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o No_Paper._Not_Ever._NOPE_pov_2 pov_2/pov_2.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov1.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o lib/input.c.o src/init_database.c.o src/sprints.c.o src/commands.c.o src/utility.c.o src/service.c.o src/obf_strings.c.o src/backlogitems.c.o src/product.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o lib/input.c.o src/init_database.c.o src/sprints.c.o src/commands.c.o src/utility.c.o src/service.c.o src/obf_strings.c.o src/backlogitems.c.o src/product.c.o Scrum_Database_pov_1 Scrum_Database_patched Scrum_Database
+	rm -f pov_2/pov_2.c.o pov_1/pov_1.c.o lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/service.c.o src/taxpayer.c.o src/comms.c.o lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/service.c.o src/taxpayer.c.o src/comms.c.o No_Paper._Not_Ever._NOPE_pov_2 No_Paper._Not_Ever._NOPE_pov_1 No_Paper._Not_Ever._NOPE_patched No_Paper._Not_Ever._NOPE

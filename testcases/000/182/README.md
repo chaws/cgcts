@@ -1,55 +1,31 @@
-# Pattern_Finder
+# Divelogger
+
+## Author Information
+
+"Jason Williams" <jdw@cromulence.co>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+Cromulence LLC (CROMU)
 
 ## Description
 
-Pattern Finder is a service that user to quickly detect the presence of a set
-of known patterns within a blob of data.
-
-The service first reads in a series of pattern definitions from the user. It
-then compiles a pattern search machine that will be used to detect patterns in
-subsequently data entered by the user. The user is provided with a list of
-detected patterns once the search machine has finished running.
+This service is an implementation of Divelogger using C++ instead of C. This service accepts diver information and has the ability to log dives into a database.
 
 ### Feature List
 
- * Supports up to 4096 patterns
- * Supports patterns up 4096 bytes in size
- * Supports detecting patterns in up to 64 kilobytes of input
- * Super fast!
+The service features the ability to enter diver specific information: Phone Number, First Name, Last Name, etc. It also has the ability to enter individual dive information such as location, date, average and max depth, dive duration, etc. The user can insert, remove, add, or download dive data into the database. During download the service accepts binary timestamps and depth points and stores those in the dive log.
 
 ## Vulnerability
 
-### Vulnerability 1
+There is one vulnerability in this service. It is associated with the download dive functionality. During the download process the user enters binary data into the service and this data is entered as two 4-byte number (a timestamp and depth point). A static array is used to store these points in memory. In the vulnerable service upon entry the array length is not checked allowing the user to overflow this variable and corrupt the heap. If the data passes a page boundary (or future memory allocation/free operations) occur a page fault can occur resulting in a crash.
 
-In the ReportMatches function, the stack buffer where the report contents are
-gathered before being sent to the user is a fixed 512 bytes in size. Therefore,
-a stack buffer overflow is achievable given a large enough set of patterns and
-a data blob which contains enough of these patterns to generate a sufficiently
-large report.
+### Generic class of vulnerability
 
-#### Generic class of vulnerability
+Out of bounds write
 
-Stack buffer overflow
+### CWE classification
+CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer
 
-#### CWE classification
+## Challenges
 
-CWE-121 Stack-based Buffer Overflow
-CWE-787 Out-of-bounds Write
-
-#### Challenges
-
-The complexity behind this challenge lies within the underlying algorithm which
-is used to do pattern detection. The algorithm used is Aho-Corasick which is
-a string matching algorithm that allows for the simultaneous matching of
-patterns through the use of a finite state machine. The author imagines that
-sufficiently complex algorithms will test the strength of many code analysis 
-engines.
-
-#### Difficulty
-
- - **Discovery**: Easy
- - **Proving**: Hard
- - **Patching**: Medium
+This CB incorporates a single vulnerability. This vulnerability will require a CRS system to enter the appropriate state (navigating the state machine) and entering more than 128 dive points when downloading dive data. The difficulty lies in the numerous code paths available in the service as well as the unconstrained inputs available to the user.

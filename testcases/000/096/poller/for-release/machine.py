@@ -1,392 +1,539 @@
-from generator.actions import Actions
+#!/usr/bin/env python
+#
+#
+# Author: Debbie Nuttall <debbie@cromulence.co>
+#
+# Copyright (c) 2015 Cromulence LLC
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 import random
-import string
+import pdb
+import copy
+import re
 import struct
-import numpy as np
-import math
-import datetime as dt
-import ctypes
-
-MAX_USERS = 256
-
-REGISTER_USER_CMD_ID = struct.pack("H", 11382)
-SEARCH_FOR_USER_CMD_ID = struct.pack("H", 11591)
-DELETE_USER_CMD_ID = struct.pack("H", 11498)
-JOIN_CHANNEL_CMD_ID = struct.pack("H", 22193)
-SEARCH_FOR_CHANNEL_CMD_ID = struct.pack("H", 2201)
-PART_CHANNEL_CMD_ID = struct.pack("H", 22881)
-DELETE_CHANNEL_CMD_ID = struct.pack("H", 22117)
-CHANNEL_CHAT_CMD_ID = struct.pack("H", 3190)
-USER_CHAT_CMD_ID = struct.pack("H", 31900)
-EXIT_SERVER_CMD_ID = struct.pack("H", 9999)
-REMOTE_ADMIN_TOKEN_REQUEST_CMD_ID = struct.pack("H", 7777)
-LOGIN_CMD_ID = struct.pack("H", 8711)
-LOGOUT_CMD_ID = struct.pack("H", 8719)
-CLIENT_SUCCESS = struct.pack("H", 1234)
-CLIENT_FAIL = struct.pack("H", 4321)
-
-CLIENT_LOGOUT_ALERT = struct.pack("H", 8791)
-CLIENT_SESSION_TIMEOUT_ALERT = struct.pack("H", 2431)
-
-pack_param = lambda x: struct.pack("H{0}s".format(len(x)), len(x), x)
-
-def random_word(max_size=10, min_size=2):
-    if random.randint(0,4):
-        characters = string.letters + string.digits
-    else:
-        characters = string.letters
-    max_size = max_size if max_size >= min_size else min_size
-    max_size = random.randint(min_size, max_size)
-    return ("".join(random.choice(characters) for c in range(max_size))).lower()
-
-def random_text(max_words=10, min_words=3):
-    max_words = max_words if max_words >= min_words else min_words
-    text = ''
-    for x in xrange(random.randint(min_words, max_words)):
-        text += random_word() + ' '
-    return text
-
-def rand_bytes(min_size=3, max_size=30):
-    rndbytes = ''
-    for x in xrange(random.randint(min_size, max_size)):
-        rndbytes += chr(random.randint(0,255))
-    return rndbytes
-
-class User():
-    def __init__(self):
-        self.name = ''
-        self.password = ''
-
-    def register_msg(self):
-        msg = struct.pack("H", len(self.name))
-        msg += struct.pack("{0}s".format(len(self.name)), self.name)
-        return msg
-
-    def search_for_user_msg():
-        msg = struct.pack("H", len(self.name))
-        msg += struct.pack("{0}s".format(len(self.name)), self.name)
-        return msg
-
-    def delete_msg():
-        msg = struct.pack("H", len(self.password))
-        msg += struct.pack("{0}s".format(len(self.password)), self.password)
-
-    def login_msg():
-        msg = struct.pack("H", len(self.name))
-        msg += struct.pack("{0}s".format(len(self.name)), self.name)
-        msg += struct.pack("H", len(self.password))
-        msg += struct.pack("{0}s".format(len(self.password)), self.password)
-        return msg
-
-    def password_resp_msg(self):
-        msg = struct.pack("H", len(self.password))
-        msg += struct.pack("{0}s".format(len(self.password)), self.password)
-        return msg
-
-    @classmethod
-    def random(cls):
-        user = cls()
-        user.name = rand_bytes()
-        return user
-
-class Channel():
-    def __init__(self, creator):
-        self.name = ''
-        self.creator = creator
-        self.users = [ creator ]
-
-    def join_msg(self):
-        msg = struct.pack("H", len(self.name))
-        msg += struct.pack("{0}s".format(len(self.name)), self.name)
-        return msg
-
-    def search_for_channel_msg(self):
-        msg = struct.pack("H", len(self.name))
-        msg += struct.pack("{0}s".format(len(self.name)), self.name)
-        return msg
-
-    def part_msg(self):
-        msg = struct.pack("H", len(self.name))
-        msg += struct.pack("{0}s".format(len(self.name)), self.name)
-        return msg
-
-    def delete_msg(self):
-        msg = struct.pack("H", len(self.name))
-        msg += struct.pack("{0}s".format(len(self.name)), self.name)
-        return msg
-
-    @classmethod
-    def random(cls, creator):
-        channel = cls(creator)
-        channel.name = rand_bytes()
-        return channel
-
-
-class Brc(Actions):
-    def _get_random_byte(self):
-        self.prng1 = ctypes.c_uint32(36969 * (self.prng1 & 65535)).value + ctypes.c_uint32((self.prng1 >> 16)).value
-        self.prng2 = ctypes.c_uint32(18000 * (self.prng2 & 65535)).value + ctypes.c_uint32((self.prng2 >> 16)).value
-        byte_idx =  (ctypes.c_uint32((self.prng1 << 16)).value + self.prng2) % 4096;
-        return struct.unpack('<B', self.magic_page[byte_idx])[0]
-
-    def _generate_password(self):
-        pw = ''
-        for x in xrange(10):
-            pw += chr(self._get_random_byte())
-        return pw
-
-    def _search_all_users(self, user):
-        for u in self.all_users:
-            if user.name == u.name:
-                return True
-        return False
-
-    def _delete_cur_user(self):
-        if not self.cur_user:
-            return
-
-        for x in xrange(len(self.all_users)):
-            if self.cur_user.name == self.all_users[x].name:
-                self.all_users.pop(x)
-                break
-
-        chans_to_delete = []
-        for x in xrange(len(self.all_channels)):
-            if self.cur_user.name == self.all_channels[x].creator.name:
-                chans_to_delete.insert(0,x)
-            else:
-                for y in xrange(len(self.all_channels[x].users)):
-                    if self.cur_user.name == self.all_channels[x].users[y].name:
-                        self.all_channels[x].users.pop(y)
-                        break
-        for x in chans_to_delete:
-            self.all_channels.pop(x)
-        self.cur_user = None
-
-    def _search_all_channels(self, chan):
-        for c in self.all_channels:
-            if chan.name == c.name:
-                return True
-        return False
-
-    def _join_channel(self, chan):
-        channel = None
-        for c in self.all_channels:
-            if chan.name == c.name:
-                channel = c
-                break
-        if channel:
-            for u in channel.users:
-                if self.cur_user.name == u.name:
-                    return False
-            channel.users.append(self.cur_user)
-        else:
-            self.all_channels.append(chan)
-        return True
-
-    def _part_channel(self, chan):
-        channel = None
-        for c in self.all_channels:
-            if chan.name == c.name:
-                channel = c
-        if channel:
-            for x in xrange(len(channel.users)):
-                if self.cur_user.name == channel.users[x].name:
-                    channel.users.pop(x)
-                    return True
-        return False
-
-    def _delete_channel(self, chan):
-        for x in xrange(len(self.all_channels)):
-            if chan.name == self.all_channels[x].name:
-                if self.cur_user.name == self.all_channels[x].creator.name:
-                    self.all_channels.pop(x)
-                    return True
-        return False
-
-    def _read(self, data):
-        self.read(length=len(data), expect=data)
-
-    def _read_success_resp(self):
-        self._read(CLIENT_SUCCESS)
-
-    def _read_fail_resp(self):
-        self._read(CLIENT_FAIL)
-
-    def _read_logout_resp(self):
-        self._read(CLIENT_LOGOUT_ALERT)
-
-    def _read_timeout_alert(self):
-        self._read(CLIENT_SESSION_TIMEOUT_ALERT)
-
-    def _write_param(self, param):
-        self.write(pack_param(param))
-
-    def start(self):
-        #self.delay(100)
-        self.all_users = []
-        self.all_channels = []
-        self.cur_user = None
-        self.session_timeout = 30
-        self.prng1 = ctypes.c_uint32(struct.unpack('<I', self.magic_page[0:4])[0]).value
-        self.prng2 = ctypes.c_uint32(struct.unpack('<I', self.magic_page[4:8])[0]).value
-
-        self.session_timeout -= 1
-
-    def awaiting_input(self):
-        self.session_timeout -= 1
-        if self.cur_user and self.session_timeout == 0:
-            self._read_timeout_alert()
-
-            if random.randint(0,9) > 2:
-                self._write_param(self.cur_user.password)
-                self._read_success_resp()
-                self.session_timeout = 30
-            else:
-                self._write_param(rand_bytes(33,40))
-                self._read_fail_resp()
-                self._read_logout_resp()
-                self.cur_user = None
-
-    def register_user(self):
-        self.write(REGISTER_USER_CMD_ID)
-        if self.cur_user:
-            self._read_fail_resp()
-            return
-
-        user = User.random()
-        self.write(user.register_msg())
-        if not self._search_all_users(user):
-            self._read_success_resp()
-            user.password = self._generate_password()
-            self._read(user.password_resp_msg())
-            self.all_users.append(user)
-            self.cur_user = user
-            self.session_timeout = 30
-        else:
-            self._read_fail_resp()
-
-    def search_for_user(self):
-        self.write(SEARCH_FOR_USER_CMD_ID)
-
-        if self.all_users and random.randint(0,9) > 3:
-            user = self.all_users[random.randint(0, len(self.all_users) - 1)]
-            self._write_param(user.name)
-            self._read_success_resp()
-        else:
-            self._write_param(rand_bytes(33,40))
-            self._read_fail_resp()
-
-    def delete_user(self):
-        self.write(DELETE_USER_CMD_ID)
-        if not self.cur_user:
-            self._read_fail_resp()
-            return
-
-        if random.randint(0,9) > 3:
-            self._write_param(self.cur_user.password)
-            self._delete_cur_user()
-            self._read_success_resp()
-        else:
-            self._write_param(rand_bytes(33,40))
-            self._read_fail_resp()
-
-    def join_channel(self):
-        self.write(JOIN_CHANNEL_CMD_ID)
-        if not self.cur_user:
-            self._read_fail_resp()
-            return
-
-        if self.all_channels and random.randint(0,9) > 2:
-            chan = self.all_channels[random.randint(0, len(self.all_channels) - 1)]
-        else:
-            chan = Channel.random(self.cur_user)
-
-        self.write(chan.join_msg())
-        if self._join_channel(chan):
-            self._read_success_resp()
-        else:
-            self._read_fail_resp()
-
-    def search_for_channel(self):
-        self.write(SEARCH_FOR_CHANNEL_CMD_ID)
-
-        if self.all_channels and random.randint(0,9) > 5:
-            chan = self.all_channels[random.randint(0, len(self.all_channels) - 1)]
-            self._write_param(chan.name)
-            self._read_success_resp()
-        else:
-            self._write_param(rand_bytes(33,40))
-            self._read_fail_resp()
-
-    def part_channel(self):
-        self.write(PART_CHANNEL_CMD_ID)
-        if not self.cur_user:
-            self._read_fail_resp()
-            return
-
-        if self.all_channels and random.randint(0,9) > 4:
-            chan = self.all_channels[random.randint(0, len(self.all_channels) - 1)]
-        else:
-            chan = Channel.random(self.cur_user)
-
-        self.write(chan.part_msg())
-        if self._part_channel(chan):
-            self._read_success_resp()
-        else:
-            self._read_fail_resp()
-
-    def delete_channel(self):
-        self.write(DELETE_CHANNEL_CMD_ID)
-        if not self.cur_user:
-            self._read_fail_resp()
-            return
-
-
-        if self.all_channels and random.randint(0,9) > 3:
-            chan = self.all_channels[random.randint(0, len(self.all_channels) - 1)]
-        else:
-            chan = Channel.random(self.cur_user)
-
-        self.write(chan.delete_msg())
-        if self._delete_channel(chan):
-            self._read_success_resp()
-        else:
-            self._read_fail_resp()
-
-    def login(self):
-        self.write(LOGIN_CMD_ID)
-        if self.cur_user:
-            self._read_fail_resp()
-            return
-
-        if self.all_users:
-            self.cur_user = self.all_users[random.randint(0, len(self.all_users) - 1)]
-            self._write_param(self.cur_user.name)
-            self._write_param(self.cur_user.password)
-            self._read_success_resp()
-            self.session_timeout = 30
-        else:
-            self._write_param(rand_bytes(33, 40))
-            self._write_param(rand_bytes(33, 40))
-            self._read_fail_resp()
-
-    def logout(self):
-        self.write(LOGOUT_CMD_ID)
-        if not self.cur_user:
-            self._read_fail_resp()
-            return
-
-        self.cur_user = None
-        self._read_success_resp()
-        self._read_logout_resp()
-
-    def exit_server(self):
-        self.write(EXIT_SERVER_CMD_ID)
-
-    def remote_admin_token_request():
-        page_idx = random.randint(0, 1023)
-        msg = REMOTE_ADMIN_TOKEN_REQUEST_CMD_ID
-        msg += struct.pack("H", page_idx)
+import string
+
+class Tree():
+	def __init__(self):
+		self.root = {'name':'.', 'children':[], 'page':''}
+		self.names = []
+
+	def add_node(self, name, page):
+		parts = name.split('.')
+		if (self.find_node(name)):
+			return 'ERROR: node already exists'
+		if (name == ''):
+			return 'ERROR: Name cannot be blank'
+		tree = self.root['children']
+		for i in range(len(parts)):
+			node = None
+			for node in tree:
+				if node['name'] == parts[i]:
+					tree = node['children']
+					break
+			if not node:
+				# Children did not exist, make sure we are at the last part
+				if (i != len(parts) - 1):
+					return "ERROR: Parent node doesn't exist: %s" % ''.join(parts[0:i])
+			else:
+				# Children did exist, make sure match was found
+				if node['name'] != parts[i]:
+					# No match was found, see if parts remain in name
+					if (len(parts) > 1 and i < len(parts) - 1):
+						return "ERROR: Parent node doesn't exist: %s" % ''.join(parts[0:i])
+	
+				
+		tree.append({'name':parts[i], 'children':[], 'page':page})
+		self.names.append(name)
+
+	def delete_node(self, name):
+		# Make sure node exists
+		node_to_delete = self.find_node(name)
+		if not node_to_delete:
+			return 'ERROR: Could not locate node for deletion'
+		# Find parent node
+		parts = name.split('.')
+		parent = None
+		if len(parts) == 1:
+			parent = self.root['children']
+		else:
+			parts.pop()
+			parent = self.root['children']
+			for part in parts:
+				node = None
+				for node in parent:
+					if node['name'] == part:
+						parent = node['children']
+						break
+				if not node:
+					return 'ERROR: Could not find parent node'
+				if node['name'] != part:
+					return 'ERROR: Could not find parent node'
+		self.remove_names_recurse(name, node_to_delete)
+		parent.remove(node_to_delete)
+
+	def remove_names_recurse(self, qualified_name, node):
+		for each in node['children']:
+			self.remove_names_recurse('{}.{}'.format(qualified_name, each['name']), each)
+		self.names.remove(qualified_name)
+
+	def find_node(self, name):
+		if not name:
+			return None
+		parts = name.split('.')
+		tree = self.root['children']
+		if not tree:
+			return None
+		for part in parts:
+			node = None
+			for node in tree:
+				if node['name'] == part:
+					tree = node['children']
+					break
+			if not node:
+				return None
+			if node['name'] != part:
+				return None
+		return node
+	
+	def generate_query(self, node):
+		if not node:
+			node = self.root
+		output = []
+		output.append(node['name'])
+		for each in node['children']:
+			self.generate_query_recurse(output, 1, each)
+		return output
+
+	def generate_query_recurse(self, output, indent, node):
+		output.append('    ' * indent + node['name'])
+		for each in node['children']:
+			self.generate_query_recurse(output, indent + 1, each)
+
+from generator.actions import Actions, Variable
+
+class ACSPollGenerator(Actions):
+
+	def start(self):
+		self.tree = Tree()
+		self.tree.add_node("Hello", "Hello, World!~n")
+		self.tree.add_node("Hello.Name", "Hello, #name#!~n"
+		                "This page outputs the value of a variable called name.~n"
+		                "If the variable is not passed to the page (via the INTERACT method), it has no value and prints nothing.~n"),
+		self.tree.add_node("Server", "The ACS Server responds to the following messages:~n"
+		            "~tACS-0.1~[COMMAND~] (indicates no commands follow)~n"
+		            "~tACS+0.1~[COMMAND~] (indicates another command follows)~n")
+		self.tree.add_node("Server.Commands", "Commands all share the form:~n"
+		              "~tCOMMAND:page_name:length:data~n"
+		              "The Commands are REQUEST, QUERY, SEND, REMOVE, VISUALIZE, and INTERACT.~n")
+		self.tree.add_node("Server.Commands.REQUEST", "The REQUEST command fetches a page.~n"
+		                      "~t~[REQUEST:somepage::~]~n")
+		self.tree.add_node("Server.Commands.QUERY", "The QUERY command retrieves a listing of the pages on the server.~n"
+		                    "To retrieve the entire list of all pages:~n"
+		                    "~t~[QUERY:::~]~n"
+		                    "To retrieve a subset of the page tree:~n"
+		                    "~t~[QUERY:somepage::~]~n")
+		self.tree.add_node("Server.Commands.SEND", "Upload a page to the server~n"
+		                    "~t~[SEND:newpage:length:pagedata~]~n")
+		self.tree.add_node("Server.Commands.REMOVE", "Remove a page from the server~n"
+		                      "~t~[REMOVE:pagename::~]~n")
+		self.tree.add_node("Server.Commands.VISUALIZE", "Process and display page data without uploading it to the server~n"
+		                        "~t~[VISUALIZE::length:pagedata~]~n")
+		self.tree.add_node("Server.Commands.INTERACT", "Fetch a page from the server using variable substitution.~n"
+		                        "~t~[INTERACT:pagename:length:variabledata~]~n"
+		                        "~tvariabledata is in the form: ~[var:name:value~]~[var:name:value~]...~n")
+		self.tree.add_node("AML", "ASCII Markup Language")
+		self.tree.add_node("AML.Commands", "ASCII Markup Language uses the ~~ character as a command code~n"
+		                  "~t~~n converts to newline~n"
+		                  "~t~~t converts to tab~n")
+		self.tree.add_node("AML.Literals", "AML uses certain characters as control codes~n"
+		                  "Those characters can be inserted as literals using the escape character ~~~n"
+		                  "~t~~~[ inserts left bracket~n"
+		                  "~t~~~] inserts right bracket~n"
+		                  "~t~~~~ inserts tilde~n"
+		                  "~t~~~# inserts hash~n")
+		self.tree.add_node("AML.Variables", "AML supports string variables.~n"
+		                    "Variables are created within a script (see AML.Scripts)~n"
+		                    "and referenced with this syntax:~n"
+		                    "~t~#variable~#~n")  
+		self.tree.add_node("AML.Scripts",  "AML supports additional commands within script tags ~[~]~n"
+		                  "~t~[var:name:value~] - sets a variable~n"
+		                  "~t~[line:character:length~] - insert a line of characters~n"
+		                  "~t~[box:pagedata~] - put the page data inside a box outlined with *'s~n" )
+		self.tree.add_node("AML.Examples", "AML examples~n")
+		self.tree.add_node("AML.Examples.Line", "Draw some lines~n[line:X:80]~n"
+		                      "[line:A:42]~n"
+		                      "[line:B:1][line:C:2][line:*:100]~n"
+		                      "[line:~:5][line:*:1][line:[:5]~n" )
+		self.tree.add_node("AML.Examples.Variableset", "Set a variable [var:name:Sterling]~n"
+		                              "Then get the variable: #name#~n" )
+		self.tree.add_node("AML.Examples.ManyVariables", "[var:var0:value0][var:var1:value1][var:var2:value2][var:var3:value3][var:var4:value4][var:var5:value5][var:var6:value6][var:var7:value7][var:var8:value8][var:var9:value9]~n"
+																											"#var0##var1##var2##var3##var4##var5##var6##var7##var8##var9#~n")
+		self.tree.add_node("AML.Examples.Box", "Test putting some stuff in a box~n"
+		                      "[box:Help, I'm trapped in a box!]~n"
+		                      "[box:~nLine in a box[line:X:15]~n]")
+		self.state['tree'] = self.tree
+
+
+	def release(self):
+		self.tree = self.state['tree']
+		max_commands = random.randint(1, 10)
+		num_commands = 0
+		while (num_commands < max_commands):
+			number = random.randint(1, 100)
+			if number > 60:
+				# 40% of the time request a random page
+				name = random.choice(self.tree.names)
+				self.request(name)
+			elif number > 50:
+				# 10% of the time query a random page
+				name = random.choice(self.tree.names)
+				self.query(name)
+			elif number > 35:
+				# 15% of the time send a new page
+				name = random.choice(self.tree.names)
+				node = self.tree.find_node(name)
+				if not node:
+					print "Node not found: %s" % name
+				if not node['page']:
+					print "page not found: %s" % name
+				self.send(name + '_new', node['page'])
+
+			elif number > 25:
+				# 10% of the time remove a random page
+				name = random.choice(self.tree.names)
+				self.remove(name)
+				# Don't let the tree go empty
+				if not self.tree.names:
+					self.send("Hello", "Here is the page data~n")
+					self.send("Hello.there", "Welcome, #name!~n")
+					self.send("Commands", "Now I'll test ~~ output~n")
+					self.send("Commands.tab", "~t~ttab~n")
+
+			elif number > 5:
+				# 20% of the time visualize a page
+				name = random.choice(self.tree.names)
+				node = self.tree.find_node(name)
+				if not node:
+					print "Node not found: %s" % name
+				if not node['page']:
+					print "page not found: %s" % name
+				self.visualize(node['page'])
+			else:
+			 	#5% of the time interact with a page,
+			 	varlist = {'name': 'value'}
+			 	name = random.choice(self.tree.names)
+				self.interact(name, varlist)
+			num_commands += 1
+			
+
+	def runtest(self):
+
+		self.tree = self.state['tree']
+		max_commands = random.randint(1, 10)
+		num_commands = 0
+		while (num_commands < max_commands):
+			number = random.randint(1, 100)
+			if number > 60:
+				# 40% of the time request a random page
+				if (self.chance(0.01)):
+						name = ''.join(random.choice(string.letters) for _ in range(random.randint(1,63)))
+				else:
+					name = random.choice(self.tree.names)
+				self.request(name)
+			elif number > 50:
+				# 10% of the time query a random page
+				if (self.chance(0.01)):
+					name = ''.join(random.choice(string.letters) for _ in range(random.randint(1,63)))
+				else:
+					name = random.choice(self.tree.names)
+				self.query(name)
+			elif number > 35:
+				# 15% of the time send a new page
+				if (self.chance(0.01)):
+					name = ''.join(random.choice(string.letters) for _ in range(random.randint(1,63)))
+					page = ''.join(random.choice(string.letters) for _ in range(random.randint(1,255)))
+					self.send(name, page)
+				else:
+					name = random.choice(self.tree.names)
+					node = self.tree.find_node(name)
+					self.send(name + '_new', node['page'])
+
+			elif number > 25:
+				# 10% of the time remove a random page
+				if (self.chance(0.01)):
+					name = name = ''.join(random.choice(string.letters) for _ in range(random.randint(1,63)))
+				else:
+					name = random.choice(self.tree.names)
+				self.remove(name)
+				# Don't let the tree go empty
+				if not self.tree.names:
+					self.send("Hello", "Here is the page data~n")
+					self.send("Hello.there", "Welcome, #name!~n")
+					self.send("Commands", "Now I'll test ~~ output~n")
+					self.send("Commands.tab", "~t~ttab~n")
+
+			elif number > 5:
+				# 20% of the time visualize a page
+				if (self.chance(0.01)):
+					page = ''.join(random.choice(string.letters) for _ in range(random.randint(1,255)))
+					self.visualize(page)
+				else:
+					name = random.choice(self.tree.names)
+					node = self.tree.find_node(name)
+					self.visualize(node['page'])
+			else:
+				# 5% of the time interact with a page,
+				value = ''.join(random.choice(string.letters) for _ in range(random.randint(1,63)))
+				varlist = {'name':value}
+				name = random.choice(self.tree.names)
+				self.interact(name, varlist)
+			num_commands += 1
+
+
+	def pov1(self):
+		for i in range(62):
+			self.send('a' + '.'*i, 'pagedata')
+			self.send('a' + '.'*i + 'p', 'pagedata')
+
+
+	def exit(self):
+		self.send_command('QUERY', more=False)
+		query = self.tree.generate_query(None)
+		for each in query:
+			self.read(length=len(each)+1, expect=each+'\n')
+
+	def send_command(self, command, name='', data=None, more=True):
+		cmd = []
+		cmd.append('ACS')
+		cmd.append('+' if more else '-')
+		cmd.append('0.1')
+		if not data:
+			cmd.append('[%s:%s::]' % (command, name))
+		else:
+			if self.chance(0.9):
+				cmd.append('[%s:%s:%d:%s]' % (command, name, len(data), data))
+			else:
+				# Encode the data (compress by removing high bit from each byte)
+				data = self.compress(data)
+				data = struct.pack("<i", len(data)) + data
+				cmd.append('[%s:%s:%d:%s]' % (command, name, -1, data))
+
+		self.write(''.join(cmd))
+		if len(name)>63:
+			self.read(delim='\n', expect='ERROR: Receive command failed\n')
+
+	def compress(self, data_in):
+		data_out = []
+		bytes_consumed = 0
+		if (len(data_in)%8 != 0):
+			data_in += '\x00'
+		while (bytes_consumed < len(data_in) - 1):
+			i = len(data_out) % 7
+			packed_byte = (ord(data_in[bytes_consumed]) << (i + 1)) & 0xff | (((ord(data_in[bytes_consumed + 1])) >> (6 - i)) & 0x7f) 
+			data_out.append(packed_byte)
+			if (i == 6):
+				bytes_consumed += 2
+			else:
+				bytes_consumed += 1
+		out = []
+		for each in data_out:
+				out.append(str(hex(each)))
+
+		return str(bytearray(data_out))
+
+	def request(self, name):
+		self.send_command('REQUEST', name)
+		self.receive_page(name)
+
+	def query(self, name):
+		self.send_command('QUERY', name)
+		if (name == ''):
+			node = None
+		else:
+			node = self.tree.find_node(name)
+			if not node:
+				self.read(delim='\n', expect='ERROR: Tree not found: %s' % name)
+				return
+		query = self.tree.generate_query(node)
+		for each in query:
+			self.read(length=len(each)+1, expect=each+'\n')
+
+	def send(self, name, page):
+		self.send_command('SEND', name, page)
+		ret = self.tree.add_node(name, page)
+		if ret:
+			self.read(delim='\n', expect=ret)
+			self.read(delim='\n', expect='ERROR: Unable to upload page')
+		else:
+			self.read(delim='\n', expect='SUCCESS: Page uploaded to server')
+			
+	def remove(self, name):
+		self.send_command('REMOVE', name)
+		ret = self.tree.delete_node(name)
+		if ret:
+			self.read(delim='\n', expect=ret)
+			self.read(delim='\n', expect='ERROR: Unable to delete page')
+		else:
+			self.read(delim='\n', expect='SUCCESS: Page deleted')
+
+	def visualize(self, data):
+		self.send_command('VISUALIZE', '', data)
+		self.visualize_page(data, None)
+
+	def interact(self, name, varlist):
+		data = []
+		for each in varlist.keys():
+			data.append('[var:%s:%s]' % (each, varlist[each]))
+		self.send_command('INTERACT', name, ''.join(data))
+		page = self.tree.find_node(name)
+		self.visualize_page(page['page'], varlist)
+
+
+	def receive_page(self, name):
+		page = self.tree.find_node(name)
+		if not page:
+			self.read(delim='\n', expect='Page not found: %s' % (name))
+		else:
+			self.visualize_page(page['page'], None)
+
+
+	def output_char(self, c):
+		self.line.append(c)
+		self.line_length += 1
+		if (self.in_a_box and self.line_length == 78):
+			self.flush_output()
+		elif self.line_length == 80:
+			self.flush_output()
+
+	def output_str(self, s):
+		if (len(s) + self.line_length > 80):
+			self.flush_output()
+		if (len(s) > 80):
+			self.read(length=len(s)+1, expect=s+'\n')
+		else:
+			self.line.append(s)
+			self.line_length += len(s)
+		
+	def flush_output(self):
+		line = ''.join(self.line)
+		if self.in_a_box:
+			while (len(line) < 79):
+				line += ' '
+			line += '*'
+		self.read(length=len(line)+1, expect=line+'\n')
+		self.line = []
+		self.line_length = 0
+		if self.in_a_box:
+			self.line.append('* ')
+			self.line_length += 2
+
+	def visualize_page(self, data, override_list):
+		self.vars = {}
+		if not override_list:
+			override_list = {}
+		process_command_flag = False
+		script_open_flag = False
+		var_open_flag = False
+		varname = []
+		script = []
+		self.line_length = 0
+		self.line = []
+		self.in_a_box = False
+		for each in data:
+			if var_open_flag:
+				if each == '#':
+					varname = ''.join(varname)
+					if override_list.has_key(varname):
+						self.output_str(override_list[varname])
+					elif self.vars.has_key(varname):
+						self.output_str(self.vars[varname])
+					var_open_flag = False
+				else:
+					varname.append(each)
+			elif script_open_flag:
+				if each == ']':
+					script_open_flag = False
+					self.process_script(''.join(script))
+				else:
+					script.append(each)
+				if (''.join(script) == 'box:'):	
+					self.flush_output()
+					self.in_a_box = True
+					script_open_flag = False
+					self.read(length=81, expect='*'*80 + '\n')
+					self.line.append('* ')
+					self.line_length += 2
+			elif process_command_flag:
+				process_command_flag = False
+				if each == 't':
+					for i in range(4):
+						self.output_char(' ')
+				elif each == 'n':
+					self.flush_output()
+				elif each == '[':
+					self.output_char('[')
+				elif each == ']':
+					self.output_char(']')
+				elif each == '~':
+					self.output_char('~')
+				elif each == '#':
+					self.output_char('#')
+				else:
+					self.read(delim='\n', expect='ERROR: Invalid control code\n')
+					self.read(delim='\n', expect='ERROR: Invalid syntax\n')
+					return
+			elif each == '~':
+				process_command_flag = True
+			elif each == '[':
+				script_open_flag = True
+				script = []
+			elif each == '#':
+					var_open_flag = True
+					varname = []
+			elif self.in_a_box and each == ']':
+				if (self.line_length > 0):
+					self.flush_output()
+				self.read(length=81, expect='*'*80 + '\n')
+				self.in_a_box = False
+				self.line = []
+				self.line_length = 0
+			else:
+				self.output_char(each)
+
+		if (process_command_flag or script_open_flag 
+			or var_open_flag or self.in_a_box):
+			self.read(delim='\n', expect='ERROR: Invalid syntax')
+		elif self.line:
+			self.flush_output()
+		
+	def process_script(self, script):
+		if script.startswith('line'):
+			parts = script.split(':')
+			char = parts[1]
+			length = int(parts[2])
+			for i in range(length):
+				self.output_char(char)
+		elif script.startswith('var'):
+			parts = script.split(':')
+			self.vars[parts[1]] = parts[2]
+
 
 

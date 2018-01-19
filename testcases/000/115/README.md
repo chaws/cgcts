@@ -1,58 +1,34 @@
-# CROMU_00041 - Email System 2
+# Scrum_Database
 
 ## Author Information
-"James Nuttall" <james@cromulence.co>
+
+"Steve Wood" <swood@cromulence.com>
 
 ### DARPA performer group
-Cromulence
+Cromulence LLC (CROMU)
 
 ## Description
-This service is a reimagining of CROMU_00001: A messaging service that allows the user to create, send, and receive messages.
 
+This service implements a backend database for a Scrum software development management tool.  As the backend, it doesn't present a user interface, but instead provides a binary protocol for a frontend application to use.
 
 ### Feature List
-This service represents a messaging service. User's can create users, log in, log out, create messages, send messages, view inbox, view all messages, and view drafts.
 
-Upon connection, the CRS is presented with a login menu where it can create a user, log in, or exit.
-
-After successfully connecting as a user, the CRS is presented with more options:
-Create Message
-Send Message
-View all messages
-View drafts
-View inbox
-Logout
-Exit
-
-A message is created and put into drafts. Once sent, it is removed from drafts and put in the appropriate user's inbox. During each login session, the CRS may only create four messages, but they may have up to 20 messages total. 
+The database is designed to store a number of "products" and the requirements and tasks associated with their Agile development.  Once a Product is defined, user requirements are stored in the Product Backlog.  Sprints are also added to the Product to group user requirements into small blocks of development & test efforts.  Requirements are moved from the Product Backlog to one of the defined Sprints.  Once assigned to a Sprint, these Sprint Backlog Items can be updated to reflect changes that naturally occur during development as complexity and requirements are better understood.  Backlog items can only be changed if they are assigned to a Sprint!  However, Backlog items (requriements) can only be deleted from a Product if they are not assigned to a Sprint, i.e. they are on the Product Backlog.  Sprints can also be deleted from the Product, but only if all Backlog items have been moved back to the Product Backlog or to another Sprint.  This is to avoid the inadvertent deletion of user requirements or Product developement tasks.  The only exception to this is if the Product itself is being deleted.  In this case, all Product details, including populated Sprints are deleted from the database. The database tool will also output the entire Product in a consolidated report that lists Product, Sprint, and Product Backlog details.
 
 ## Vulnerability
-All messages are kept in a 2d array, with one axis representing the USER and the other axis the MESSAGES.
+Vulnerability 1 is a buffer overflow that occurs when a Sprint Backlog item's text description field is updated.  To conserve memory, the database allocates at runtime only the amount of memory needed to store a string.  Unfortunately, the function to update the item's description field fails to reallocate a new string and simply reuses the previous one.  If the new string is longer than the original string, heap memory is overwritten.  By controlling the order in which items are added to the database, and then performing the overflow, a linked list's next pointer can be overwritten and directed to the secret memory page.  The provided POV causes the list of Product Backlog items to point to this memory.  When the Product details are displayed, some of this secret data is interpreted as a backlog item, thus leaking memory from this page.
 
-There are two vulnerabilities in this service:
+### Generic class of vulnerability
+Heap buffer overflow
 
-Vulnerability 1:
-Message.c, add_message() does not correctly check the number of messages that can be saved per user. The user may sign in, create four messages, log out, log in and create four messages, etc. until 21 messages are created. If the user is signed in as the last user (so they're at the end of the 2d array, listOfMessages), then the overflow'd message will overwrite the function pointer 'printer'. The next time the CRS tries to print a message, it will be pointing to invalid memory and crash.
+### CWE classification
+CWE-122 Heap-based Buffer Overflow
 
-This vulnerability is meant to be easy to both find and patch.
+## Challenges
 
-Vulnerability 2:
-Similarly to vulnerability 1, the CRS must add 20 messages to the message queue of the last user. The CRS must log out, then intentionally fail the log in three times (by entering the incorrect password). This will allow the user to re-enter the same user name, and any password. The CRS must then log in with that user name and create one more message. This will cause a similar overwrite to the 'printer' function pointer and cause a dereference of invalid memory and crash.
+Vulnerability 1 is a straightforward buffer overflow and should be easy to detect.  To successfully exploit it, the heap must be groomed in such a way that a useful pointer is overwritten and without causing read violation to occur when text fields from the database are accessed.  In addition, the vulnerability is only reachable once several specific operations have been performed in the database that allow for the function to update the text description field to be called.  The ideal fix for the vulnerability is to properly allocated more memory for the new string, but the simplest mitigation is to fail the function call.
 
-This vulnerability comes around because when the CRS reset the password, their 'first_login' variable was reset (user.c, line 98). This variable is then used when adding a message (message.c, line 81) to circumvent the length check on line 100 (even if vulnerability 1 was patched).
+	Finding Vulnerability 1: easy
+	Proving Vulnerability 1: medium
+	Fixing Vulnerability 1: medium
 
-This vulnerability is meant to frustrate brute forcing and cause intelligent path analysis.
-
-Both out of bounds dereferences take place when 'printer' is called: from either list_drafts(), list_inbox(), or list_all_messages() in message.c. 
-
-### Generic class of vulnerability 
-Vulnerability 1 is a buffer overflow on the stack.
-
-Vulnerability 2 is a buffer overflow on the stack.
-
-### CWE classification 
-Vuln 2: CWE-121: Stack-based Buffer Overflow
-Vuln 2: CWE-121: Stack-based Buffer Overflow
-
-## Challenges 
-The challenge of this service is finding the logic flow that sets up the conditions and then allows the first_login to be set in order to allow the last message to cause the overflow.

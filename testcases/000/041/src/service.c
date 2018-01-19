@@ -19,88 +19,64 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
 #include "libcgc.h"
-#include "cgc_stdint.h"
 #include "cgc_libc.h"
-#include "cgc_recv_all.h"
-#include "cgc_send.h"
-#include "cgc_memcmp.h"
-#include "cgc_memcpy.h"
+#include "cgc_common.h"
+#include "cgc_service.h"
+#include "cgc_sentence.h"
+#include "cgc_message.h"
 
-#include "cgc_resort.h"
-
-
-const char cgc_LOAD_DIGRAPH[4]          =   {'\xd0','\xd1','\xd2','\xd3'};
-const char cgc_LOAD_RIDER_GROUP[4]      =   {'\x40','\x41','\x42','\x43'};
-const char cgc_LOAD_RIDER_SINGLE[4]     =   {'\xe0','\xe1','\xe2','\xe3'};
-const char cgc_UNLOAD_RIDERS[4]         =   {'\xf0','\xf1','\xf2','\xf3'};
-const char cgc_START[4]                 =   {'\x10','\x11','\x12','\x13'};
-const char cgc_RESET[4]                 =   {'\x11','\x22','\x33','\x11'};
-const char cgc_LIFT_STATS[4]            =   {'\x11','\x43','\x34','\x11'};
-const char cgc_TRAIL_STATS[4]           =   {'\x77','\x11','\xee','\x55'};
-const char cgc_RIDER_STATS[4]           =   {'\x44','\x11','\x33','\x55'};
-
-static char OK[4] = {0};
-static char ERR[4] = {0};
-
-typedef struct request Request;
-struct request {
-    char cmd[4];
-};
-
-
-/**
- * Create a checksum of the flag page to use as the OK/ERR byte strings
- */
-void cgc_gen_result_bufs(void) {
-    const char *fp = (char *)FLAG_PAGE;
-    for (unsigned int idx = 0; idx < 4095; idx+=2) {
-        OK[idx % 4] ^= fp[idx];
-        ERR[(idx + 1) % 4] ^= fp[idx + 1];
-    }
-}
+#define INVALID_SENTENCE "INVALID SENTENCE."
+#define INVALID_MSG "INVALID MESSAGE."
+#define PARTIAL_MSG "PARTIAL AIS MESSAGE."
 
 int main(int cgc_argc, char *cgc_argv[]) {
+	char ret = SUCCESS;
+    int bytes_received = 0;
 
-    cgc_ssize_t ret = 0;
+    struct sentence_struct ss;
+    ss.ais_msg = cgc_malloc(MAX_SENTENCE_LEN*sizeof(char));
+    cgc_reset_sentence_struct(&ss);
 
-    cgc_gen_result_bufs();
+    while (1) {
+        char *buf = cgc_calloc(MAX_SENTENCE_LEN*sizeof(char));
+        char *english = cgc_calloc(MAX_ENGLISH_LEN*sizeof(char));
 
-    while (TRUE) {
-        Request req;
-        RECV(&req, sizeof(Request));
+        char *outmsg = NULL;
+        char reset = TRUE;
 
-        if (0 == cgc_memcmp(cgc_LOAD_DIGRAPH, (const char *)req.cmd, sizeof(cgc_LOAD_DIGRAPH))) {
-            ret = cgc_load_resort_digraph();
-        } else if (0 == cgc_memcmp(cgc_LOAD_RIDER_GROUP, (const char *)req.cmd, sizeof(cgc_LOAD_RIDER_GROUP))) {
-            ret = cgc_load_rider_group();
-        } else if (0 == cgc_memcmp(cgc_LOAD_RIDER_SINGLE, (const char *)req.cmd, sizeof(cgc_LOAD_RIDER_SINGLE))) {
-            ret = cgc_load_rider_single();
-        } else if (0 == cgc_memcmp(cgc_UNLOAD_RIDERS, (const char *)req.cmd, sizeof(cgc_UNLOAD_RIDERS))) {
-            ret = cgc_unload_riders();
-        } else if (0 == cgc_memcmp(cgc_START, (const char *)req.cmd, sizeof(cgc_START))) {
-            ret = cgc_start_simulation();
-        } else if (0 == cgc_memcmp(cgc_RESET, (const char *)req.cmd, sizeof(cgc_RESET))) {
-            ret = cgc_reset_simulation();
-        } else if (0 == cgc_memcmp(cgc_LIFT_STATS, (const char *)req.cmd, sizeof(cgc_LIFT_STATS))) {
-            ret = cgc_lift_stats();
-        } else if (0 == cgc_memcmp(cgc_TRAIL_STATS, (const char *)req.cmd, sizeof(cgc_TRAIL_STATS))) {
-            ret = cgc_trail_stats();
-        } else if (0 == cgc_memcmp(cgc_RIDER_STATS, (const char *)req.cmd, sizeof(cgc_RIDER_STATS))) {
-            ret = cgc_rider_stats();
-        } else  {
-            ret = -1;
-        }
-
-        if (0 == ret) {
-            cgc_send(OK, sizeof(OK));
+        bytes_received = cgc_recv_until_delim(STDIN, buf, MAX_SENTENCE_LEN, '\x07');
+        if ((0 >= bytes_received) || ('\x07' != buf[bytes_received - 1])) {
+            ret = -9;
+            break;
         } else {
-            cgc_send(ERR, sizeof(ERR));
-	        break;
+            buf[bytes_received - 1] = '\0';
         }
 
+        if (SUCCESS == cgc_parse_sentence(buf, &ss)) {
+            if (DONE == ss.msg_status) {
+                if (SUCCESS == cgc_to_english(english, &ss)) {
+                    outmsg = english;
+                } else {
+                    outmsg = INVALID_MSG;
+                }
+            } else { // PARTIAL == ss->msg_status
+                outmsg = PARTIAL_MSG;
+                reset = FALSE;
+            }
+        } else {
+            outmsg = INVALID_SENTENCE;
+        }
+
+        cgc_send(outmsg, cgc_strlen(outmsg));
+
+        if (TRUE == reset) {
+            cgc_reset_sentence_struct(&ss);
+        }
+
+        cgc_free(english);
+        cgc_free(buf);
     }
 
-    return 0;
+	return ret;
 }

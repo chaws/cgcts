@@ -23,64 +23,37 @@
 ---
 nodes:
 - name: start
-- name: process_nonce_create
-- name: process_nonce_eval
-- name: send_create
-- name: send_eval
-- name: mean_op
-- name: sum_op
-- name: product_op
-- name: min_op
-- name: max_op
-- name: median_op
-- name: sort_op
-- name: rsort_op
-- name: odds_op
-- name: evens_op
-- name: mode_op
-- name: range_op
+- name: broker
+- name: quit
+- name: buy_products
+- name: check_product
+- name: add_product
+- name: rm_product
+- name: update_product
+- name: list_products
+- name: set_onsale
+- name: set_nosale
 edges:
-- start: process_nonce_create
+- start: broker
 
-- process_nonce_create: send_eval
+- broker: buy_products
   weight: 0.1
-- process_nonce_create: send_create
-  weight: 0.9
+- broker: check_product
+- broker: add_product
+- broker: rm_product
+- broker: update_product
+- broker: list_products
+  weight: 0.01
+- broker: set_onsale
+- broker: set_nosale
+- broker: quit
+  weight: 0.2
 
-- process_nonce_eval: send_eval
-  weight: 0.9
-- process_nonce_eval: send_create
-  weight: 0.1
-
-- send_create: process_nonce_eval
-  weight: 0.9
-- send_create: process_nonce_create
-  weight: 0.1
-
-- send_eval: mean_op
-- send_eval: sum_op
-- send_eval: product_op
-- send_eval: min_op
-- send_eval: max_op
-- send_eval: median_op
-- send_eval: sort_op
-- send_eval: rsort_op
-- send_eval: odds_op
-- send_eval: evens_op
-- send_eval: mode_op
-- send_eval: range_op
-
-- mean_op: process_nonce_eval
-- sum_op: process_nonce_eval
-- product_op: process_nonce_eval
-- min_op: process_nonce_eval
-- max_op: process_nonce_eval
-- median_op: process_nonce_eval
-- sort_op: process_nonce_eval
-- rsort_op: process_nonce_eval
-- odds_op: process_nonce_eval
-- evens_op: process_nonce_eval
-- mode_op: process_nonce_eval
-- range_op: process_nonce_eval
-
-
+- buy_products: broker
+- check_product: broker
+- add_product: broker
+- rm_product: broker
+- update_product: broker
+- list_products: broker
+- set_onsale: broker
+- set_nosale: broker

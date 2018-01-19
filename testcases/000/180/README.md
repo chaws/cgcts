@@ -1,72 +1,158 @@
-# Sample Shipgame
+# CGC Challenge Binary Template
 
-@Author: Lok Yan <Lok.Yan@us.af.mil>
-@Group: AFRL
+## Author Information
 
-## Description:
+"Nick Davis" <info@narfindustries.com>
 
-This is a simple implementation of a familiar 2 player shipgame. The logic is a bit on the quirky side, but it does resemble the game.
+### DARPA performer group
 
-It was designed to be easy to solve for automated systems - whether it is indeed easy remains to be seen.
+Narf Industries (NRFIN)
 
-##Vulnerability Class: 
+## Description
 
-This CB uses a classic stack buffer overflow/overrun. [CWE-121: Stack-based Buffer Overflow](http://cwe.mitre.org/data/definitions/121.html)
+This is the power testing module that was missing from the Griswold's decorative light display design software.
 
-##Challenges: 
+This module takes the electrical components of the decorative light display design, models the loads, and checks for hazardous situations. All hazardous situations are reported back to the design software, so that it can present indications and warnings to the designer.
 
-This CB should not present any major challenges. It was designed to be "easy". The following is a list of basic design principles as well as some commentary on why its chosen.
+If you have seen the movie National Lampoon's Christmas Vacation, you know who the Griswold's are and the epic importance of a power testing application for decorative lighting displays. If you have not seen the movie, you are missing out on a classic!
 
-1. We chose the classic stack overflow since it is one of the most studied vulnerabilities out there. *Thus, we assume that participants know how to handle them* 
-2. We tried our best to make the determination of "reachability" simple.
-  1. We tried to use very simple operations (addition, subtraction, equality) for branch conditions. This should make any constraint solving easy. The down side is that the resulting control flow graph is quite deep.
-  2. We made heavy use of if-elseif-else blocks (we did this in lieu of switch statements in particular). This not only helps with dependencies, but it should also create a neat tree structure.
-  3. We also tried to limit the use of loops when we can or if we can't, then make the vulnerability reachable after a couple of unrolls.
-3. We sought to make data and control dependencies clear
-  1. We used Global Constants in lieu of #define constants. The idea is that, #define will be turned into literals. Take the following test case:
+### Feature List
 
-    ```
-    #define SHIP2 '2';
-    if (x == SHIP2)
-    {
-      y = SHIP2;
-    }
-    ```
+The module operates on a client/server model. The client is the design software and the server is the power testing module.
 
-    In the code above, we should expect the resulting low level code to look like in a made up pseudo language:
+The client provides to the server the electrical elements of the design and how they are connected together. The electrical elements are:
+- load center
+    + 100 amp 8 spaces
+    + 100 amp 16 spaces
+    + 100 amp 20 spaces
+    + 150 amp 20 spaces
+    + 150 amp 24 spaces
+    + 150 amp 30 spaces
+    + 200 amp 20 spaces
+    + 200 amp 30 spaces
+    + 200 amp 40 spaces
+    + 200 amp 42 spaces
+    + 400 amp 20 spaces
+    + 400 amp 30 spaces
+    + 400 amp 40 spaces
+    + 400 amp 42 spaces
+- circuit breakers (single pole, 1 circuit)
+    + 15 amp breaker
+    + 20 amp breaker
+- electrical outlets (each having 2 receptacles)
+    + 15 amp outlet
+    + 20 amp outlet
+- n-way power splitters (each supporting 15 amps total and 15 amps per receptacle)
+    + 3-way splitter
+    + 6-way splitter
+    + 8-way splitter
+- light strings (residential with 22 gauge wire)
+    + M5 bulb style, 100 incandescent bulbs, 40.8W
+    + C9 bulb style, 25 incandescent bulbs, 120W
+    + C7 bulb style, 25 incandescent bulbs, 165.6W
+    + C6 bulb style, 150 LED bulbs, 12W
 
-    ```
-    CMP(x, 0x32)
-    JNE(OUT)
-    MOV(y, 0x32)
-    :OUT
-    ```
 
-    If we now contrast this where `#define SHIP2 2` with `const char SHIP2='2'` then the code *SHOULD* look like:
+All of the electrical elements are powered by a single 120V residential electric service. All of the circuit breakers are loaded into a single electric load center. Each outlet has 2 receptacles and is associated with a specific circuit breaker. Each n-way power splitter has n receptacles and is associated with a receptacle on a specific electrical outlet or light string. Each light string is associated with a single receptacle on either an electrical outlet or a n-way power splitter.
 
-    ```
-    CMP(x, SHIP2)
-    JNE(OUT)
-    MOV(y, SHIP2)
-    :OUT
-    ```
+The server uses the client's input to build a model of the electrical connectivity and loading.
 
-    The control flow and data flow dependencies in the second case should be much more clearer than the first. E.g. The value of y depends on x in the first case, and both x and SHIP2 on the second. While this might seem like a bad thing (i.e. now we have an extra dependency) it might actually be more helpful in the long run since it should help segment the code (CFG subgraphs). 
+The server is then able to process queries from the client to look for hazardous situations. Those hazard situations are as follows:
+- overloaded electrical panel
+    + too much total load (>100% amp rating)
+- overloaded breaker(s)
+    + too many outlets (>8 on 15 amp, >10 on 20 amp)
+    + too much load (>80% amp rating)
+- overloaded electrical outlet(s)
+    + too much total load (>80% amp rating)
+    + too much load on one receptacle (>80% amp rating)
+- overloaded power splitter(s)
+    + too much total load (>80% amp rating)
+    + too much load on one receptacle (>80% amp rating)
+- overloaded light string(s)
+    + too much load (>210W including that string and all downstream)
 
-  2. Related to 2.2 and 3.1 above, is how we use if-else blocks instead of switch statements since switch statements require literals. It also helps with the CFG as described above.
-  3. This game doesn't require a lot of computations. Most variables are "defined" (as in def-use) based on assignments or very simple computations (e.g., base + offset vs)
-4. We limited the use of complex data structures. We do define two structures though: Command and PlayerState. We don't think that this will be an issue because
-  1. Command has the same layout as a string (it contains 5 chars) and is in the same order as the protocol suggests. 
-  2. The PlayerState is a little bit more complex with the 2D array, but it should not be a problem. The operations on the fields should be consistent enough so that the types can be recovered. Even if they can't, it doesn't have any bearing on the vulnerability anyways.
-5. We use a very simple 5 byte (char) protocol Command,Row,Column,Direction,Ship Number with a lot of don't-cares. By don't care we mean that N, NH and NHH and NH1 are all equivalent since we look at the first character first and if that is all the command requires, it doesn't care about the other characters.
-  1. (N) Reinitializes to a New Game
-  2. (H) Prints out a not so helpful message
-  3. (M) Prints out the map for the current player
-  4. (E) Tries to exit the game
-  5. (Prcd#) Tries to Place ship number # starting at Row r and Column c towards the Right or Down directions. For example P0AR2 will place ship 2 (size of 2) at the first two spots on the first row of the map. P0AD5 will place ship 5 at the first 5 spots in the first column.
-  6. (S) Starts the current game after all of the players are done placing their ships.
-  7. (Trc) Tries to target Row r and Column c. 
-6. We also tried to implement one function per command.
-7. We tried to simplify the actual x86 instructions used by using very simple C operations (related to 2.1). A recent count shows that only 33 x86 instructions are actually used in the binary.
-8. We tried to make "patching" the vulnerability simple (as long as the compiler behaves). The idea is to have the "unpatched" version have one single additional C assignment (and hopefully one single assembly instruction) that leads to the overflow. We chose this so we can have many options for patching: NOPing this extra instruction, changing the constant value of the assignment from 0x7fffffff to the size of the buffer (note that the size of the buffer in this case is static so it can be identified), changing it into jmp over the faulty instruction or what not. A recent test shows only one single instruction difference between the patched and unpatched binaries. The unpatched binary has an extra "mov" instruction that can be NOPed out to obtain a patched binary.
+This tool does not support checking for excess current through the in-home wiring, which is a major fire hazard. It is assumed that the circuit breakers are properly sized to protect the in-home wiring. It also assumes that the only loads on the electrical panel are light strings.
 
+Electrical rules of thumb:
+* Breaker should trip on sustained draw of >80% amp rating
+* Max 8 outlets per 15 amp breaker
+* Max 10 outlets per 20 amp breaker
+* Avg 1.5 amp load per outlet used to define max outlets per breaker.
+* Max 210W on 22 gauge wire (residential light strings)
+* Max 420W on 20 gauge wire (commercial light strings)
+
+Power equation:
+* Amps = Watts / Volts 
+
+
+## Vulnerability
+
+First vuln:
+
+assemble.c:get_breaker_by_id around line 390, doesn't check the upper bound on breaker_id, which is used as an index into the breakers array. breaker_id is unsigned, so negative isn't a concern, but bounding on the high end is. There are multiple ways to approach this vuln and not all will cause a POV.
+- add_outlet_to_breaker() with breaker_id out of range: If the breaker id is associated with an empty breaker space, it will return an error unrelated to the invalid breaker id (outlet amps exceed breaker amps). However, if the breaker_id is greater than the set of valid spaces, it returns error with breaker id up to 340; segfaults with breaker id >= 341. 
+
+assemble.c:add_outlet_to_breaker() calls get_breaker_by_id which returns a pointer. As long as the load center has been created and at least one breaker has been installed, get_breaker_by_id will return a pointer to an index in the breakers array. For any breaker_id greater than 340, the pointer is beyond the end of the allocated page. So, at assemble.c:975 the contents of the breaker are de-referenced causing a segfault.
+
+- is_breaker_overloaded() with breaker_id out of range: If the breaker id is greater than the set of installed breaker ids, a de-reference of the breaker's outlets list count will cause segfault.
+
+examine.c:is_breaker_overloaded eventually calls examine.c:is_too_many_outlets_on_breaker, which calls assemble.c:get_count_outlets_on_breaker, which calls get_breaker_by_id and then immediately de-references the count of the outlets list of the breaker. 
+The test for breaker_id_is_installed() at the start of get_count_outlets_on_breaker() relies on a correct result from get_breaker_by_id, so it does not protect against breaker_id out of range.
+Any breaker id > the set of installed breaker id's will segfault in assemble.c:get_count_outlets_on_breaker() when the breaker's outlets count is accessed on line 525.
+
+There are other ways that the lack of an upper bounds check on breaker_id is a problem, but those are not reachable because is_too_many_outlets_on_breaker() is called before is_too_much_amp_load_on_breaker(), which will segfault and end execution. Those other vulns are also related to de-referencing the contents of a breaker pointer for a breaker id that is beyond the range of installed breaker ids.
+
+
+Second vuln:
+
+This vulnerability is a giant glowing flashing strobing light string decorating a freshly allocated page that is trivial to trigger through many paths. BOOM!
+
+assemble.c:search_splitter_for_receptacle_id around line 170, has <= in the loop test instead of <. So, it will go one receptacle beyond the end of the splitter's receptacles array. The idx starts at 0, so negative isn't a concern, but bounding the high end is.
+
+Anytime that the receptacles of a splitter are searched and one of the valid receptacles on that splitter do not match the search, the search will go one beyond the end of the receptacle array and lead to a segfault. There are several ways to make this happen:
+
+- Install 1 splitter into the model onto one of the first receptacles (first outlet would work). Attempt to install any other component onto a receptacle beyond that first outlet that is also not on the splitter. (i.e. 1 outlet with splitter on 1st receptacle. attempt to install light string on second receptacle of outlet.)
+
+There is a bit of trickery here. Freshly allocated memory is zero'd out. And, the enum for load types uses 0 as the LOAD TYPE for a SPLITTER:
+
+typedef enum {
+    SPLITTER = 0,
+    LIGHT_STRING = 1,
+    NO_LOAD = 2,
+} LOAD_TYPE_T;
+
+In assemble.c:search_receptacle_for_receptacle_id(), it tests for a load type to determine which search function to call to continue the recursion. This means that examining a non-valid receptacle that exists in zero'd memory will result in processing that receptacle as if it has a SPLITTER attached to it. Then, inside the call to search_splitter_for_receptacle_id, the for loop test needs to de-reference the splitter to get the receptacle_count, which is a null pointer dereference, thus segfault at assemble.c:170.
+
+
+- Install 1 splitter into the model and search for an invalid receptacle id. (i.e. 1 outlet with splitter connected to one of its receptacles, perform a command using an invalid receptacle id -- any of the add_component() operations will work.)
+
+The cause of this vuln is the same as the previous vuln, but it is reached for a different reason. When a new component is added, a search is performed to find the receptacle for the component to connect to. In this case, the receptacle does not exist, so again, the splitter's incorrect bounds checking causes the access to an invalid receptacle to lease to a null pointer believed to be a splitter. And de-referencing that splitter causes segfault at assemble.c:170.
+
+
+
+### Generic class of vulnerability
+
+Improper Input Validation
+Improper Validation of Array Index
+Off-by-one Error
+NULL Pointer Dereference
+
+### CWE classification
+
+Improper Input Validation
+CWE-20
+
+Improper Validation of Array Index
+CWE-129
+
+Off-by-one Error
+CWE-193
+
+NULL Pointer Dereference
+CWE-476
+
+## Challenges
+
+* From the fuzzing perspective, once they learn to replay the nonce, they will likely crash the service quite often. There are so many ways to crash it, that a fuzzer should do it regularly. The challenge will be patching the vulns in an optimal location. There are 2 primary vulns, but they are rechable through multiple paths and the POV doesn't necesarily occur where the code errors are located. Although, it is usually close.
+* This is a larger service, in relation to quantity of code. So, static analysis methods will have more code to distract them. And code path analysis methods will have to store more data points which cause solvers to slow down. They need to learn what to ignore to solve efficiently.

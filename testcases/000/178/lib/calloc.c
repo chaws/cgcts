@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
+ * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
+ *
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,21 +22,25 @@
  * THE SOFTWARE.
  *
  */
+
+#include "libcgc.h"
+#include "cgc_stdlib.h"
 #include "cgc_string.h"
-#include "cgc_malloc_private.h"
 
-void *cgc_calloc(cgc_size_t count, cgc_size_t size)
+void *cgc_calloc(cgc_size_t nmemb, cgc_size_t size)
 {
-    cgc_size_t n = count * size;
-    void *ptr;
+  if (nmemb == 0 || size == 0)
+    return NULL;
 
-    if ((uintmax_t)count * size > (uintmax_t)SIZE_MAX)
-        return NULL;
+  cgc_size_t tot = nmemb * size;
 
-    ptr = cgc_malloc_alloc(&g_heap, n);
-    if (ptr == NULL)
-        return NULL;
+  // Overflow
+  if (tot / size != nmemb)
+    return NULL;
 
-    cgc_memset(ptr, 0, n);
-    return ptr;
+  void *ptr = cgc_malloc(tot);
+  if (ptr == NULL)
+    return NULL;
+
+  return cgc_memset(ptr, 0, tot);
 }

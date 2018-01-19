@@ -24,24 +24,24 @@ patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/members.c.o -c src/members.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/check.c.o -c src/check.c
-	$(CC) $(FLAGS) -o HeartThrob_patched lib/libc.c.o src/members.c.o src/service.c.o src/check.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o HeartThrob_patched lib/libc.c.o src/members.c.o src/service.c.o src/check.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/members.c.o -c src/members.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/check.c.o -c src/check.c
-	$(CC) $(FLAGS) -o HeartThrob lib/libc.c.o src/members.c.o src/service.c.o src/check.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o HeartThrob lib/libc.c.o src/members.c.o src/service.c.o src/check.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o HeartThrob_pov_4 pov_4/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o HeartThrob_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o HeartThrob_pov_3 pov_3/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o HeartThrob_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o HeartThrob_pov_4 pov_4/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o HeartThrob_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o HeartThrob_pov_3 pov_3/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o HeartThrob_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)

@@ -1,2 +1,0 @@
-/usr/bin/gcc -DFORTIFY_SOURCE=0 -DLINUX -Derrno=__cgc_errno -fno-builtin -w -g3 -m32 -fno-stack-protector -std=gnu99 -I ../../shared/tsid/include -I ../../shared/tsid/include/tiny-AES128-C -DPATCHED -DPATCHED_1 -I lib -I src -I include -fno-exceptions -fno-rtti -DCPLUSPLUS -Oz -g -o lib/printf.c.o -c lib/printf.c
-Makefile:23: recipe for target 'patched' failed

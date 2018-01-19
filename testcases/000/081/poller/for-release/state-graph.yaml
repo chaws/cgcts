@@ -1,25 +1,30 @@
 ---
 nodes:
-- name: commands
 - name: start
-- name: cmd_new
-- name: cmd_view
-- name: cmd_update
-- name: cmd_delete
-- name: cmd_add_ac
+- name: menu
+- name: define_vars
+- name: view_vars
+- name: submit_text
+- name: render_text
 - name: quit
+- name: invalid
 
 edges:
-- start: commands
-- commands: cmd_new
-- commands: cmd_view
-- commands: cmd_update
-- commands: cmd_delete
-- commands: cmd_add_ac
-- cmd_new: commands
-- cmd_view: commands
-- cmd_update: commands
-- cmd_delete: commands
-- cmd_add_ac: commands
-- commands: quit
+- start: menu
+- menu: define_vars
+  weight: 0.25
+- menu: view_vars
+  weight: 0.20
+- menu: submit_text
+  weight: 0.20
+- menu: render_text
+  weight: 0.20
+- menu: quit
   weight: 0.10
+- menu: invalid
+  weight: 0.05
+- define_vars: menu
+- view_vars: menu
+- submit_text: menu
+- render_text: menu
+- invalid: menu

@@ -1,41 +1,50 @@
-# ECM_TCM_Simulator
+# INSULATR Challenge Binary
 
 ## Author Information
 
-"Jason Williams" <jdw@cromulence.com>
+"Narf Industries" <info@narfindustries.com>
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+
+Narf Industries (NRFIN)
 
 ## Description
 
-This service is a simulator for an ECM and TCM controller modules. The Engine Computer Module and Traction Controller Module reside on a common shared LAN bus. The simulation allows the user to send preformatted messages or custom binary messages on the shared bus during the simulation. This service is written in C++ and leverages two new CUtil classes a doubly linked list and string class.
+The mice need more funding.  What better way than to cash in on all the #PoliceState #1984 business going on in the media?  
 
-ShortDescription: Simulator for an ECM (Engine Computer Module) and TCM (Traction Controller Module).
+The market can support at least one more secure messaging system, right?
 
 ### Feature List
 
-This service accepts a set of message bus commands that will be sent at specified command times to any simulation components on the message bus. This message bus is a shared bus between all components. The standard components on the message bus are the ECM and TCM modules at 0x13 and 0x14 addresses respectively. Broadcast messages can be sent to address 0xFF and all components will receive it. The simulation also will relay response messages sent to either address 0x0 or 0xFF during the simulation and ascii hex display the output of the simulation. The ECM module supports engine off/on commands, torque commands, Incoming Air Temperature (IAT), EGR Temperature, and a host of other parameters. The Traction Controller Module supports off/on commands and wheel speed set and read commands. All items on the component bus support an equipment ID, a unique 64-bit number set from the magic page. It is possible to verify the Equipment ID but not read it. Once a simulation is setup and all messages configured the simulation runs a tick counter at 50ms intervals for up to 2 minutes and sends the setup commands over the bus at their specified times and prints any received messages on the shared bus.
+Well, OK, the rodent duo aren't quite at a viable product yet.  In fact, they're still writing their pseudo-JSON parser.
 
-## Vulnerability
+This pseudo-JSON parser will deserialize blobs into the data types for ultimate use by INSULATR.
 
-There is one type 2 vulnerability in this service. This vulnerability is in the TCM module on a read wheel speed command. To reach this vulnerability first the ECM and TCM must both be enabled. To do this it is required to turn on the engine on the ECM before sending the enable TCM command. At this point it is possible to issue a read wheel speed. Any read commands sent to the TCM without both being enabled and the engine on will not be processed. The TCM read wheel speed command consists of TLV field specifying the number and index of the wheel to read. Up to 4 wheel indexes can be read. A failure to check the index position allows a read outside the bounds of the array and allows the equipment ID to be read back 16-bits at a time. If the proper indexes are specified: 6,7,8, and 9 the entire 64-bits of the equipment ID can be read back. This will disclose up to 8-bytes from the magic page.
+Serialize, deserialize, you name it!
 
-### Generic class of vulnerability
-Vulnerability 1 of 1:
-Improper bounds check on a memory buffer.
-Memory disclosure
+The pseudo-JSON language (but not code) is borrowed in part from GREATVIEW, another Challenge Binary.
+
+## Vulnerabilities
+
+INSULATR suffers from a type confusion vulnerability in its deserialization functionality.  This challenge is designed, loosely, after a real-world, unauthenticated, type confusion, RCE vulnerability in BlackPhone's SilentText application.  SilentText misused the YAJL (Yet Another JSON Library) library which ultimately lead to type confusion.  
+
+The vulnerability presented here emulates a different misuse of a quirk in YAJL.  Specifically, YAJL will return a string object when it attempts to parse a number object whose value cannot fit in the object's number field, conducting implicit promotion of the object type.
+
+Specifically, when parsing integers, if the integer exceeds MAX_UINT32, then it returns the value as a string instead.  INSULATR will get confused: its attribute struct will specify that the attribute in question is a NUMBER, when in reality it's actually a STRING.
+
+If you attempt to serialize a confused attribute, INSULATR will attempt to write the *number* field into the output stream, resulting in a NULL pointer dereference and a crash.
 
 ### CWE classification
-Vulnerability 1 of 1:
-CWE-125: Out-of-bounds Read
-CWE-200: Information disclosure
+
+843: Type Confusion
+824: Access of Uninitialized Pointer
+704: Incorrect Type Conversion or Cast
+476: Null Pointer Dereference
 
 ## Challenges
 
-Authors Subjective Challenge Difficulty:
-Discovering: Medium (due to resistance to fuzzing and near infinite possible state depth)
-Proving: Easy
-Fixing: Easy (add bounds checking)
+This CB is designed to be difficult to patch.  The *correct* way to patch alters promotion behavior in the vulnerable SET command to properly promote the affected object during deserialization.  This change only makes a difference on subsequent requests.
 
-This CB presents a moderate difficulty in discovery due preliminary to the large surface area to attack and the near infinite state exploration that can occur. This is due to the nature of the service as a simulator and the ability to input a large number of commands into the system. It also requires the ordering of the commands to turn on the engine and enable traction control before it is possible to send the read wheel speed command to disclose the secret page memory.
+Among other aspects, we expect the following CB characteristics to present difficulty to CRSs:
+* State must be tracked across disjoint requests.
+* Type inference / reconstruction will likely be required on some level.  This typing system must be malleable to allow for object promotion.

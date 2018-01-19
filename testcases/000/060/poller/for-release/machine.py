@@ -1,111 +1,135 @@
 #!/usr/bin/env python
-#
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 
-from generator.actions import Actions, Variable
-import string
+from generator.actions import Actions
 import random
-import itertools
-import math
-from struct import *
+import subprocess
+import string
+import struct
 
-class TemplateGenerator(Actions):
+p = lambda f,x: struct.pack(f,x)
 
-	def start(self):
-		self.map = []
-		self.mapSize = 100
-		pass
+def random_string(size=20):
+  return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
 
-	def newBudgetItem(self):
-		if(len(self.map) < 128):
-			instruction = pack('l', 1)
-			self.write(instruction)
-			key = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(9))
-			self.write(key + '\x07')
-			value = random.randint(1,1000)
-			value_str = pack('i', value)
-			self.write(value_str)
-			self.map.append([key, value])
-			self.read(delim="\n", expect="New budget created!\n")
-#		else:
-#			self.read(delim="\n", expect="No more entries\n")
+class HackMan(Actions):
+  def start(self):
+    welcome_str = '\nWelcome to HackMan v13.37\n\n'
+    self.read(length=len(welcome_str), expect=welcome_str)
+    self.state['win'] = False
+    self.state['total'] = 0
+    self.state['words'] = [
+        'leonite', 'drawdown', 'conuzor', 'franklin', 'married',
+        'excircle', 'solidness', 'aneuria', 'constablery', 'infractible',
+        'speedingly', 'scantlinged', 'presphenoid', 'diphyozooid', 'twistiways',
+        'didrachma', 'fa', 'gyte', 'emblazonry', 'insulize'
+    ]
+    self.state['word'] = ''
+    self.state['progress'] = ''
+    self.state['num_tries'] = 0
+    self.stop = random.randint(0, 10)
+    self.done = False
 
-	def newInBudgetTransaction(self):
-		if(len(self.map) == 0):
-			return 0
-		instruction = pack('l', 2)
-		self.write(instruction)
-		pair = random.choice(self.map)
-		while(pair[1] < 0):
-			pair = random.choice(self.map)
-		self.write(pair[0] + '\x07')
-		amount = random.randint(0,pair[1])
-		amount_str = pack('i', amount)
-		self.write(amount_str)
-		pair[1]-=amount
+  def record_winner(self):
+    goodwork_str = '###### Good Work! ######\n' + \
+                   '# Leave your comment!! #\n' + \
+                   '########################\n' + \
+                   'Comment: '
+    self.read(length=len(goodwork_str), expect=goodwork_str)
+    comment = random_string(random.randint(1,500))
+    self.write(comment + '\n')
+    comment_str = 'You wrote: %s\n' % comment
+    self.read(length=len(comment_str), expect=comment_str)
+    self.state['total'] += 1
+    self.state['win'] = False
+    self.new_challenge()
 
-	def newOverBudgetTransaction(self):
-		if(len(self.map) == 0):
-			return 0
-		instruction = pack('l', 2)
-		self.write(instruction)
-		pair = random.choice(self.map)
-		while(pair[1] < 0):
-			pair = random.choice(self.map)
-		self.write(pair[0] + '\x07')
-		amount = pair[1] + random.randint(1,100)
-		amount_str = pack('i', amount)
-		self.write(amount_str)
-		pair[1]-=amount
-		self.read(delim="\n", expect=pair[0] + " is over budget!\n")
+  def banner(self):
+    banner_str = '_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_\n' + \
+                 '_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_\n' + \
+                 '     Sh41l w3 p14y a g4m3?\n' + \
+                 '_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_\n' +\
+                 '_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_\n\n'
+    self.read(length=len(banner_str), expect=banner_str)
+    self.state['word'] = ''
+    self.state['progress'] = ''
 
-	def getBudget(self):
-		if(len(self.map) == 0):
-			return 0
-		instruction = pack('l', 3)
-		self.write(instruction)
-		pair = random.choice(self.map)
-		self.write(pair[0] + '\x07')
-		self.read(length=40, expect=str(pair[1])+"[0]*", expect_format='pcre')
+  def quit_game(self):
+    quit_str = '\n * * * * Thank you for playing! You\'ve won %d times! * * * *\n' % self.state['total']
+    self.read(length=len(quit_str), expect=quit_str)
+    self.done = True
 
-	def deleteBudget(self):
-		if(len(self.map) == 0):
-			return 0
-		instruction = pack('l', 6)
-		self.write(instruction)
-		pair = random.choice(self.map)
-		self.write(pair[0] + '\x07')
-		self.map.remove(pair)
+  def new_challenge(self):
+    self.read(length=len('\n@ @ @ @ @  New Challenge  @ @ @ @ @\nSeed? '), expect='\n@ @ @ @ @  New Challenge  @ @ @ @ @\nSeed? ')
+    seed = random.randint(0, 2147483647)
+    self.write('%d\n' % seed)
+    lfsr = ((seed & 0x00FF0000) >> 16) | ((seed & 0x000000FF) << 8)
+    if lfsr == 0:
+      lfsr = 0xACE1;
+    num = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1
+    num = (lfsr >> 1) | (num << 15)
+    self.state['word'] = self.state['words'][num % 20]
+    self.state['progress'] = '_' * len(self.state['word'])
+    self.state['num_tries'] = 0
 
-	def sendReport(self):
-		instruction = pack('l', 7)
-		self.write(instruction)
-		totalBalance = sum([pair[1] for pair in self.map])
-		for x in range(0, len(self.map)):
-			self.read(length=24, expect=".*", expect_format='pcre')
-			self.read(length=40, expect=".*", expect_format='pcre')
-		self.read(length=40, expect=str(totalBalance)+"[0]*", expect_format='pcre')
+  def play_game(self):
+    while not self.done and not self.state['win']:
+      if self.state['win'] or len(self.state['word']) == 0:
+        self.new_challenge()
+        self.state['win'] = False
+        continue
+      else:
+        challenge_str = '[[[ Your challenge: %s ]]]\n' % self.state['progress']
+        challenge_str += 'Guess a letter: '
+        self.read(length=len(challenge_str), expect=challenge_str)
 
-	def quit(self):
-		instruction = pack('l', 8)
-		self.write(instruction)
-		return -1
+      # NEW_CHALLENGE
+      if self.chance(0.10):
+        self.write('+\n')
+        self.new_challenge()
+        self.state['win'] = False
+      # RESET
+      elif self.chance(0.10):
+        self.write('?\n')
+        self.state['num_tries'] = 0
+        self.state['progress'] = '_' * len(self.state['word'])
+        self.read(length=len('\n^^^^^ RESET ^^^^^\n\n'), expect='\n^^^^^ RESET ^^^^^\n\n')
+      # GUESS
+      else:
+        self.state['num_tries'] += 1;
+        if self.chance(0.20):
+          bad = list()
+          for c in string.ascii_lowercase:
+            if c not in self.state['word']:
+              bad.append(c)
+          self.write('%s\n' % random.choice(bad))
+        else:
+          for c in string.ascii_lowercase:
+            if c in self.state['word'] and c not in self.state['progress']:
+              self.write('%s\n' % c)
+              new_progress = ''
+              for i in xrange(len(self.state['word'])):
+                if self.state['word'][i] == c:
+                  new_progress += c
+                else:
+                  new_progress += self.state['progress'][i]
+              self.state['progress'] = new_progress
+              if '_' not in self.state['progress']:
+                got_str = '>>> You got it!! \"%s\" (%d tries) <<<\n' % (self.state['word'], self.state['num_tries'])
+                self.read(length=len(got_str), expect=got_str)
+                self.state['win'] = True
+              break
+      # QUIT
+      if self.state['total'] == self.stop:
+        challenge_str = '[[[ Your challenge: %s ]]]\n' % self.state['progress']
+        challenge_str += 'Guess a letter: '
+        self.read(length=len(challenge_str), expect=challenge_str)
+        self.write('/\n')
+        self.quit_game()
+
+  def doit(self):
+    while not self.done:
+      if self.state['win']:
+        self.record_winner()
+      else:
+        self.banner()
+      self.play_game()

@@ -28,6 +28,5 @@ THE SOFTWARE.
 
 double cgc_floor( double );
 double cgc_round( double, double n );
-int cgc_expi( int base, int exponent );
 
 #endif // __MYMATH_H__

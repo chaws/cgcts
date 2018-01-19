@@ -1,7 +1,5 @@
 /*
- * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
- *
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,16 +20,15 @@
  * THE SOFTWARE.
  *
  */
-
-#include "libcgc.h"
+#include "cgc_string.h"
 
 char *cgc_strchr(const char *s, int c)
 {
-  const char *p = s;
-
-  while (*p)
-    if (*p++ == c)
-      return (char *) p;
-
-  return NULL;
+    unsigned int i;
+    for (i = 0; s[i] != 0; i++)
+        if (s[i] == c)
+            return (char *)&s[i];
+    if (c == 0)
+        return (char *)&s[i];
+    return NULL;
 }

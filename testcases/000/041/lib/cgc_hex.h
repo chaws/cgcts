@@ -22,7 +22,6 @@
 
 #ifndef HEX_H
 #define HEX_H 1
-#include "cgc_stdint.h"
 
 /**
  * Test digit to see if it is a hexidecimal char (a-f,A-F,0-9).
@@ -30,7 +29,7 @@
  * @param digit A character
  * @return TRUE if yes, FALSE if not a hex digit.
  */
-int cgc_is_hex_digit(int8_t digit);
+int cgc_is_hex_digit(char digit);
 
 
 /**
@@ -39,7 +38,7 @@ int cgc_is_hex_digit(int8_t digit);
  * @param hex_digit An ASCII char
  * @return 0 - 15 if valid hex_digit, -1 on error.
  */
-char cgc_ascii_hex_to_bin(int8_t hex_digit);
+char cgc_ascii_hex_to_bin(char hex_digit);
 
 
 #endif

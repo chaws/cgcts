@@ -1,4 +1,4 @@
-# CGC Challenge Binary Template
+# On_Sale
 
 ## Author Information
 
@@ -8,130 +8,85 @@
 
 Narf Industries (NRFIN)
 
-## Description
+## Description:
 
-This is the Noob High-Precision Calculation Contraption (NoHiC) brought to you by Discount Cyber Cloud Big Data Corp.
+Every vendor needs a point-of-sale product, so we have created the new and improved On Sale POS product featuring a package of predefined product sales options to make it easier for a vendor to put products on sale.
 
-This contraption is designed to perform various mathematical operations on lists of numbers. The lists can contain either all integers or all double precision floating point numbers.
+Upon installation of On Sale, the system is preloaded with all of the vendor's products. However, we know that product lines can change, so we've implemented features to update the product line with ease.
 
-### Feature List
+## Feature List:
 
-The client provides to the contraption a list of numbers and the type of those numbers (signed integer or double precision float). Once the list of numbers is loaded into the contraption, it stands ready to perform various mathematical operations on that list of numbers.
+Purchase - Process the purchase of one or more products to calculate the total owed by the customer.
 
-The following are the various operations offered:
-* Average/Mean - The average of the numbers in the list.
-* Median - The median of the numbers in the sorted list.
-* Mode - The list of numbers that occur most frequently (one or more).
-* Range - The difference between the maximum and minimum numbers in the list.
-* Sum - The sum of the numbers in the list.
-* Product - The product of the numbers in the list.
-* Minimum - The minimum number in the list.
-* Maximum - The maximum number in the list.
-* Sort - The list sorted ascending.
-* Reverse Sort - The list sorted descending.
-* Odds - The odd numbers in the list.
-* Evens - The even numbers in the list.
+Check - Determine the model number, cost, and description of the product that is associated with a barcode. If the product is on sale, this check will return the sale price. 
 
-The math operations all use algorithms as would be written by a student in an introductory programming course. Thus, they offer high-precision, ultra-efficiency, and thorough data verification.
+Add Product - Add a new product to the system
 
-The Odds and Evens operations include a bit of fairy dust freshly delivered by Oz himself, which allows the client to perform those operations on floating point numbers. It's AMAZING!
+Remove Product - Remove a product from the system
 
-Lastly, performing the equality operation on floating point numbers is fraught with problems. And to make matters worse, in this case, one number is computed in C (CB) and the second number is computed in Python (Poller/Pov). There are many test cases where the least significant digit is different. So, to make the polling work, we ignore the least significant byte in all floating point numbers that are created as the result of a calculation.
+Update Product - Update a product in the system
 
-## Vulnerability
-Where do I start...
-In operation.c around line 255, the patched version of the CB has a check to return an error when the num\_count value is 0. This is a test of the value provided by the client indicating how many values are in the number list (i.e. list length). Without this check, many of the math functions in math\_fun.c will cause crashes, because they all expect a list having at least one node. So without the zero list length test, they are vulnerable.
+List Products - List all products. Only barcodes by default, but you can include other data depending on options provided.
 
-The following discusses for each math function, which are vulnerable when the list has zero nodes, as well as which pov tests for that vulnerability.
+On Sale - Set a product to be on sale using one of the options from the revolutionary sale package
 
-math\_fun.c:do\_int\_mean():
-- will not cause POV signal; will return 0 as an answer.
-- we added a check around the statement at line 47, because when the list length (num\_list->count) is 0, that expression causes an Arithmetic Exception (SIGFPE), which is not a valid POV signal.
+Off Sale - Set a product back to full price and end the sale.
 
-math\_fun.c:do\_int\_median():
-- SIGSEGV at line 73.
-- pov-1.xml
+## Vulnerability 1
 
-math\_fun.c:do\_int\_mode():
-- will not cause POV signal; will return 0 as the count of numbers in the mode. It will not send any mode result numbers.
-- If client is waiting to read more than one result, they will get out of sync with the server, because the only result they will get is the nonce that is sent prior to the next command. Thus the read would end with a SIGALRM.
+In the do\_add() function in products.c:240, the size of the recv\_until\_delim\_n() call is larger than the description buffer storing the received bytes. In the unpatched version, the size is sizeof(Product), which is 24 bytes larger than the buffer having size of MAX\_DESC\_LEN. When receiving the product description having more than MAX\_DESC\_LEN bytes, the extra bytes will overwrite the product's model\_num, cost, sfn pointer, and 12 bytes of the heap metadata in that order. For the POV, we overwrite the model\_num, cost, and sfn pointer. The sfn pointer points to the current sale function, which takes the model\_num and cost as parameters. And the sale functions pass those 2 parameters via registers. So, the next time do\_check() is called on this product and the sale price is read, the POV controls the sfn function pointer as well as it's 2 parameters. When the sfn() is called in do\_check(), it will crash and make a TYPE 1 POV.
 
-math\_fun.c:do\_int\_range():
-- SIGSEGV at line 156.
-- pov-2.xml
+### Generic Class of Vulnerability
 
-math\_fun.c:do\_int\_sum():
-- will not cause POV signal; will return 0 as an answer.
+Heap Buffer Overflow
+Improper Bounds Checking
 
-math\_fun.c:do\_int\_product():
-- will not cause POV signal; will return 1 as an answer.
+### CWE Classification
 
-math\_fun.c:do\_int\_min():
-- will not cause POV signal; will return 2147483647 as an answer.
+CWE-122: Heap-Based Buffer Overflow
+CWE-131: Incorrect Calculation of Buffer Size
+CWE-787: Out-of-bounds Write
+CWE-788: Access of Memory Location After End of Buffer
 
-math\_fun.c:do\_int\_max():
-- will not cause POV signal; will return -2147483646 as an answer.
+### Challenges
 
-math\_fun.c:do\_int\_sort():
-math\_fun.c:do\_int\_rsort():
-- will not cause POV signal; will be a nop. The first value sent to the client will be the nonce that is associated with the next command, but no other values will be sent and thus the client and server will get out of sync. If the client is waiting to read a result, the read will end with a SIGALRM. 
+* There are a large number of product preloaded into the inventory and there are 100 predefined sale functions. This was an effort to make the binary larger in case that causes problems for any analysis tools.
+* The do\_add() function can be accessed by a fuzzer once the fuzzer learns the command to reach that function. A solver could do this easily as well. Also, it should be relatively easy to figure out where the buffer overflow is happening on the receive call.
+* It will be more challenging to learn that the do\_check() function has to be called on the exact same product that was added in order to trigger the POV. The large number of products preloaded into the inventory adds distracting product barcodes when creating this POV.
+* Fixing the overflow should be pretty easy.
 
-math\_fun.c:do\_int\_odds():
-math\_fun.c:do\_int\_evens():
-- will not cause POV signal; will return 0 for number of odds/evens, will not return any values. If the client is waiting to read values, the read will end with a SIGALRM.
+### Difficulty
 
-math\_fun.c:do\_dbl\_mean():
-- will not cause POV signal; will return 0.0 as an answer.
-- we added a check around the statement at line 352, because when the list length (num\_list->count) is 0, that expression causes an Arithmetic Exception (SIGFPE), which is not a valid POV signal.
+* Discovering is easy
+* Proving is medium
+* Fixing is easy
 
-math\_fun.c:do\_dbl\_median():
-- SIGSEGV at line 376.
-- pov-3.xml
+## Vulnerability 2
 
-math\_fun.c:do\_dbl\_mode():
-- will not cause POV signal; will return 0 as the count of numbers in the mode. It will not send any mode result numbers.
-- If client is waiting to read more than one result, they will get out of sync with the server, because the only result they will get is the nonce that is sent prior to the next command. Thus the read would end with a SIGALRM.
+In the do\_update() function in products.c:312, the size of the recv\_until\_delim\_n() call is larger than the desc\_buf buffer storing the received bytes. In the unpatched version, the size is sizeof(Product), which is 24 bytes larger than the buffer having size of MAX\_DESC\_LEN. When receiving the product description having more than MAX\_DESC\_LEN bytes, the extra bytes will overwrite the function local variables and saved values on the stack. It overwrites, bc[], desc\_copy, p, bytes_recvd, and the next 4 bytes on the stack in that order. For the POV, we overwrite the bc, desc\_copy and p. The bc doesn't matter. The desc\_copy is a function pointer that is used to copy the new description buffer contents into the existing product's description buffer. The product pointer p is used in the first parameter to this function call because it requires the address of p->desc. So, this POV controls the desc\_copy() function pointer as well as it's first parameter. Since the desc\_copy() function passes its parameters via registers, this can be made to crash and make the TYPE 1 POV.
 
-math\_fun.c:do\_dbl\_range():
-- SIGSEGV at line 460.
-- pov-4.xml
+### Generic Class of Vulnerability
+Stack Buffer Overflow
+Improper Bounds Checking
 
-math\_fun.c:do\_dbl\_sum():
-- will not cause POV signal; will return 0.0 as an answer.
 
-math\_fun.c:do\_dbl\_product():
-- will not cause POV signal; will return 1.0 as an answer.
+### CWE Classification
+CWE-120: Buffer Copy without Checking Size of Input
+CWE-121: Stack-based Buffer Overflow
+CWE-131: Incorrect Calculation of Buffer Size
+CWE-787: Out-of-bounds Write
+CWE-788: Access of Memory Location After End of Buffer
 
-math\_fun.c:do\_dbl\_min():
-- will not cause POV signal; will return 1.7e308 as an answer.
+### Challenges
+* There are a large number of products preloaded into the inventory and there are 100 predefined sale functions. This was an effort to make the binary larger in case that causes problems for any analysis tools.
+* The do\_update() function can be accessed by a fuzzer once the fuzzer learns the command to reach that function. This should be relatively easy. 
+* It should be relatively easy to figure out where the buffer overflow is happening on the receive call in do\_update().
+* What is more challenging is that the analysis tools have to know to call the do\_list() function to get a list of valid barcodes that can then be used in the do\_update() function.
+* Additionally, the do\_list() function takes a set of options. Those options determine how much data is returned for each product. When testing those options the code only checks to determine if they are odd or even. This will make a large number of valid inputs for these values that will give widely differing outputs. This should provide some distraction for analysis tools.
+* Fixing the overflow should be pretty easy.
 
-math\_fun.c:do\_dbl\_max():
-- will not cause POV signal; will return -1.7e308 as an answer.
+### Difficulty
 
-math\_fun.c:do\_dbl\_sort():
-math\_fun.c:do\_dbl\_rsort():
-- will not cause POV signal; will be a nop. The first value sent to the client will be the nonce that is associated with the next command, but no other values will be sent and thus the client and server will get out of sync. If the client is waiting to read a result, the read will end with a SIGALRM. 
-
-math\_fun.c:do\_dbl\_odds():
-math\_fun.c:do\_dbl\_evens():
-- will not cause POV signal; will return 0 for number of odds/evens, will not return any values. If the client is waiting to read values, the read will end with a SIGALRM.
-
-### Generic class of vulnerability
-
-Improper Input Validation
-NULL Pointer Dereference
-
-### CWE classification
-
-Improper Input Validation
-CWE-20
-
-NULL Pointer Dereference
-CWE-476
-
-## Challenges
-
-* The first challenge is the requirement to replay a 64bit nonce at the start of every operation. Although computationally simple, it does require some analysis to recognize the need to replay the exact same value. I added the nonce at the start of each operation, because to make fuzzing search space start out with a random 64 bits which should make it difficult.
-* The second challenge is understanding floating point arithmetic. Half of the math functions process floating point numbers.
-* The third challenge is that, assuming the competitor can mangage the nonce, and they are doing fuzzing, they are going to experience crashes in a subset of the math functions in any case where the list length is 0. This is a case that will help differentiate between teams' methods of patching and detecting vulnerabilities. The ideal patch, is to put a test in operation.c:do\_create() around line 255. Another efficient patch would be to put a list length check at the start of the operation.c:load\_list() function. It is also possible to put a length check inside of each math function in math\_fun.c. One or more of those checks should be designed to cause the system to exit if num\_list->count is 0. Either method would prevent the functions from causing a SIGSEGV.
-* The final challenge is believing that floating point numbers can be odd and even.
+* Discovering is easy
+* Proving is medium
+* Fixing is easy

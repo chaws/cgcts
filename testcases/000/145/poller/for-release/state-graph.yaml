@@ -1,21 +1,25 @@
 ---
 nodes:
 - name: start
-- name: SendNodes
-- name: SendEdges
-- name: RunSpt
-- name: SendBadNodes
-- name: SendBadEdges
-- name: end
+- name: menu
+- name: loc
+- name: speed
+- name: rpm
+- name: doreset
+- name: elapse
+- name: quit
+
 edges:
-- start: SendNodes
-  weight: 0.8
-- start: SendBadNodes
-  weight: 0.1
-- start: SendBadEdges
-  weight: 0.1
-- SendNodes: SendEdges
-- SendEdges: RunSpt
-- RunSpt: end
-- SendBadNodes: end
-- SendBadEdges: end
+- start: loc
+- menu: loc
+- menu: speed
+- menu: rpm
+- menu: doreset
+- menu: elapse
+- menu: quit
+  weight: 0.01
+- loc: menu
+- speed: menu
+- rpm: menu
+- doreset: menu
+- elapse: menu

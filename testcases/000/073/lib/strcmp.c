@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  *
  */
-
+#include "cgc_wrapper.h"
 #include "libcgc.h"
 
 int cgc_strcmp(const char *s1, const char *s2)
@@ -33,5 +33,5 @@ int cgc_strcmp(const char *s1, const char *s2)
       else
         s1++, s2++;
 
-    return *s1 - *s2;
+    return *s2 - *s1;
 }

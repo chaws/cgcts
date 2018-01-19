@@ -1,0 +1,3 @@
+cb_1/src/main.c:133 # msg_id is declared to be an integer
+cb_1/src/main.c:156:CWE195 # msg_id is compared to a unsigned literal value, which cast msg_id to unsigned as well, thus changing the original behavior of `if'
+cb_1/src/main.c:154:fix # compare msg_id to a signed constant

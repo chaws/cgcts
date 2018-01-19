@@ -1,45 +1,89 @@
-# CROMU-00029: Material Temperature Simulation
+# One_Vote
 
 ## Author Information
 
-“Joe Rogers” <joe@cromulence.co>
+"Nick Davis" <info@narfindustries.com>
 
 ### DARPA performer group
-Cromulence (CROMU)
 
-## Description
+Narf Industries (NRFIN)
 
-This challenge binary implements a material temperature simulation.  It calculates temperature changes in a given material over time.  
+## Description:
 
-### Feature List
+Institutionally-sponsored popularity contests are common events in the lives of American adolescents. In response to the roar of demanding parents, we've developed One Vote to optimally support the needs of these myriad institutions. 
 
-The CB supports three pre-defined materials (air, aluminum, and copper) as well as a custom-defined material which requires the user to provide thermal conductivities and heat capacities of the target material over a range of temperatures.  
+One Vote will guarantee that: only the most popular adolescent wins the contest, an individual's vote can never be seen by other voters, an individual's vote can never be associated with their name, and each potential voter can only vote one time (although they can change their vote as many times as they want while voting is open).
 
-Once the size of the material is defined, the user is given the opportunity to define the temperature of each cubic meter of material, or to make the material isothermic.  If desired, the user may also define constant heat sources in each cubic meter of the material.  If defined, those cells remain at the constant temperature specified by the user while other surrounding cells are affected according to the characteristics of the material.
+## Feature List:
 
-Once the simulation starts, the program outputs the temperatures for the material at each time step.  The time step is automatically calculated to make sure the simulation remains stable given the input parameters.  
+- Admin
+-- Create Election: create election manager's credentials, define election name, opt to (dis/en)able write-in candidates, define number of winning candidate(s), and max number of total candidates.
+-- Open Voting: election manager can start voting period.
+-- Close Voting: election manager can end voting period.
 
-The program assumes that the boundary of the material is perfectly insulated.  No heat is lost or gained at the material boundary.
+- Voting
+-- Login: voters or election manager can login to access functions requiring authorization.
+-- Register Voter: enter first and last name and get voter ID number.
+-- Vote: enter voter ID and last name and make voting choice. If already voted, can change choice.
+-- Add Candidate: add a new candidate to the election.
 
-## Vulnerability
-This CB contains multiple vulnerabilities.
+- Results
+-- Election status: list number of voters, number of votes, number of candidates
+-- Voting Results: list winning candidate(s) along with vote count in order from highest to lowest vote count.
+-- Voter Turnout: list number of votes, number of voters, names of all voters
+-- Candidate Summary: list number of candidates, names of all candidates with vote counts.
 
-- The CB allocates a 3 dimensional array to store temperature and heat source values after the program is told the size of the material under study.  The calculation is made using this formula: X * Y * Z * sizeof(double).  However, the result of this calculation is stored in a 32-bit unsigned integer which can be easily overflowed resulting in an allocation smaller than the necessary size.  The CB will then attempt to read in the full array resulting in a heap-based buffer overflow.
+## Vulnerability 1
 
-- Several pre-defined material types are built into the CB along with the option to define custom thermal conductivities and heat capacities of the material under study.  Thermal conductivities should always be positive values.  Otherwise, heat flows towards the larger heat source defying the laws of physics.  But, the CB does not carefully check these thermal conductivity values, so the user is allowed to enter a negative value.  Under normal circumstances, a given cell of material can not rise in temperature above 373 degrees celsius.  The thermal conductivities and heat capacities are stored in eight element arrays indexed based on the current temperature of the cell being referenced.  With a negative thermal conductivity, it is possible to have a temperature higher than 373 degrees which will result in an overrun of that 8-element array causing at best invalid conductivity values to be used and at worst a segmentation violation. 
+When a voter submits a vote, they get a voting receipt that contains a confirmation number. In the unpatched version, that confirmation number is the voter's ID xor'd with the first 4 bytes of the flag page. The function get\_next\_vote\_id() contains this vulnerability.
 
-### Generic class of vulnerability
+### Generic Class of Vulnerability
 
-Vulnerability #1 - Integer overflow leading to an incorrect calculation of buffer size
-Vulnerability #2 - Improperly controlled array index
+Information Leakage
 
-### CWE classification
+### CWE Classification
 
-Vulnerability #1 - CWE-190: Integer Overflow or Wraparound and CWE-131: Incorrect Calculation of Buffer Size
-Vulnerability #2 - CWE-129: Improper Validation of Array Index
+CWE-201: Information Exposure Through Sent Data
 
-## Challenges
+### Challenges
 
-For the first vulnerability, the CRS must identify that the allocation size can be overflowed and then identify a material dimension which will overflow it but still remain less than the maximum allocation size for the overflowed value. 
+* Reaching this vulnerability will require the CRS to generate input that will successfully progress through several pre-requisite steps. They have to create the election, add a candidate, add a voter, open the election while logged in as the election manager, and finally vote while logged in as a voter.
+* The login process requires the CRS to both use previously entered information generated by the CRS along with information sent by the CB in response to an earlier command.
+* There are only a few commands that are valid and those commands are only accepted depending on the current state and in several cases, if the login process has been completed. This means the CRS will need to keep track of state.
 
-For the second vulnerability, the CRS must define negative thermal conductivities for the material and provide a temperature gradient in the material for the bug to be realized.  And, it takes more than just a small negative thermal conductivity to actually crash the program.
+### Difficulty
+
+* Discovering is easy
+* Proving is medium
+* Fixing is easy
+
+## Vulnerability 2
+
+When a voter submits a vote, a vote record is created that contains the voters information as well as the candidates information. The vote record is stored in a hash table where the key is the concatenation of the first and last name of the voter. The key is created using snprintf and a format string that will combine the first and last name, separated by a space, into a single string. In the unpatched version, the format string was accidentally omitted from the call to snprintf, so the voter's first name is used as the format string. This is in election.c:create\_and\_insert\_vote().
+
+### Generic Class of Vulnerability
+
+Buffer Overflow
+Uncontrolled Format String
+
+### CWE Classification
+
+CWE-120 Buffer Copy without Checking Size of Input
+CWE-121 Stack-based Buffer Overflow
+CWE-134 Uncontrolled Format String
+CWE-787 Out-of-bounds Write
+CWE-788 Access of Memory Location After End of Buffer
+CWE-806 Buffer Access Using Size of Source Buffer
+
+### Challenges
+
+* Reaching this vulnerability will require the CRS to generate input that will successfully progress through several pre-requisite steps. They have to create the election, add a candidate, add a voter, open the election while logged in as the election manager, and finally vote while logged in as a voter.
+* The login process requires the CRS to both use previously entered information generated by the CRS along with information sent by the CB in response to an earlier command.
+* There are only a few commands that are valid and those commands are only accepted depending on the current state and in several cases, if the login process has been completed. This means the CRS will need to keep track of state.
+* The data that triggers the vulnerability is entered in the function to register a voter. This is usually in a different state and not closely related to the point at which that voter places a vote. The CRS will have to track the relationship between the new voter's first and last name and this vulnerability. The CRS will have to learn: that the first name needs to be a format string, which collection of format chars to include in the format string, and how many chars to include in the last name. There are a large number of combinations of format chars and string lengths that will cause the CB to crash, but only a small number of combinations that will trigger a POV.
+
+### Difficulty
+
+* Discovering is easy
+* Proving is medium
+* Fixing is easy

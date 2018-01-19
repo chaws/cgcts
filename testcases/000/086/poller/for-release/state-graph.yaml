@@ -1,64 +1,39 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
 ---
 nodes:
 - name: start
-- name: quit
-- name: menu
-- name: new_menu
-- name: import_audio
-- name: export_menu
-- name: change_gain
-- name: change_pan
-- name: list_tracks
-- name: combine_split
-- name: effects_menu
-- name: export_4
-- name: export_8
-- name: export_32
-- name: new_silence
-- name: new_square
-- name: new_noise
-- name: effects_gain
-- name: effects_pan
-- name: effects_echo
+- name: enter_pass
+- name: enter_num_pass
+- name: enter_seed
+- name: enter_prng
+- name: secure_mode
+- name: get_results
 
 edges:
-- start: menu
-- menu: export_menu
-  weight: 0.01
-- menu: new_menu
-  weight: 0.20
-- menu: effects_menu
-  weight: 0.20
-- menu: import_audio
-  weight: 0.01
-- menu: combine_split
-  weight: 0.20
-- menu: change_gain
-  weight: 0.20
-- menu: change_pan
-  weight: 0.20
-- menu: list_tracks
-  weight: 0.20
-- import_audio: menu
-- combine_split: menu
-- change_gain: menu
-- change_pan: menu
-- list_tracks: menu
-- new_menu: new_silence
-- new_menu: new_square
-- new_menu: new_noise
-- new_silence: menu
-- new_square: menu
-- new_noise: menu
-- export_menu: export_4
-- export_menu: export_8
-- export_menu: export_32
-- export_4: quit
-- export_8: quit
-- export_32: quit
-- effects_menu: effects_gain
-- effects_menu: effects_pan
-- effects_menu: effects_echo
-- effects_gain: menu
-- effects_pan: menu
-- effects_echo: menu
+- start: enter_pass
+- enter_pass: enter_num_pass
+- enter_num_pass: enter_seed
+- enter_seed: enter_prng
+- enter_prng: secure_mode
+- secure_mode: get_results

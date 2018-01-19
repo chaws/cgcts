@@ -1,38 +1,65 @@
-# WhackJack
-
-## Author Information
-
-"Steve Wood" <swood@cromulence.com>
+# XStore
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Kaprica Security (KPRCA)
 
 ## Description
 
-This program is a game of chance called WhackJack.  It might or might not bear a similarity to another game with a rhyming name.  It allows up to 8 players to play, with players being human or computer simulated according to various play algorithms.
+XStore is a data storage system using XPACK as a serialization/deserialization layer. XPACK is a binary data serialization spec that supports the encoding of many commonly used types, such as boolean, integer, string, raw bytes, array, and map. XStore provides APIs to store, lookup, and delete the entry to/from the storage. In order to make it easier to debug, it also supports to turn on and off the debug mode, when provided the correct debug key, to allow the admin to print the items currently in the system.
+
 
 ### Feature List
 
-The service simulates a card game where the goal is to get a higher score than the dealer without going over 21.  Up to 8 players can play with the option of making some of those players computer simulated.  Five different algorithms are included that embody various schools of thought on how to play the game.  The game also includes a training mode whereby human players can get play hints from one of the algorithms. 
+
+```
+- Store
+  - IN: map(string => _, string => _, ...)
+  - OUT: array(string, ...)
+  - Store key-value pairs and return an array of keys that are added to the system.
+  
+- Lookup
+  - IN: array(string, string, ...)
+  - OUT: map(string => _, string => _, ...)
+  - Retrieve the values associated with the given keys. The value is None, if not found.
+  
+- Delete
+  - IN: array(string, string, ...)
+  - OUT: map(string => _, string => _, ...)
+  - Similar input/output behavior as lookup, but delete the pairs that are found.
+  
+- (Debug)
+  - IN: array(bool, debug_key)
+  - OUT: bool
+  - Turns on or off the debug mode.
+  
+- (Print - Only activated when debug mode is on)
+  - IN: UINT64 (number of elements to print, 0 means everything)
+  - OUT: N/A
+  - Prints out elements in the system.
+```
 
 ## Vulnerability
-Vulnerability 1 is a buffer overwrite due to the programmer inadvertently using the wrong #define constant in a bounds check of a read from STDIN.  The read buffer is adjacent to the data structures holding player data, including a function pointer to the simulation algorithm chosen for that player.  An overwrite of this pointer will allow the attacker to jump to arbitrary code.
 
-### Generic class of vulnerability
-Stack buffer overwrite
+### Vuln 1
 
-### CWE classification
-CWE-121 Stack-based Buffer Overflow
+In `print_bytes` function in `service.c`, the BYTES-type data are escaped for the bytes that are not alpha-numeric. In doing so, 1 raw byte becomes 3 bytes (\XX), resulting a possible stack buffer overflow of `escaped` buffer.
 
-## Challenges
+#### Generic class of vulnerability
 
-Vulnerability 1 is able to overwrite the function pointer for the simulation module, but not much else in the player data.  Therefore proving this vulnerability requires multiple steps.  First, a player has to be entered and setup as a computer player.  This enables the deference of the function pointer later.  The buffer overwrite is not long enough to set the variable setting the player as a computer simulation.  Next the overwrite needs to happen and setup shellcode to establish the desired register values.  However, the available buffer space is quite small so some creativity is needed to write enough shellcode.  POV_1 enters three fake players, and spreads the shellcode between the name fields in all three players, with the first jumping to the second and the second to the third.  Only the the player 1 data actually uses the vulnerable overwrite to get the first stage shellcode into place.  Once the shellcode is setup and the function pointer overwritten to point to the start of the shellcode, the game must be instructed to play a round of the game to invoke the function poniter.
+Stack-based Buffer Overflow
 
-An additional complexity is added in that a readline-type input function is used so the shellcode data, including the EIP and Register data from the framework, can't have 0x0a in the data.  A strcpy function is used to store the second and third stages of the shellcode, so it also must be null safe, including the values from the framework.  
+#### CWE classification
 
-This vulnerability is easy to find and very easy to fix.  Exploitation is hard given the constraints on the shellcode and the multiple steps required to invoke the shellcode.
+CWE-121: Stack-based Buffer Overflow
 
-	Finding Vulnerability 1: easy
-	Proving Vulnerability 1: hard
-	Fixing Vulnerability 1: easy
+#### Challenges
 
+ - Interesting/uncommon data structure (treap)
+ - Lots of recursion (for both serialization and underlying treap data structure)
+ - Vulnerability not immediately triggerable (Must go through DEBUG => PRINT)
+
+#### Difficulty
+
+ - **Discovery**: easy
+ - **Proving**: hard
+ - **Patching**: easy

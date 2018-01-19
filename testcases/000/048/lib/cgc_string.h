@@ -1,37 +1,24 @@
-/*
+#ifndef STRING_H_
+#define STRING_H_
 
-Copyright (c) 2015 Cromulence LLC
+#include "cgc_stddef.h"
 
-Authors: Cromulence <cgc@cromulence.com>
+extern void *cgc_memcpy(void *dest, const void *src, cgc_size_t n);
+extern void *cgc_memmove(void *dest, const void *src, cgc_size_t n);
+extern void *cgc_memset(void *dest, int c, cgc_size_t n);
+extern int memcmp(void *s1, const void *s2, cgc_size_t n);
+extern void *cgc_memchr(const void *s, int c, cgc_size_t n);
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+extern cgc_size_t cgc_strlen(const char *s);
+extern char *cgc_strcpy(char *dest, const char *src);
+extern char *cgc_strncpy(char *dest, const char *src, cgc_size_t n);
+extern char *cgc_strchr(const char *s, int c);
+extern char *cgc_strsep(char **stringp, const char *delim);
+extern int strcmp(const char *s1, const char *s2);
+extern int cgc_strncmp(const char *s1, const char *s2, cgc_size_t n);
+extern int strcasecmp(const char *s1, const char *s2);
+extern int strncasecmp(const char *s1, const char *s2, cgc_size_t n);
+extern char *cgc_strcat(char *dest, const char *src);
+extern char *cgc_strdup(const char *src);
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-*/
-#ifndef __STRING_H__
-#define __STRING_H__
-
-#include "libcgc.h"
-
-cgc_size_t cgc_strlen( const char *str );
-int cgc_strcmp( const char *, const char *);
-int cgc_strncmp( const char *s1, const char *s2, cgc_size_t len );
-void cgc_bzero(void *s, cgc_size_t n);
-void *cgc_memset( void *ptr, int value, cgc_size_t num );
-
-#endif // __STRING_H__
+#endif /* !STRING_H_ */

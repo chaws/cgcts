@@ -1,129 +1,122 @@
 /*
- * Copyright (C) Narf Industries <info@narfindustries.com>
+ * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ */
+
 #include "libcgc.h"
-#include "cgc_stdint.h"
-#include "cgc_list.h"
 #include "cgc_malloc.h"
+#include "cgc_stdlib.h"
 
-typedef struct node block_meta_t;
+/* Get some more memory through allocate */
+static int allocate_new_blk(void)
+{
+  void *ret;
+  struct blk_t *new_blk;
+  cgc_size_t size = NEW_CHUNK_SIZE;
 
-struct list allocated_list;
-struct list free_list;
+  if (cgc_allocate(size, 0, &ret) != 0) {
+    return 1;
+  }
 
-char cgc_init_heap_done = FALSE;
-cgc_size_t cgc_remaining = 0;
-block_meta_t *cgc_last = NULL;
+  if (ret == NULL)
+    return 1;
 
+  new_blk = (struct blk_t *)ret;
+  new_blk->size = size;
+  new_blk->free = 1;
+  new_blk->fpred = NULL;
+  new_blk->fsucc = NULL;
+  new_blk->prev = NULL;
+  new_blk->next = NULL;
 
-static void cgc_set_block_size(block_meta_t *block, cgc_size_t size) {
-	block->data = (void *)size;
+  cgc_insert_into_flist(new_blk);
+  return 0;
 }
 
-static void cgc_init_heap() {
-	if (FALSE == cgc_init_heap_done) {
-		cgc_list_init(&allocated_list, NULL);
-		cgc_list_init(&free_list, NULL);
-		cgc_init_heap_done = TRUE;
-	}
+/* Find first fit block for a size */
+static int find_fit(cgc_size_t size, struct blk_t **blk)
+{
+  int sc_i = cgc_get_size_class(size);
+
+  for (; sc_i < NUM_FREE_LISTS; sc_i++) {
+    *blk = cgc_free_lists[sc_i];
+    for(; *blk != NULL; *blk = (*blk)->fsucc)
+      if ((*blk)->size >= size)
+        return sc_i;
+  }
+
+  *blk = NULL;
+  return -1;
 }
 
-static unsigned char cgc_is_enough_room(const void *free_sz, void *new_sz) {
-	if (free_sz >= new_sz) {
-		return TRUE;
-	}
+void *cgc_malloc(cgc_size_t size)
+{
+  if (size == 0)
+    return NULL;
 
-	return FALSE;
+  if (size % ALIGNMENT != 0)
+    size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+
+  size += HEADER_PADDING;
+
+  struct blk_t *blk = NULL;
+  int sc_i = find_fit(size, &blk);
+
+  /* Allocate a new block if no fit */
+  if (blk == NULL) {
+    if (allocate_new_blk() != 0) {
+      return NULL;
+    } else {
+      sc_i = NUM_FREE_LISTS - 1;
+      blk = cgc_free_lists[sc_i];
+    }
+  }
+
+  /* Remove the block we're going to use from the free list */
+  cgc_remove_from_flist(blk);
+
+  /* Split the block into two pieces if possible */
+  cgc_size_t sdiff = blk->size - size;
+  if (sdiff > HEADER_PADDING) {
+    struct blk_t *nb = (struct blk_t *)((intptr_t)blk + size);
+
+    nb->size = sdiff;
+    nb->free = 1;
+    nb->fsucc = NULL;
+    nb->fpred = NULL;
+
+    blk->size = size;
+
+    /* Patch up blk list pointers */
+    nb->prev = blk;
+    nb->next = blk->next;
+    if (blk->next)
+      blk->next->prev = nb;
+    blk->next = nb;
+
+    /* Put the new block into the free list */
+    cgc_insert_into_flist(nb);
+  }
+
+  return (void *)((intptr_t)blk + HEADER_PADDING);
 }
-
-void *cgc_malloc(cgc_size_t size) {
-
-	if (0 == size) {
-		return NULL;
-	}
-
-	size += sizeof(block_meta_t); // size requested + size of block_meta_t is total size required
-	block_meta_t *ret = NULL;
-
-	cgc_init_heap();
-
-	// check for a block on the free_list of sufficient size
-	ret = (block_meta_t *)cgc_list_find_node_with_data(&free_list, &cgc_is_enough_room, (void *)size);
-
-	// found room on free_list
-	if (NULL != ret) {
-		cgc_list_remove_node(&free_list, ret);
-
-	// no room on free_list
-	} else {
-		// is there room on the last partially-used page?
-		if (size <= cgc_remaining) {
-			ret = cgc_last;
-			cgc_remaining -= size;
-		} else { // no room anywhere, get new page(s)
-
-			// Allocate creates new page(s), so the memory from a prevoius page where 
-			// last and remaining refer should be saved to the free_list.
-			//
-			// Only save if that space can fit a block_meta_t + some bytes
-			// else let it become dangling/unusable memory.
-			if (cgc_remaining > sizeof(block_meta_t)) {
-				cgc_set_block_size(cgc_last, cgc_remaining);
-				cgc_list_insert_node_at_end(&free_list, cgc_last);
-				cgc_last = NULL;
-				cgc_remaining = 0;
-			}
-
-			if (0 != cgc_allocate(size, 0, (void **)&ret)) {
-				return NULL;
-			}
-
-			if (0 == (size % PAGE_SZ)) {
-				cgc_remaining = 0;
-			} else {
-				cgc_remaining = PAGE_SZ - (size % PAGE_SZ);
-			}
-		}
-
-		cgc_set_block_size(ret, size);
-
-		cgc_last = (block_meta_t *)((unsigned char *)ret + size);
-
-	}
-
-	// add block to allocated_list
-	cgc_list_insert_node_at_end(&allocated_list, ret);
-
-	// need casting to make the math work correctly.
-	return (void *)((unsigned char*)ret + sizeof(block_meta_t));
-}
-
-void cgc_free(void *ptr) {
-	// get block_meta for this memory
-	ptr -= sizeof(block_meta_t);
-
-	// rm block from allocated_list
-	cgc_list_remove_node(&allocated_list, (block_meta_t *)ptr);
-
-	// add block to free_list
-	cgc_list_insert_node_at_end(&free_list, (block_meta_t *)ptr);
-}
-

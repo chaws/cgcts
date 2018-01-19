@@ -1,138 +1,377 @@
 #!/usr/bin/env python
-#
-# Copyright (C) 2014 
-#   Brian Caswell <bmc@lungetech.com>
-#   Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
-import string
-import sys
-import os
 
 from generator.actions import Actions
-from random import choice, randint
-from struct import *
-
-instrs = {"trans": 0, "coupon": 1, "stats": 2, "log": 3, "finish": 4, }
-
-resps = {"init": 0, "log": 1, "stats": 2, "done": 3, }
-
-cmds = {"pay": 0, "ticket": 1, "rmticket": 2, "coupon": 3, }
+import random
+import string
+from struct import pack, unpack, unpack_from
 
 
-def random_alpha(a, b):
-    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
+class StringSearch(Actions):
 
 
-class OverflowParking(Actions):
+    def calc_checkval(self, value):
+
+
+        if value is None:
+            return -1
+
+        tmp_token = 0
+        count = 1
+
+        for char in value:
+
+            # do all the masking to 32 bits so it will match the C implementation
+            tmp_token = ((tmp_token + (ord(char) & 0xff)* count)) & 0xffffffff
+            count = count + 1
+
+        return tmp_token
+
+
+    def send_message(self, message):
+
+        data = pack('H', 0x5AA5)
+
+        # add the length of the message plus the checkvalue
+        data = data + pack('H', len(message) + 4)
+
+        # now append the message
+        data = data + message
+
+        checkval = self.calc_checkval(data)
+
+        # append the checkvalue and send the message
+        data = data + pack('I',checkval)
+
+        self.write(data)
+
+
     def start(self):
-        self.delay(50)
-        self.coupons = []
-        self.log = []
-        self.read(length=260,
-                  expect=self._build_resp(resps['init'], "INITSTART"))
 
-    def _build_instr(self, instr, cmd, size, cmdbuf):
-        return pack("<III", instr, cmd, size) + cmdbuf + "$"
+        #self.delay(100)
+        self.simpleresponsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+        self.current_temp = 75.0
+        self.set_temp = 0
+        self.power_on = 0
+        self.heater_on = 0
+        self.currentProgramStep = -1
+        self.smoke_sensor_present = 0
+        self.controllerProgram = pack('15I', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        self.controllerProgram = self.controllerProgram + pack('15I', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        self.AMBIENT_TEMP = 75.0
+        self.sensorArray = []
 
-    def _build_cmd(self, cmd, size, cmdbuf, value):
-        self.log.append((cmd, size, value))
-        return self._build_instr(instrs['trans'], cmd, size, cmdbuf)
+        self.magiccheckvalue = self.calc_checkval(self.magic_page)
 
-    def _build_resp(self, rtype, text):
-        return pack("<I255s", rtype, text)
+    def top(self):
+        pass
 
-    def _build_stats_resp(self):
 
-        payments = len([i for i in self.log if i[0] == cmds['pay']])
-        tickets = len([i for i in self.log if i[0] == cmds['ticket']])
-        coupons = len([i for i in self.log if i[0] == cmds['coupon']])
-        gross = sum([i[2] for i in self.log if i[0] != cmds['ticket']])
-        expenses = 0
-        for i in self.log:
-            if i[0] == cmds["pay"]: expenses += i[2] / 2
-            if i[0] == cmds["ticket"]: expenses += 1
-            if i[0] == cmds["coupon"]:
-                coupon = [j for j in self.coupons if j[0] == i[3]]
-                if len(coupon) > 0:
-                    expenses += coupon[0][1]
-        net = gross - expenses
-        fmt = "\nPayments made: %08X\nTickets given: %08X\nCoupons used: %08X\nGross revenue: %08X\nOperating costs: %08X\nNet revenue: %08X\n\n"
-        #masks make sure we enforce overflow/underflow behavior
-        r = fmt % (payments & 0xffffffff, tickets & 0xffffffff, coupons
-                   & 0xffffffff, gross & 0xffffffff, expenses & 0xffffffff, net
-                   & 0xffffffff)
-        return self._build_resp(resps['stats'], r)
+    def send_power_off(self):
 
-    def _build_log_resp(self):
-        for i in self.log:
-            cmd, length = i[:2]
-            msg = "LogMessage - Type:%08x, Size:%08x" % (cmd, length)
-            self.read(length=260, expect=self._build_resp(resps['log'], msg))
+        self.power_on = 0
+        self.heater_on = 0
+        self.currentProgramStep = -1
+        message = pack('2H', 0x1, 0)
 
-    def add_valid_payment(self):
-        #mask is to avoid "$"
-        value = randint(5, 50) & 0xfb
-        cmdbuf = pack("<II", randint(0, 0xffffff) & 0xfbfbfbfb, value)
-        self.write(self._build_cmd(cmds['pay'], len(cmdbuf) + 1, cmdbuf,
-                                   value))
+        self.send_message(message)
 
-    def add_valid_ticket(self):
-        value = randint(5, 255) & 0xfb
-        cmdbuf = pack("<II", randint(0, 0xffffff) & 0xfbfbfbfb, value)
-        self.write(self._build_cmd(cmds['ticket'], len(cmdbuf) + 1, cmdbuf,
-                                   value))
+        
+    def send_power_on(self):
 
-    def add_valid_ticket_payment(self):
-        value = randint(5, 255) & 0xfb
-        cmdbuf = pack("<II", randint(0, 0xffffff) & 0xfbfbfbfb, value)
-        self.write(self._build_cmd(cmds['rmticket'], len(cmdbuf) + 1, cmdbuf,
-                                   value))
+        self.power_on = 1;
 
-    def add_valid_coupon_payment(self):
-        if randint(0, 1) or len(self.coupons) == 0:
-            cid = random_alpha(6, 10)
+        message = pack('2H', 0x1, 1)
+
+        self.send_message(message)
+
+
+    def set_smoke_sensor_on(self):
+
+        self.smoke_sensor_present = 1; 
+
+        message = pack('2H', 0x5, 01)
+
+        self.send_message(message)
+
+
+    def set_smoke_sensor_off(self):
+
+        self.smoke_sensor_present = 0; 
+
+        message = pack('2H', 0x5, 00)
+
+        self.send_message(message)
+
+
+    def send_set_temp(self):
+
+
+        temperature = random.randint(150, 400)
+
+        message = pack('2H', 0x2, temperature)
+
+        self.send_message(message)
+
+        # if the temp is out of accepted ranges, expect an error reply
+        if temperature < 175 or temperature > 350:
+            responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+        # otherwise, a normal response and save the temp value we send
         else:
-            cid = choice(self.coupons)[0]
-        value = randint(0, 20)
-        cmdbuf = pack("<I127s", value, cid)
-        self.write(self._build_cmd(cmds['coupon'], len(cmdbuf) + 1, cmdbuf,
-                                   value))
-        self.log[-1] = (self.log[-1][0], self.log[-1][1], self.log[-1][2], cid)
+            responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+            self.set_temp = temperature
 
-    def add_valid_coupon(self):
-        cid, value = random_alpha(6, 10), randint(0, 20)
-        self.coupons.append((cid, value))
-        self.write(self._build_instr(instrs['coupon'], 0, 132, pack(
-            "<I127s", value, cid)))
+        self.read(length=12, expect=responsebytes)
 
-    def get_stats(self):
-        self.write(self._build_instr(instrs['stats'], 0, 1, ""))
-        self.read(length=260, expect=self._build_stats_resp())
 
-    def get_log(self):
-        self.write(self._build_instr(instrs['log'], 0, 1, ""))
-        self._build_log_resp()
+    def read_simple_response(self):
 
-    def finish(self):
-        self.write(self._build_instr(instrs['finish'], 0, 1, ""))
-        self.read(length=260, expect=self._build_stats_resp())
-        self.read(length=260, expect=self._build_resp(resps['done'], "done."))
-        return -1
+        self.read(length=12, expect=self.simpleresponsebytes)
+
+
+    def send_get_status(self):
+
+        message = pack('4H', 0x8, 00, 00, 00)
+
+        self.send_message(message)
+
+
+    def read_status_response(self):
+
+        responsebytes = pack('6I', 0x10a, self.set_temp, self.current_temp, self.power_on, self.heater_on, self.smoke_sensor_present)
+        responsebytes = pack('8BI', 0xa5, 0x5a, 0x0a, 0x01, 0x01, 0x00, 0x08, 0x00, len(responsebytes)) + responsebytes
+  
+        self.read(length=len(responsebytes), expect=responsebytes)
+
+
+    def update_program(self):
+
+
+        number_of_steps = random.randint(1, 10)
+
+        message = pack('2H', 6, number_of_steps)
+
+        controllerProgram = ''
+
+        error_sent = False
+
+        responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+        for x in range (0, number_of_steps):
+
+
+            if len(self.sensorArray) > 0:
+
+                sensor_idx = random.randint(0, len(self.sensorArray)-1)
+                sensor_id = self.sensorArray[sensor_idx][0]
+            else:
+                sensor_id = 0
+
+            step_type = random.randint(0,1)
+
+            temperature = random.randint(175, 350)
+
+            # timeval from 30 mins to 4 hours
+            timeval = random.randint(30*60, 240*60)
+
+
+            # now randomly decide if bad values should be sent.  Low percentage chance
+            bad_data = random.randint(0, 25000)
+
+            if bad_data == 00000 and step_type == 0:
+
+                sensor_id = random.randint(13, 0xffff)
+                responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00)
+                error_sent = True;
+
+
+            elif bad_data == 10101:
+
+                temperature = random.randint(351, 600)
+                responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00)
+                error_sent = True;
+
+            elif bad_data == 20202 and step_type == 1:
+ 
+                timeval = random.randint(0, 1799)
+                responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00)
+                error_sent = True;
+
+            if step_type == 0:
+
+                controllerProgram = controllerProgram + pack('3I', step_type, sensor_id, temperature)
+            
+            else:
+                controllerProgram = controllerProgram + pack('3I', step_type, timeval, temperature)
+
+
+        message = message + controllerProgram;
+
+        self.send_message(message)
+
+        if error_sent == False:
+
+            self.currentProgramStep = 0;
+            self.controllerProgram = controllerProgram
+
+            # now fill out the buffer with zeros so it will match what is sent back on a get_program
+            for x in range(number_of_steps, 10):
+
+                self.controllerProgram = self.controllerProgram + pack('3I', 0, 0, 0)
+
+        self.read(length=len(responsebytes), expect=responsebytes)
+
+    def send_get_program(self):
+
+        message = pack('2H', 0x7, 00)
+
+        self.send_message(message)
+
+    def send_add_sensor(self):
+
+
+        sensor_id = random.randint(1, 12)
+        sensor_address = sensor_id * 1000
+        coefficient = random.randint(1, 100) * 100
+
+        message = pack('2H2I', 3, sensor_id, sensor_address, coefficient)
+
+        self.send_message(message)
+
+        # now time to decide what response to expect
+
+        # first see if the array is "full" as we only allow for 10
+        if len([item for item in self.sensorArray if item[0]==sensor_id]) > 0:
+            responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+        # or is the sensor array full
+        elif len(self.sensorArray) == 10:
+            responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+        # all good, so save a copy of what we are sending to the service
+        else:
+            self.sensorArray.append((sensor_id, sensor_address, coefficient))
+            responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+
+        # now get the response message
+        self.read(length=12, expect=responsebytes)
+
+
+    def remove_sensor(self):
+
+
+        sensor_id = random.randint(1, 12)
+
+        message = pack('2H', 4, sensor_id)
+
+        self.send_message(message)
+
+        # now time to decide what response to expect
+
+        if len([item for item in self.sensorArray if item[0]==sensor_id]) > 0:
+            responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+            
+            # delete the sensor from our local copy
+            for x in xrange(len(self.sensorArray)-1, -1, -1):
+                if self.sensorArray[x][0] == sensor_id:
+                    del self.sensorArray[x]
+                    break
+
+        # a bad sensor ID was chosen so expect an error response
+        else:
+
+            responsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+
+        # now get the response message
+        self.read(length=12, expect=responsebytes)
+
+
+    def read_controller_program(self):
+
+        responsebytes = self.controllerProgram
+        responsebytes = pack('8BI', 0xa5, 0x5a, 0x0a, 0x01, 0x01, 0x00, 0x07, 0x00, len(self.controllerProgram)) + self.controllerProgram
+  
+        self.read(length=len(responsebytes), expect=responsebytes)
+
+
+    def simulate_temp_change(self):
+
+
+        number_of_seconds = random.randint(10, 2000)
+
+
+        for i in range(0, number_of_seconds):
+
+            if self.power_on == 1:
+
+                if self.heater_on == 1:
+
+                    self.current_temp = self.current_temp + 1.0
+
+                    if self.current_temp > (self.set_temp + 5):
+                        self.heater_on = 0
+
+                else:
+
+                    if self.current_temp > self.AMBIENT_TEMP:
+
+                        self.current_temp = self.current_temp - 0.25
+
+                    if self.current_temp < (self.set_temp - 5):
+                        self.heater_on = 1
+
+            else:
+
+                if self.current_temp > self.AMBIENT_TEMP:
+
+                    self.current_temp = self.current_temp - 0.25
+
+
+        message = pack('2H', 0x9, number_of_seconds)
+
+        self.send_message(message)
+
+
+    def end(self):
+
+        # tell the controller to exit normally
+        message = pack('4H', 0xff, 00, 00, 00)
+
+        self.send_message(message)
+
+    # send bad command codes to the controller
+    def bad_command(self):
+
+        #all command codes except Terminate are less than 0xb
+        command = random.randint(0xb, 0xffff)
+
+        # 0xff is valid so don't send that one
+        if command == 0xff:
+            command = 0x100
+
+        message = pack('6H', command, 0, 0, 0, 0, 0)
+
+        self.send_message(message)
+
+        errorresponsebytes = pack('12B', 0xa5, 0x5a, 0x0a, 0x01, 0x0, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+        self.read(length=len(errorresponsebytes), expect=errorresponsebytes)
+
+
+    def validate_firmware(self):
+
+
+        # just a simple check that the magic page data hasn't been corrupted
+        checkvalue = self.calc_checkval(self.magic_page)
+
+        message = pack('4H', 0xa, 00, 00, 00)
+
+        self.send_message(message)
+
+
+        responsebytes = pack('8BII', 0xa5, 0x5a, 0x0a, 0x01, 0x01, 0x00, 0x0a, 0x00, 0x4, checkvalue)
+  
+        self.read(length=len(responsebytes), expect=responsebytes)
+       

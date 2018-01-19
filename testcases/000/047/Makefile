@@ -1,4 +1,4 @@
-CHAL=Packet_Receiver
+CHAL=tribute
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,41 +20,39 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o lib/string.cc.o -c lib/string.cc
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/datastream.cc.o -c src/datastream.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagerenderer.cc.o -c src/messagerenderer.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagehandler.cc.o -c src/messagehandler.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/doublelist.cc.o -c src/doublelist.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagepacket.cc.o -c src/messagepacket.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/service.cc.o -c src/service.cc
-	$(CC) $(FLAGS) -o Packet_Receiver_patched lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/datastream.cc.o src/messagerenderer.cc.o src/messagehandler.cc.o src/doublelist.cc.o src/messagepacket.cc.o src/service.cc.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/lib_funcs.c.o -c cb_3/lib/lib_funcs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/libc.c.o -c cb_3/lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/bin3.c.o -c cb_3/src/bin3.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/lib_funcs.c.o -c cb_2/lib/lib_funcs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/libc.c.o -c cb_2/lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/bin2.c.o -c cb_2/src/bin2.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/lib_funcs.c.o -c cb_1/lib/lib_funcs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/libc.c.o -c cb_1/lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/bin1.c.o -c cb_1/src/bin1.c
+	$(CXX) $(FLAGS) -o tribute_1_patched cb_1/lib/lib_funcs.c.o cb_1/lib/libc.c.o cb_1/src/bin1.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o tribute_3_patched cb_3/lib/lib_funcs.c.o cb_3/lib/libc.c.o cb_3/src/bin3.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o tribute_2_patched cb_2/lib/lib_funcs.c.o cb_2/lib/libc.c.o cb_2/src/bin2.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o lib/string.cc.o -c lib/string.cc
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/datastream.cc.o -c src/datastream.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagerenderer.cc.o -c src/messagerenderer.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagehandler.cc.o -c src/messagehandler.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/doublelist.cc.o -c src/doublelist.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagepacket.cc.o -c src/messagepacket.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/service.cc.o -c src/service.cc
-	$(CC) $(FLAGS) -o Packet_Receiver lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/datastream.cc.o src/messagerenderer.cc.o src/messagehandler.cc.o src/doublelist.cc.o src/messagepacket.cc.o src/service.cc.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/lib_funcs.c.o -c cb_3/lib/lib_funcs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/libc.c.o -c cb_3/lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/bin3.c.o -c cb_3/src/bin3.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/lib_funcs.c.o -c cb_2/lib/lib_funcs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/libc.c.o -c cb_2/lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/bin2.c.o -c cb_2/src/bin2.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/lib_funcs.c.o -c cb_1/lib/lib_funcs.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/libc.c.o -c cb_1/lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/bin1.c.o -c cb_1/src/bin1.c
+	$(CXX) $(FLAGS) -o tribute_1 cb_1/lib/lib_funcs.c.o cb_1/lib/libc.c.o cb_1/src/bin1.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o tribute_3 cb_3/lib/lib_funcs.c.o cb_3/lib/libc.c.o cb_3/src/bin3.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o tribute_2 cb_2/lib/lib_funcs.c.o cb_2/lib/libc.c.o cb_2/src/bin2.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -fno-exceptions -fno-rtti -pedantic -O0 -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -fno-exceptions -fno-rtti -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Packet_Receiver_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Packet_Receiver_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o tribute_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/datastream.cc.o src/messagerenderer.cc.o src/messagehandler.cc.o src/doublelist.cc.o src/messagepacket.cc.o src/service.cc.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/datastream.cc.o src/messagerenderer.cc.o src/messagehandler.cc.o src/doublelist.cc.o src/messagepacket.cc.o src/service.cc.o Packet_Receiver_pov_2 Packet_Receiver_pov_1 Packet_Receiver_patched Packet_Receiver
+	rm -f cb_3/lib/lib_funcs.c.o cb_3/lib/libc.c.o cb_3/src/bin3.c.o pov_1/pov.c.o cb_3/lib/lib_funcs.c.o cb_3/lib/libc.c.o cb_3/src/bin3.c.o cb_2/lib/lib_funcs.c.o cb_2/lib/libc.c.o cb_2/src/bin2.c.o cb_2/lib/lib_funcs.c.o cb_2/lib/libc.c.o cb_2/src/bin2.c.o cb_1/lib/lib_funcs.c.o cb_1/lib/libc.c.o cb_1/src/bin1.c.o cb_1/lib/lib_funcs.c.o cb_1/lib/libc.c.o cb_1/src/bin1.c.o tribute_3_patched tribute_pov_1 tribute_3 tribute_2_patched tribute_2 tribute_1_patched tribute_1

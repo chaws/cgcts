@@ -1,42 +1,45 @@
-# CGC Pipelined IPC Challenge Binary 
-
-## Author Information
-
-"Brian Caswell" <bmc@lungetech.com>
+# CGC Challenge Binary (KPRCA\_00037): CGC Symbol Viewer (CSV)
 
 ### DARPA performer group
-Lunge Technology (LUNGE)
+Kaprica Security (KPRCA)
 
 ## Description
 
-This is an IPC challenge binary for use within DARPA's Cyber Grand Challenge that shows DECREE IPC can be used to replicate pipelined processes.  Traditional unix pipelined processes read data from cgc_stdin and send to cgc_stdout, providing some sort of transformation or computation on the data.  This challenge binary replicates this execution model by linking together the provided functions made available by disperate challenge binaries in an arbitrary fashion.
+This service prints out the section and symbol information for a given CGC exectuable.
 
 ### Feature List
-This CB includes a number of small executables that provide a unique function that can be linked together in a user defined order to simulate the unix pipeline IPC mechanism.  
 
-A few notes on the underlying implementation:
-* Each function made available for the IPC chain is implemented in a unique executable.
-* Each 'function' processes input per line, exiting upon recieving a line that begins with a null byte.
-* Each 'function' can be configured to receive input from the network client or from another executable.
-* Each 'function' can be configured to transmit output from the network client or from another executable.
+**Features**
 
-The functionality made available by the CB is split across the following executables:
-* CB\_1 implements the command and control mechanism for setting up the IPC and handles passing any required configuration to the executables in the IPC pipeline.
-* CB\_2 provides the 'contain' function for the pipeline.  The 'contain' function implements a 'grep' like function utilizing the Morris-Pratt fast pattern match algorithm.
-* CB\_3 provides the 'word-count' function for the pipeline.  The 'word-count' function implements a 'word count' utility, akin to 'wc' on unix systems, which provides counts of the characters, words, and lines for each line.
-* CB\_4 provides the 'does-not-contain' function for the pipeline.  The 'does-not-contain' function implements a 'inverse grep' like function utilizing a niave search algorithm.
-* CB\_5 provides the 'compress' function for the pipeline.  The 'compress' function implements a per-byte Run-Length-Encoding (RLE) mechanism to compress input.
-* CB\_6 provides the 'decompress' function for the pipeline.  The 'decompress' function undoes the RLE mechanism provided by 'compress'.
+- Parses and validates CGC executables
+- Displays section info (name, type, address, offset, and size)
+- Displays symbol info (name, value, size, type, and bind)
+- Output format is similar to what readcgcef utility outputs
+  - It's a lot less strict about the actual contents, however.
+
+**Protocol**
+
+- Input: Raw bytes that represent the CGC executable file, prepended by its size in bytes.
+- Output: Text display showing information about the file (sections and symbols).
 
 ## Vulnerability
-The vulnerability is a stack based buffer overflow in CB\_6, however the CB is not directly accessable.  Input must flow from one of the previous CBs prior to transfering to the final CB.  The CB is written such that it will not process traffic directly from the network.  A POV may pass through any of the other sub-CBs (2 through 5) and prove the vulnerability exists.
+
+- The parser does not correctly validate the value of index to the section headers when calculating the offset to the section header data.
+- The *idx* value can be negative passing the check of *idx < shnum* in cgcf.c:125.
+- Also, there's an integer overflow bug which can be caused by supplying large (yet valid) field values.
+- This may yield an access violation on invalid memory, given a carefully crafted input.
 
 ### Generic class of vulnerability
-Stack based Buffer Overflow
+
+Insufficient range check
+Integer Overflow
 
 ### CWE classification
-CWE-121
+
+CWE-839: Numeric Range Comparison Without Minimum Check
+CWE-190: Integer Overflow or Wraparound
 
 ## Challenges
 
-This CB shows the dynamic data input chaining that can occur within a single challenge binary.  The core idea being expressed is that the IPC model within the CBs can be dynamic in nature, and leveraged as the CB author or CRS determines.
+- Lots of mutable fields that can affect the state of the parsing
+- Sometimes mutating one field is not enough to trigger the bug due to other checks. In such case, multiple fields must be carefully manipulated in order to trigger the bug.

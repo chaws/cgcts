@@ -1,4 +1,4 @@
-CHAL=Modern_Family_Tree
+CHAL=SOLFEDGE
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,53 +20,25 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/send.c.o -c lib/send.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memcmp.c.o -c lib/memcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/xxprintf.c.o -c lib/xxprintf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/recv_all.c.o -c lib/recv_all.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/sendall.c.o -c lib/sendall.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/char.c.o -c lib/char.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/int2str.c.o -c lib/int2str.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strncmp.c.o -c lib/strncmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/read_all.c.o -c lib/read_all.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/hex.c.o -c lib/hex.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -o src/people.c.o -c src/people.c
-	$(CC) $(FLAGS) -o Modern_Family_Tree_patched lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/service.c.o src/people.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o SOLFEDGE_patched lib/libc.c.o src/operation.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/send.c.o -c lib/send.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcmp.c.o -c lib/memcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/xxprintf.c.o -c lib/xxprintf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/recv_all.c.o -c lib/recv_all.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/sendall.c.o -c lib/sendall.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/char.c.o -c lib/char.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/int2str.c.o -c lib/int2str.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strncmp.c.o -c lib/strncmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/read_all.c.o -c lib/read_all.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/hex.c.o -c lib/hex.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/people.c.o -c src/people.c
-	$(CC) $(FLAGS) -o Modern_Family_Tree lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/service.c.o src/people.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o SOLFEDGE lib/libc.c.o src/operation.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -pedantic -O0 -o pov_2/pov_2.c.o -c pov_2/pov_2.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -pedantic -O0 -o pov_1/pov_1.c.o -c pov_1/pov_1.c
-	$(CC) $(FLAGS) -o Modern_Family_Tree_pov_1 pov_1/pov_1.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Modern_Family_Tree_pov_2 pov_2/pov_2.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o SOLFEDGE_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o SOLFEDGE_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov_2.c.o pov_1/pov_1.c.o lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/service.c.o src/people.c.o lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/service.c.o src/people.c.o Modern_Family_Tree_pov_2 Modern_Family_Tree_pov_1 Modern_Family_Tree_patched Modern_Family_Tree
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/libc.c.o src/operation.c.o src/service.c.o lib/libc.c.o src/operation.c.o src/service.c.o SOLFEDGE_pov_2 SOLFEDGE_pov_1 SOLFEDGE_patched SOLFEDGE

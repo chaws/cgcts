@@ -29,7 +29,7 @@
 #define OUTPUT_BYTE(x) do { \
     cgc_size_t bytes; \
     char _c = x; \
-    cgc_transmit(STDOUT, &_c, sizeof(_c), &bytes); \
+    cgc_transmit(fd, &_c, sizeof(_c), &bytes); \
 } while (0);
 
 #define NUM_TO_LOWER(x) (((x) < 10 ? (x)+'0' : (x)-10+'a'))
@@ -37,12 +37,12 @@
 
 #define FLAG_PAD_ZERO 0x1
 #define FLAG_UPPERCASE 0x2
-int cgc_output_number_printf(unsigned int x, int base, int min, unsigned int flags)
+int cgc_output_number_printf(int fd, unsigned int x, int base, int min, unsigned int flags)
 {
     int n = 0;
     if (x >= base)
     {
-        n = cgc_output_number_printf(x / base, base, min-1, flags);
+        n = cgc_output_number_printf(fd, x / base, base, min-1, flags);
         x %= base;
     }
     if (n == 0 && min > 0)
@@ -61,9 +61,10 @@ int cgc_output_number_printf(unsigned int x, int base, int min, unsigned int fla
     return n + 1;
 }
 
-int cgc_printf(const char *fmt, ...)
+int cgc_fdprintf(int fd, const char *fmt, ...)
 {
     char *astring;
+    char achar;
     int aint, i, n = 0, flags = 0, min = 0;
     unsigned int auint;
     va_list ap;
@@ -113,13 +114,21 @@ int cgc_printf(const char *fmt, ...)
                     OUTPUT_BYTE('-')
                     aint = -aint;
                 }
-                cgc_output_number_printf(aint, 10, min, flags);
+                cgc_output_number_printf(fd, aint, 10, min, flags);
+                break;
+            case 'u':
+                auint = va_arg(ap, unsigned int);
+                cgc_output_number_printf(fd, auint, 10, min, flags);
                 break;
             case 'X':
                 flags |= FLAG_UPPERCASE;
             case 'x':
                 auint = va_arg(ap, unsigned int);
-                cgc_output_number_printf(auint, 16, min, flags);
+                cgc_output_number_printf(fd, auint, 16, min, flags);
+                break;
+            case 'c':
+                achar = (signed char) va_arg(ap, int);
+                OUTPUT_BYTE(achar);
                 break;
             default:
                 OUTPUT_BYTE(c)
@@ -148,14 +157,15 @@ int cgc_printf(const char *fmt, ...)
     (*(n))++; \
 } while (0);
 
-void cgc_output_number_sprintf(int *n, char **s, unsigned int x, int base, int min, unsigned int flags)
+int cgc_output_number_sprintf(int *n, char **s, unsigned int x, int base, int min, unsigned int flags)
 {
+    int m = 0;
     if (x >= base)
     {
-        cgc_output_number_sprintf(n, s, x / base, base, min-1, flags);
+        m = cgc_output_number_sprintf(n, s, x / base, base, min-1, flags);
         x %= base;
     }
-    if (x < base && min > 0)
+    if (m == 0 && min > 0)
     {
         while (--min)
             if (flags & FLAG_PAD_ZERO)
@@ -168,6 +178,7 @@ void cgc_output_number_sprintf(int *n, char **s, unsigned int x, int base, int m
         OUTPUT_BYTE(n, s, NUM_TO_UPPER(x))
     else
         OUTPUT_BYTE(n, s, NUM_TO_LOWER(x))
+    return m + 1;
 }
 
 int cgc_sprintf(char *str, const char *fmt, ...)

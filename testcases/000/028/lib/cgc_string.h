@@ -33,5 +33,8 @@ void cgc_bzero(void *s, cgc_size_t n);
 void *cgc_memset( void *ptr, int value, cgc_size_t num );
 char *cgc_strchr(char *s, int c);
 char *cgc_strtok(char *str, char *sep);
+int cgc_strcmp(const char *s1, const char *s2);
+char *cgc_strcat(char *restrict s1, const char *restrict s2);
+int cgc_memcmp( const void *s1, const void *s2, cgc_size_t n );
 
 #endif // __STRING_H__

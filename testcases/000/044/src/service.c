@@ -1,6 +1,6 @@
 /*
 
-Author: James Nuttall (james@cromulence.co)
+Author: Jason Williams <jdw@cromulence.com>
 
 Copyright (c) 2014 Cromulence LLC
 
@@ -23,224 +23,225 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
-
 #include "libcgc.h"
-#include "cgc_service.h"
 #include "cgc_stdlib.h"
-#include "cgc_shapes.h"
-#include "cgc_stack.h"
-#include "cgc_prng.h"
-#include "cgc_string.h"
-#include "cgc_solver.h"
+#include "cgc_mymath.h"
 
+#include "cgc_simulation.h"
+#include "cgc_render.h"
 
-// Globals
-Statistics game_stats;
-Game_Info game_info;
+#define BANNER_STR "2D Particle Simulator\nEnter the number of particles to simulate (1-10):\n"
+#define PARTICLE_PROMPT_POSITION "Enter Position (x,y):\n"
+#define PARTICLE_PROMPT_VELOCITY "Enter Velocity (x,y):\n"
+#define PARTICLE_PROMPT_MASS     "Enter Mass:\n"
+#define PARTICLE_PROMPT_RADIUS   "Enter Radius:\n"
+#define SIMULATION_TIME_PROMPT   "Enter Simulation Runtime (in seconds):\n"
+#define SIMULATION_RUNNING_PROMPT   "Simulation running...\n"
 
+#define BAD_POSITION_ERROR      "Invalid position. Try again.\n"
+#define BAD_VELOCITY_ERROR      "Invalid velocity. Try again.\n"
+#define BAD_MASS_ERROR          "Invalid mass. Try again.\n"
+#define BAD_RADIUS_ERROR        "Invalid radius. Try again.\n"
+#define BAD_DATA_ERROR          "Invalid simulation data. Try again.\n"
 
-int cgc_print_menu()
+int cgc_g_lasterror = 0;
+
+int cgc_readLine( int fd, char *buffer, cgc_size_t maxlen )
 {
-	int ret;
-	cgc_printf("1. Solve Equation\n");
-	cgc_printf("2. Create Equation\n");
-	cgc_printf("3. Solve Area\n");
-	cgc_printf("4. Solve Perimeter\n");
-	cgc_printf("5. Solve Volume\n");
-	cgc_printf("6. View Statistics\n");
-	cgc_printf("7. Exit\n");
+    cgc_size_t pos;
+    char temp_buffer[2];
+    int retvalue;
+    cgc_size_t rx_count;
 
-	cgc_get_user_answer(&ret);
-	return ret;
+    for ( pos = 1; pos < maxlen; pos++ )
+    {
+        if ( (retvalue = cgc_receive( fd, (void *)temp_buffer, 1, &rx_count)) != 0 )
+        {
+            cgc_g_lasterror = retvalue;
+            return (-1);
+        }
+        else
+        {
+            if ( temp_buffer[0] == '\n' )
+                break;
+
+            buffer[0] = temp_buffer[0];
+            buffer++;
+        }
+    }
+
+    buffer[0] = '\0';
+    return pos;
 }
 
-void cgc_print_statistics()
+int cgc_parse_float_pair( const char *buf, double* pair1, double* pair2 )
 {
-	char name[32];
-	cgc_printf("Total won: @d\n", game_stats.num_won_total);
-	cgc_printf("Total lost: @d\n", game_stats.num_lost_total);
-	cgc_printf("Equations solved correctly: @d\n", game_stats.num_won_solved_equation);
-	cgc_printf("Equations solved incorrectly: @d\n", game_stats.num_lost_solved_equation);
-	cgc_printf("Equations created correctly: @d\n", game_stats.num_won_created_equations);
-	cgc_printf("Equations created incorrectly: @d\n", game_stats.num_lost_created_equations);
-	cgc_printf("Solved perimeter problems @d\n", game_stats.num_won_perimeter);
-	cgc_printf("Unsolved perimeter problems @d\n", game_stats.num_lost_perimeter);
-	cgc_printf("Solved volume problems @d\n", game_stats.num_won_volume);
-	cgc_printf("Unsolved volume problems @d\n", game_stats.num_lost_volume);
-	cgc_printf("Solved area problems @d\n", game_stats.num_won_area);
-	cgc_printf("Unsolved area problems @d\n", game_stats.num_lost_area);
-	
-// Vulnerability 1
-	if (game_stats.num_won_created_equations == 20)
-	{
-		cgc_printf("Wow, you created 20 equations! What's your name?:");
-		cgc_bzero(name, sizeof(name));
-		#ifdef PATCHED
-			cgc_receive(STDIN, name, sizeof(name) -1 , NULL);
-		#else
-			cgc_receive(STDIN, name, sizeof(name) + 45, NULL);
-		#endif
-		cgc_printf("Good job, @s!\n", name);
-	}
+    int pos;
+    int buf_pos;
+    char pair1_buf[1024];
+    char pair2_buf[1024];
 
-// Vulnerability 2
-	if (game_stats.num_won_solved_equation == 20)
-	{
-		cgc_printf("Wow, you solved 20 equations! What's your name?:");
-		cgc_bzero(name, sizeof(name));
-		#ifdef PATCHED
-			cgc_receive(STDIN, name, sizeof(name) -1 , NULL);
-		#else
-			cgc_receive(STDIN, name, sizeof(name) + 45, NULL);
-		#endif
-		cgc_printf("Good job, @s!\n", name);
-	}
+    // Split at comma
+    for ( pos = 0; pos < 1024; pos++ )
+    {
+        if ( buf[pos] == '\0' )
+            return -1;
 
-// Vulnerability 3
-	if (game_stats.num_won_area == 20)
-	{
-		cgc_printf("Wow, you solved 20 area problems! What's your name?:");
-		cgc_bzero(name, sizeof(name));
-		#ifdef PATCHED
-			cgc_receive(STDIN, name, sizeof(name) -1 , NULL);
-		#else
-			cgc_receive(STDIN, name, sizeof(name) + 45, NULL);
-		#endif
-		cgc_printf("Good job, @s!\n", name);
-	}
+        if ( buf[pos] == ',' )
+            break;
+
+        pair1_buf[pos] = buf[pos];
+    }
+
+    if ( pos == 1024 )
+        return -1;
+
+    pair1_buf[pos] = '\0';
+
+    pos++;
+    buf_pos = 0;
+    for ( ; pos < 1024; pos++ )
+    {
+        if ( buf[pos] == '\0' )
+            break;
+
+        pair2_buf[buf_pos++] = buf[pos];
+    }
+
+    if ( pos == 1024 )
+        return -1;
+
+    pair2_buf[buf_pos] = '\0';
+
+    *pair1 = cgc_atof( pair1_buf );
+    *pair2 = cgc_atof( pair2_buf );
+
+    return 0;
 }
 
 int main(int cgc_argc, char *cgc_argv[])
 {
-	int ret;
+    char buf[1024];
+    int ret;
+    int i;
 
-	// zero out structs
-	game_stats = (const Statistics){0};
-	game_info = (const Game_Info){0};
+    // Print banner
+    cgc_printf( BANNER_STR );
+
+    ret = cgc_readLine( STDIN, buf, sizeof(buf) );
+    if ( ret == -1 )
+        cgc__terminate(2);
+
+    int32_t particle_count = cgc_atoi( buf );
+
+    if ( particle_count == 0 )
+    {
+        cgc_printf( "Goodbye\n" );
+        cgc__terminate(0);
+    }
 
 
-	if (cgc_seed_prng() != SUCCESS)
-	{
-		debug_print("didn't succeed in seeding prng()");
-		return 1;
-	}
+    if ( particle_count > MAX_PARTICLE_COUNT )
+    {
+        cgc_printf( "Goodbye\n" );
+        cgc__terminate(3);
+    }
 
-	while (1)
-	{
-		ret = cgc_print_menu();
-		switch(ret)
-		{
-			case 1:
-				// Solve Equation
-				// generate an equation and make the user solve it
-				if (cgc_generate_equation() == SUCCESS)
-				{
-					game_stats.num_won_solved_equation++;
-				}
-				else
-				{
-					game_stats.num_lost_solved_equation++;
-				}
-				break;
-			case 2:
-				// create equation
-				// prompt user to enter an equation that satisfies the given parameters
-				if (cgc_prompt_for_equation() == SUCCESS)
-				{
-					game_stats.num_won_created_equations++;
-				}
-				else
-				{
-					game_stats.num_lost_created_equations++;
-				}
-				break;
-			case 3:
-				// area
-				if (cgc_random_in_range(0,1) == 0)
-				{
-					if (cgc_request_area() == SUCCESS)
-					{
-						game_stats.num_won_area++;
-					}
-					else
-					{
-						game_stats.num_lost_area++;
-					}
-				}
-				else
-				{
-					if (cgc_request_2d_area_dim() == SUCCESS)
-					{
-						game_stats.num_won_area++;
-					}
-					else
-					{
-						game_stats.num_lost_area++;
-					}
-				}
-				break;
-			case 4:
-				// perimeter
-				if (cgc_random_in_range(676,677) == 676)
-				{
-					if (cgc_request_perimeter() == SUCCESS)
-					{
-						game_stats.num_won_perimeter++;
-					}
-					else
-					{
-						game_stats.num_lost_perimeter++;
-					}
-				}
-				else
-				{
-					if (cgc_request_2d_peri_dim() == SUCCESS)
-					{
-						game_stats.num_won_perimeter++;
-					}
-					else
-					{
-						game_stats.num_lost_perimeter++;
-					}
-				}
-				break;
-			case 5:
-				// volume
-				if (cgc_random_in_range(44,45) == 45)
-				{
-					if (cgc_request_volume() == SUCCESS)
-					{
-						game_stats.num_won_volume++;
-					}
-					else
-					{
-						game_stats.num_lost_volume++;
-					}
-				}
-				else
-				{	
-					if (cgc_request_3d_dim_vol() == SUCCESS)
-					{
-						game_stats.num_won_volume++;
-					}
-					else
-					{
-						game_stats.num_lost_volume++;
-					}
-				}
-				break;
-			case 6:
-				// View Statistics
-				cgc_print_statistics();
-				break;
-			case 7:
-				// Exit
-				return 0;
-			default:
-				cgc_printf("improper input. exiting\n");
-				return 0;
-		}
-	}
+    for ( i = 0; i < particle_count; )
+    {
+        double pos_x, pos_y;
+        double vel_x, vel_y;
+        double mass;
+        double radius;
+        int32_t particle_num;
 
-	return 0;
+        // Get position
+        cgc_printf( PARTICLE_PROMPT_POSITION );
+
+        ret = cgc_readLine( STDIN, buf, sizeof(buf) );
+        if ( ret == -1 )
+            cgc__terminate(2);
+
+        if ( cgc_parse_float_pair( buf, &pos_x, &pos_y ) != 0 )
+        {
+            cgc_printf( BAD_POSITION_ERROR );
+            continue;
+        }
+
+        // Get velocity
+        cgc_printf( PARTICLE_PROMPT_VELOCITY );
+
+        ret = cgc_readLine( STDIN, buf, sizeof(buf) );
+        if ( ret == -1 )
+            cgc__terminate(2);
+
+        if ( cgc_parse_float_pair( buf, &vel_x, &vel_y ) != 0 )
+        {
+            cgc_printf( BAD_VELOCITY_ERROR );
+
+            continue;
+        }
+
+        // Get mass
+        cgc_printf( PARTICLE_PROMPT_MASS );
+
+        ret = cgc_readLine( STDIN, buf, sizeof(buf) );
+        if ( ret == -1 )
+            cgc__terminate(2);
+
+        if ( (mass = cgc_atof( buf )) == 0.0 )
+        {
+            cgc_printf( BAD_MASS_ERROR );
+            continue;
+        }
+
+        // Get radius
+        cgc_printf( PARTICLE_PROMPT_RADIUS );
+
+        ret = cgc_readLine( STDIN, buf, sizeof(buf) );
+        if ( ret == -1 )
+            cgc__terminate(2);
+
+        if ( (radius = cgc_atof( buf )) == 0.0 )
+        {
+            cgc_printf( BAD_RADIUS_ERROR );
+            continue;
+        }
+
+        // Now attempt to add to the simulation (this will validate the data sets)
+        if ( (particle_num = cgc_simulation_add_particle( pos_x, pos_y, vel_x, vel_y, mass, radius )) >= 0 )
+        {
+            // Particle added
+            i++;
+        }
+        else
+        {
+            cgc_printf( BAD_DATA_ERROR );
+            continue;
+        }
+
+        cgc_printf( "Particle #@d added at (@f,@f) velocity(@f,@f) mass(@f) radius(@f).\n", particle_num, pos_x, pos_y, vel_x, vel_y, mass, radius );
+    }
+
+    cgc_printf( "Running simulation with...\n" );
+    // Initialize render grid
+    cgc_init_render_grid();
+
+    // Display start information
+    cgc_display_simulation_data( );
+
+    // Run the simulation for the desired amount of time
+    cgc_simulation_run( 10 );
+
+    // Print out simple statistics
+    cgc_printf( "Simulation complete, @d collisions simulated over @d seconds in @d frames.\n", cgc_get_collision_count(), cgc_get_simulation_time(), cgc_get_simulation_frames() );
+
+    // Output end information
+    cgc_display_simulation_data( );
+
+    // Exit
+    cgc_printf( "Goodbye\n" );
+
+    // Exit
+    cgc__terminate( 0 );
 }

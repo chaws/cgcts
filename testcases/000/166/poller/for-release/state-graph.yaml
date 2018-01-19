@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright (C) 2014 Narf Industries <info@narfindustries.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -23,30 +21,43 @@
 ---
 nodes:
 - name: start
-- name: new_deck
-- name: deal_one_round
-- name: get_round_data
-- name: get_balance
-- name: get_player_count
-- name: bogus
-- name: broker
-- name: quit
+- name: finish
+- name: cmd
+  continue: 0.7
+- name: list_stocks
+- name: list_orders
+- name: list_orders_valid
+- name: list_orders_invalid
+- name: add_order
+- name: add_order_existing
+- name: add_order_new
+- name: check_order
+- name: cancel_order
 
 edges:
-- start: broker
+- start: cmd
 
-- broker: new_deck
-- broker: deal_one_round
-- broker: get_round_data
-- broker: get_balance
-- broker: get_player_count
-- broker: bogus
-  weight: 0.1
-- broker: quit
-  weight: 0.1
+- cmd: list_stocks
+- cmd: list_orders
+- cmd: add_order
+- cmd: check_order
+- cmd: cancel_order
 
-- new_deck: broker
-- deal_one_round: broker
-- get_round_data: broker
-- get_balance: broker
-- get_player_count: broker
+- list_orders: list_orders_valid
+  weight: 0.8
+- list_orders: list_orders_invalid
+  weight: 0.2
+
+- add_order: add_order_existing
+  weight: 0.8
+- add_order: add_order_new
+  weight: 0.2
+
+- list_stocks: cmd
+- list_orders_valid: cmd
+- list_orders_invalid: cmd
+- add_order_existing: cmd
+- add_order_new: cmd
+- check_order: cmd
+- cancel_order: cmd
+

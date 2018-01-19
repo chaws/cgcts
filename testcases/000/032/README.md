@@ -1,38 +1,55 @@
-# CROMU-00004: PCM Message decoder
-
-## Author Information
-
-“Joe Rogers” <joe@cromulence.co>
+# KPRCA-00049
 
 ### DARPA performer group
-Cromulence (CROMU)
+Kaprica Security (KPRCA)
 
-## Description
+## Description:
 
-This service reads in a morse code like language in the form of a PCM-encoded file,
-decodes the data, and prints out the message.
+This service implements a simple note taking program.
 
 ### Feature List
 
-This program supports the decoding of a PCM-based audio file format.  It expects a
-sample rate of 44100 samples/sec with 16-bit samples.  It decodes the audio data
-as a morse code like language, printing the decoded message as its output.
+The following commands are supported by the server.
+
+  * new-note $NAME $CONTENT: Create a new note named $NAME and store $CONTENT in it.
+
+  * append-note $NAME $CONTENT: If a note with name $NAME exists then append $CONTENT to its content.
+
+  * delete-note $NAME: If a note with name $NAME exists then delete it.
+
+  * get-note $NAME: If a note with name $NAME exists then return its contents.
+
+In order to provide a responsive interface this service delays the running of
+both the delete and append actions until they are necessarily needed by the
+result of some other command. This cuts down on processing time and provides
+the user with a fluid and intuitive experience.
 
 ## Vulnerability
-The PCM format contains two length specifiers. DataSize is the length of the PCM data
-in the file.  NumSamples number of PCM samples.  The program can only handle 16-bit
-samples, so it checks that DataSize*8/NumSamples == 16.  However it does this check
-using integer division in the unpatched cb which allows DataSize*8 to be larger
-than it should be.  For example 64*8/32 == 16 but 65*8/32 == 16 as well.  Since
-the program uses the DataSize field for reading in the rest of the PCM file,
-a stack-based overflow condition is created.
+
+The first vulnerability is a result of that when processing delayed actions the
+call stack grows with the order of delayed actions. It is therefore possible
+for an attacker to create a pathological usage case where number of delayed
+actions grows exceptionally large and the stack space is exhausted during
+runtime.
+
+The second vulnerability is a result of that when appending to a note the
+amount that a note's data buffer is grown is a fixed ratio which can result in
+a heap overflow if the data being appended is larger than this ratio.
 
 ### Generic class of vulnerability
-Unchecked user input leads to overrun of fixed size buffer allowing control of EIP.
+
+  * Recursion
+  * Excessive nested function calls
+  * Overflow
 
 ### CWE classification
-CWE-120 - Buffer Copy without Checking Size of Input
+
+  * CWE-122: Heap-based Buffer Overflow
+  * CWE-674: Uncontrolled Recursion
 
 ## Challenges
-The attacker must be able to determine there's a mistake in the sample size
-check and understand they can use that to send an overly large DataSize.
+
+The challenge binary poses tests the following abilities of a system:
+
+  * Ability to detect issues due to excessive stack space usage
+  * Ability to construct control flows that result in excessive stack space usage

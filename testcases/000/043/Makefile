@@ -1,4 +1,4 @@
-CHAL=AIS-Lite
+CHAL=String_Storage_and_Retrieval
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,49 +20,37 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/send.c.o -c lib/send.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/recv_until_delim.c.o -c lib/recv_until_delim.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/xxprintf.c.o -c lib/xxprintf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/sendall.c.o -c lib/sendall.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/int2str.c.o -c lib/int2str.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strncmp.c.o -c lib/strncmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/hex.c.o -c lib/hex.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/sentence.c.o -c src/sentence.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/sixer.c.o -c src/sixer.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/parse.c.o -c src/parse.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/delete_matches.c.o -c src/delete_matches.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/string_token.c.o -c src/string_token.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/message.c.o -c src/message.c
-	$(CC) $(FLAGS) -o AIS-Lite_patched lib/send.c.o lib/malloc.c.o lib/recv_until_delim.c.o lib/memcpy.c.o lib/xxprintf.c.o lib/sendall.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/sentence.c.o src/sixer.c.o src/service.c.o src/message.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/bst.c.o -c src/bst.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/find_matches.c.o -c src/find_matches.c
+	$(CXX) $(FLAGS) -o String_Storage_and_Retrieval_patched lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/parse.c.o src/delete_matches.c.o src/string_token.c.o src/service.c.o src/bst.c.o src/find_matches.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/send.c.o -c lib/send.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/recv_until_delim.c.o -c lib/recv_until_delim.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/xxprintf.c.o -c lib/xxprintf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/sendall.c.o -c lib/sendall.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/int2str.c.o -c lib/int2str.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strncmp.c.o -c lib/strncmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/hex.c.o -c lib/hex.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/sentence.c.o -c src/sentence.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/sixer.c.o -c src/sixer.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/parse.c.o -c src/parse.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/delete_matches.c.o -c src/delete_matches.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/string_token.c.o -c src/string_token.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/message.c.o -c src/message.c
-	$(CC) $(FLAGS) -o AIS-Lite lib/send.c.o lib/malloc.c.o lib/recv_until_delim.c.o lib/memcpy.c.o lib/xxprintf.c.o lib/sendall.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/sentence.c.o src/sixer.c.o src/service.c.o src/message.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/bst.c.o -c src/bst.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/find_matches.c.o -c src/find_matches.c
+	$(CXX) $(FLAGS) -o String_Storage_and_Retrieval lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/parse.c.o src/delete_matches.c.o src/string_token.c.o src/service.c.o src/bst.c.o src/find_matches.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o AIS-Lite_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o String_Storage_and_Retrieval_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/send.c.o lib/malloc.c.o lib/recv_until_delim.c.o lib/memcpy.c.o lib/xxprintf.c.o lib/sendall.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/sentence.c.o src/sixer.c.o src/service.c.o src/message.c.o lib/send.c.o lib/malloc.c.o lib/recv_until_delim.c.o lib/memcpy.c.o lib/xxprintf.c.o lib/sendall.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/sentence.c.o src/sixer.c.o src/service.c.o src/message.c.o AIS-Lite_pov_1 AIS-Lite_patched AIS-Lite
+	rm -f pov_1/pov.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/parse.c.o src/delete_matches.c.o src/string_token.c.o src/service.c.o src/bst.c.o src/find_matches.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/parse.c.o src/delete_matches.c.o src/string_token.c.o src/service.c.o src/bst.c.o src/find_matches.c.o String_Storage_and_Retrieval_pov_1 String_Storage_and_Retrieval_patched String_Storage_and_Retrieval

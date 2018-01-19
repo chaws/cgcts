@@ -1,117 +1,129 @@
 #!/usr/bin/env python
-#
-# Copyright (c) 2014 Jason L. Wright (jason@thought.net)
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
-# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-#
 
+from cStringIO import StringIO
 from generator.actions import Actions
 import random
 import string
-import re
-import sys
+import struct
 
-def random_string(size):
-    chars = string.letters + string.digits
-    return ''.join(random.choice(chars) for _ in range(size))
+p = lambda f,x: struct.pack(f,x)
 
-class PetPoller(Actions):
-    pettypes = { 'cat' : { 'rollover' : 'will not roll over',
-                           'flush' : 'purrs takes a nap',
-                           'speak' : 'meows' },
-                 'dog' : { 'rollover' : 'rolls over',
-                           'speak' : 'barks',
-                           'flush' : 'goes to sleep... permanently' },
-                 'hotdog' : { 'rollover' : 'rolls over on the grill',
-                              'speak' : 'can\'t speak',
-                              'flush' : 'tastes great with ketchup and mustard'}}
+STEG_TAG = 0xD86B74D1
+PPM_TAG = 0x03259036
+MODE_TAG = 0xBB85A71C
+TEXT_TAG = 0xBFEFDDE9
+END_TAG = 0xAB660AF0
 
-    def start(self):
-        self.pets = []
-        self.go_read(expect='ctors called...\n')
-        self.go_read(expect='list init...\n')
-        self.seq = random.randint(-sys.maxint - 1, sys.maxint)
+SECRET_TAG = 0xB58333C6
+SECRET_END_TAG = 0x0507A018
 
-    def main(self):
-        pass
+MODE_EM = 0x1337
+MODE_EX = 0x7331
 
-    def create_and_name(self):
-        d = {}
-        d['type'] = random.choice(self.pettypes.keys())
-        d['name'] = random_string(random.randint(1, 150))
-        self.go_write('%d create %s\n' % (self.seq, d['type']))
-        self.seq += 1
-        self.go_read(expect='init..\n')
-        self.go_write('%d name %d %s\n' % (self.seq, len(self.pets), d['name']))
-        self.seq += 1
-        self.pets.append(d)
+def random_string(size=20):
+  return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
 
-    def debug(self):
-        self.go_write('%d debug\n' % (self.seq))
-        self.seq += 1
-        if len(self.pets) == 0:
-            pass
+class APPMSteg(Actions):
+
+  def start(self):
+    if random.randint(1,100) <= 50:
+      self.state['mode'] = MODE_EM
+    else:
+      self.state['mode'] = MODE_EX
+
+  def new_ppm(self):
+    w = random.randint(1, 400)
+    h = random.randint(1, 400)
+
+    pixels = StringIO()
+    for i in xrange(w * h * 3):
+      pixels.write(chr(random.randint(0, 255)))
+
+    self.state['w'] = w
+    self.state['h'] = h
+    self.state['pixels'] = pixels
+ 
+  def get_ppm(self):
+    ppm = 'PK\n%d %d\n255\n' % (self.state['h'], self.state['w'])
+    ppm += self.state['pixels'].getvalue()
+    return ppm
+
+  def embed_text(self, text):
+    message = p('I', SECRET_TAG)
+    message += p('H', len(text))
+    message += text
+    message += p('I', SECRET_END_TAG)
+
+    if len(message) > self.state['w'] * self.state['h'] * 3 / 8:
+      return False
+
+    self.state['pixels'].seek(0)
+    for c in message:
+      for i in xrange(0, 8):
+        pixel = self.state['pixels'].read(1)
+        bit = (ord(c) >> (7 - i)) & 1
+        if bit:
+          pixel = chr(ord(pixel) | 1)
         else:
-            for p in self.pets:
-                self.read(delim='\n', expect=r'^[a-f0-9]{8} [a-f0-9]{8}\n$',
-                          expect_format='pcre')
+          pixel = chr(ord(pixel) & ~1)
+        self.state['pixels'].seek(-1, 1)
+        self.state['pixels'].write(pixel)
+    return True
 
-    def delete(self):
-        if len(self.pets) == 0:
-            self.go_write('%d delete %d\n' % (self.seq, 0))
-            self.seq += 1
-            self.go_read(expect="you don't have any pets\n")
-        else:
-            if len(self.pets) == 1:
-                n = 0
-            else:
-                n = random.randrange(0, len(self.pets)-1)
+  def generate_ppm(self):
+    self.new_ppm()
 
-            self.go_write('%d delete %d\n' % (self.seq, n))
-            self.seq += 1
-            p = self.pets.pop(n)
-            m = p['name'] + ' ' + self.pettypes[p['type']]['flush'] + "\n"
-            self.go_read(expect=m)
+    if self.state['mode'] == MODE_EX:
+      # Generate a temporary random input to be extracted
+      text_data = 'Temp random input ___' + random_string(10) + '___'
+      if self.embed_text(text_data):
+        self.state['text'] = text_data
+      else:
+        self.state['text'] = None
 
-    def rollover(self):
-        self.go_write('%d rollover\n' % (self.seq))
-        self.seq += 1
-        for p in self.pets:
-            m = p['name'] + ' ' + self.pettypes[p['type']]['rollover'] + "\n"
-            self.go_read(expect=m)
+    if self.state['mode'] == MODE_EM:
+      text_data = 'Test string ___' + random_string(10) + '___'
+      self.state['text'] = text_data
+    else:
+      text_data = ''
+    text_size = len(text_data)
 
-    def speak(self):
-        self.go_write('%d speak\n' % (self.seq))
-        self.seq += 1
-        for p in self.pets:
-            m = p['name'] + ' ' + self.pettypes[p['type']]['speak'] + "\n"
-            self.go_read(expect=m)
-    
-    def done(self):
-        pass
+    ppm_data = self.get_ppm()
+    s = ''
+    s += p('I', STEG_TAG)
+    s += p('I', 0)
+    s += p('I', PPM_TAG)
+    s += p('I', len(ppm_data))
+    s += ppm_data
+    s += p('I', MODE_TAG)
+    if self.state['mode'] == MODE_EM:
+      s += p('H', MODE_EM)
+    else:
+      s += p('H', MODE_EX)
+    s += p('I', TEXT_TAG)
+    s += p('H', text_size)
+    s += text_data
+    s += p('I', END_TAG)
 
-    def go_write(self, s):
-        self.write(s)
+    s = p('I', STEG_TAG) + p('I', len(s)) + s[8:]
+    self.state['string'] = s
 
-    def go_read(self, expect):
-        self.read(expect=expect, length=len(expect))
+  def generate_exp(self):
+    if self.state['mode'] == MODE_EM:
+      if self.embed_text(self.state['text']):
+        return self.get_ppm()
+      else:
+        return '[ERROR] Failed to embed your message.\n'
+    else:
+      if self.state['text'] == None:
+        return '[ERROR] Failed to extract the message.\n'
+      else:
+        return 'Secret Text: %s\n' % self.state['text']
+
+  def doit(self):
+    # DO STUFF
+    self.generate_ppm()
+    self.write(self.state['string'])
+
+    exp = self.generate_exp()
+    self.read(length=len(exp), expect=exp)

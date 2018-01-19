@@ -1,61 +1,29 @@
-# KPRCA-00047
+# KPRCA-00032
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
 ## Description:
 
-This service implements an optical character recognition engine. It takes in
-simple drawings of letters and tries to determine what the drawing says. It
-either returns to the user a successful result or an error message.
+This service implements an anagram game and solver with a simple binary interface. At launch, the service is sent an initial dictionary that is used to sort the anatree. THe user can then add more words, remove words, query for anagrams, or play a game.
 
 ### Feature List
 
-The OCR engine accepts only a predefined format for the images which it will
-process. This format has a special header on the first line, the dimensions of
-the image on the next line and the data comprising the image on the remaining
-lines of the input file. The image data is an array of bytes. The OCR engine
-walks over the image data attempting to match a subsection of the image data
-against predefined character templates. The matching algorithm allows for some
-fuzziness. If a character template is successfully matched against that
-character is copied to a result buffer and the window is shifted past the
-character. If no character is successfully matched against for the current
-window then the window is simply shifted over one column and the matching
-process begins again. When the window hits the end of the array the matching
-process is finished. The concatenation of all successful matches are returned
-to the user. If no successful matches occurred then an error message is
-returned to the user.
+The anagram solver can answer queries for normal anagrams and subset anagrams. The solver is built using an anatree where each level of the tree represents a letter of the alphabet and the edges represent number of occurences of that letter. While this is slower than the alternative hash-based algorithm, it can support subset anagrams without explosion of runtime. The game will send the user ten words and the user must respond with half of the possible anagrams for each word in order to win.
 
 ## Vulnerability
 
-The first vulnerability for this service occurs when the number of characters has
-been matched exceeds a predefined size of the result buffer. When this happens
-the remaining successfully matched characters are copied past the end of
-a result buffer located on the stack.
-
-The second vulnerability for this service occurs in the calloc for this
-service. The user controls the size value that is passed to calloc and the
-malloc here improperly checks the requested size which allows for an integer
-overflow and for improper sizes. This results in malloc claiming to have
-succeed when it in actuality did not allocate the requested size. calloc then
-attempts to set the requested size of bytes on the returned buffer which
-results in a segfault.
+The vulnerability is triggered in **atree_add** (atree.c:255) when there is an out-of-memory condition. The error handling code fails to correct the number of degrees which results in it becoming larger than the max degree, and thus causing a buffer overflow or overread later. One way that the overflow can occur is if degree is too large and then a word at the beginning of the array is deleted, which causes the memmove in **atree_remove** (atree.c:301) to modify memory that is outside of the buffer. An overread can occur in **atree_query** trivially if degree is too large.
 
 ### Generic class of vulnerability
- * Buffer overflow
- * Unchecked array index
- * Integer Overflow
+Heap-based Buffer Overflow
 
 ### CWE classification
-  * CWE-121: Stack-based Buffer Overflow
-  * CWE-787: Out-of-bounds Write
-  * CWE-190: Integer Overflow or Wraparound
+CWE-122: Heap-based Buffer Overflow
+CWE-755: Improper Handling of Exceptional Conditions
 
 ## Challenges
 
-This service requires that the system attempting to identify flaws in it be
-able to deal with the following obstacles.
+The unique challenge for this service is exploiting an out-of-memory condition. Due to the limitations of the environment, the only reliable way to cause an out-of-memory condition that is exploitable is by exhausting the amount of virtual memory available to the process. The only way to do this reliably is by controlling the allocation in **read_initial_words**.
 
-  * Large input spaces
-  * Large binary sizes
-  * Ability to generate arbitrary data that fits a strict set of constraints.
+Patching the bug may be difficult. The trivial patch would be exiting the service if an out-of-memory condition occurs. This is tested for by a poller, however, which should make that patch invalid. Either fixing degree or detecting the out-of-bounds access would be valid patches.

@@ -1,54 +1,34 @@
-# Barcoder
+# KPRCA-00029
 
 ## Author Information
-Kaprica Security
+
+"Andrew Wesie" <andrew.wesie@kapricasecurity.com>
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
-## Description
+## Description:
 
-A barcode system
+This service implements a bulletin board system over a FSK modem. Users can create new threads, reply to threads, and read threads and replies. This challenge binary and its vulnerability are based on a real-world program and one of its vulnerabilities.
 
 ### Feature List
 
-The service allows a user to generate or decode barcodes.
-The options are:
-1. Input a new barcode
-2. View barcode ascii
-3. Generate barcode image
-4. View cached barcodes
-5. Clear cached barcodes
-6. Quit
-
-When inputting a barcode, a user may input as text, bacoded ascii (with '|'and ' ') representing the binary values
-or as a bitmap that digitally represents the barcode.
-
-Once a barcode is cached (up to 10 items can be cached) it can be viewed as either an ascii or bitmap representation.
+This bulletin board system is compatible with standard telephone encodings and supports connection speeds of 400 baud. The modem implements error correcting codes with a hamming distance of 9 bits and a checksum with a hamming distance of 4 bits, over a fragment containing 72 bits of usable data. Multiple fragments are then concatenated to form packets with a maximum payload of 1024 bytes.
 
 ## Vulnerability
 
-### Vuln 1
-The vulnerability is through a printf vulnerability. If the user inputs a barcode via a bitmap the text
-will be printed: `cgc_printf(new_barcode->raw_str);` in line main.c:139. This allows for the user to 
-lead information from the magic page
+The vulnerability is triggered in **bbs_rx** (bbs.c:327) where the input packet buffer is copied on to the stack without regards for the size of the stack buffer. Since a packet can be up to 1024 bytes and the stack buffer is 101 bytes, this gives an attacker a large amount of control over the stack.
 
 ### Generic class of vulnerability
-Information Exposure
+Stack-based Buffer Overflow
 
 ### CWE classification
-CWE-134: Uncontrolled Format String
 CWE-121: Stack-based Buffer Overflow
-CWE-839: Numeric Range Comparison Without Minimum Check
+
 ## Challenges
 
-Vulnerability 1 is meant to test the CRS's ability to utilize a program as its own input.
-In this instance, while it is possible to reverse the structure and try to create a compliant set
-of barcodes to brute force, a human would quickly realize that you can have the program do all this
-work for you, and use it as an ability to generate valid bitmaps to use.
+This service is very difficult due to the processing done on the input before it gets to the vulnerable function. Not only is the input audio that gets demodulated into bits, those bits are then error-corrected and checksummed to prevent corrupted fragments. Any fuzzing-based approaches would fail because they would not pass the checksum.
 
-## Difficulty
+Additionally, the low baudrate of the modem results in a significant amount of audio data as input and output. After the error-correcting, for about every 200 bits of input the attacker needs to generate 64 kbits of audio input. Even a small POV is still over 100 kBytes.
 
-Discovering = Easy
-Proving = Medium
-Patching = Easy
+The bug should be easy to patch because it is the canonical example of a buffer overflow: Unbounded memcpy into a stack buffer of fixed size. Even without fuzzing or symbolic execution, static analysis should be able to find this bug.

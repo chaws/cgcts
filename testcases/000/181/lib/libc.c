@@ -18,1109 +18,193 @@
  * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+*/
 
-#include "libcgc.h"
 #include "cgc_libc.h"
 
-cgc_ssize_t
-cgc_read_all(int fd, void *buf, cgc_size_t n)
-{
-    cgc_ssize_t ret = 0;
-    cgc_size_t cgc_read;
+// NOTE: not POSIX
+// MOD: it works in reverse
+// RETURN: void
+void cgc_memcpy(unsigned char *dst, const unsigned char *src, cgc_size_t n) {
 
     while (n) {
-        if (cgc_receive(fd, (char *)(buf + ret), n, &cgc_read) != 0)
-            return -1;
+        dst[n-1] = src[n-1];
+        n--;
+    }
+}
 
-        n -= cgc_read;
-        ret += cgc_read;
+// NOTE: not POSIX
+// MOD: returns +/- i (the iterator)
+// RETURN: +/- i
+int cgc_memcmp(const char *s1, const char *s2, cgc_size_t n) {
+
+    int i = 1;
+    while (i < n) {
+        if ((unsigned char)s1[i-1] > (unsigned char)s2[i-1]) {
+            return i;
+        } else if ((unsigned char)s1[i-1] < (unsigned char)s2[i-1]) {
+            return -i;
+        }
+        i++;
     }
 
-    return ret;
+    return 0;
 }
 
-cgc_ssize_t
-cgc_write_all(int fd, void *buf, cgc_size_t n)
-{
-    cgc_ssize_t ret = 0;
-    cgc_size_t written;
+// NOTE: not POSIX
+// MOD: it works in reverse
+// RETURN: the first argument
+unsigned char * cgc_memset(unsigned char *b, unsigned char c, cgc_size_t len) {
 
-    while (n) {
-        if (cgc_transmit(fd, (char *)(buf + ret), n, &written) != 0)
-            return -1;
+    cgc_size_t i = 0;
+    while (len) {
+        b[len-1] = c;
+        len--;
+    }
+    return b;
+}
 
-        n -= written;
-        ret += written;
+// Like strtok, except it's dumb and only finds the first instance.
+// RETURN: location of the needle, -1 on error
+cgc_size_t cgc_findchar(char *haystack, char needle) {
+
+    cgc_size_t i = 0;
+    while ('\0' != haystack[i]) {
+        if (haystack[i] == needle) { return i; }
+        i++;
+    }
+    return -1;
+}
+
+// Emulate sleep() via a timeout given to cgc_fdwait().
+void cgc_pause(cgc_size_t usec) {
+
+    struct cgc_timeval tv;
+
+    tv.tv_sec = 0;
+    tv.tv_usec = usec;
+
+    cgc_fdwait(0, NULL, NULL, &tv, NULL);
+}
+
+// hack because sizeof(MY_STRING) returns the length with NULL and that's messy
+// also it makes this libc a little different
+int cgc_sendallnulltrunc(int fd, const char *buf, cgc_size_t size) {
+
+    int ret = SUCCESS;
+
+    if ('\0' == buf[size-1]) {
+        return cgc_sendall(fd, buf, size-1) + 1;
     }
 
-    return ret;
+    return cgc_sendall(fd, buf, size);
 }
 
-void *
-cgc_memset(void *ptr_, int val, cgc_size_t n)
-{
-    unsigned char *ptr = ptr_;
-    while (n--)
-        *ptr++ = (unsigned char)val;
-    return ptr_;
+int cgc_sendall(int fd, const char *buf, cgc_size_t size) {
+
+    cgc_size_t sent = 0;
+    char *curbuf = (char *)buf;
+
+    while ((curbuf-(char*)buf) < size) {
+        if (cgc_transmit(fd, curbuf, size-(curbuf-(char*)buf), &sent)) {
+            return -1;
+        }
+        
+        curbuf += sent;
+    }
+
+    return (cgc_size_t)(curbuf-(char*)buf);
 }
 
-void *
-cgc_memcpy(void *dst_, const void *src_, cgc_size_t n)
-{
-    unsigned char *dst = dst_;
-    const unsigned char *src = src_;
-    while (n--)
-        *dst++ = *src++;
-    return dst_;
+// raise x to the power of y, modulo UINT32
+// implemented as a recusive function for flair
+UINT32 cgc_my_pow(UINT32 x, UINT32 y) {
+
+    // base case: anything raised to 0 is 1
+    if (0 == y) { return 1; }
+
+    // divide (in halves) and conquer
+    UINT32 halve = cgc_my_pow(x, y/2) * cgc_my_pow(x, y/2);
+    if (0 != y%2) {
+        return x * halve;
+    }
+    return halve;
 }
 
-cgc_size_t
-cgc_strlen(const char *s) {
-    cgc_size_t ret = 0;
-    while (*s++)
-        ret++;
-    return ret;
+// given a char array of hex values, convert it into a UINT32
+// goes until the NULL or 4 bytes, whichever is shorter
+// 0xFFFFFFFF is an error value
+#define ERR_hex2UINT32 "invalid hex\n"
+UINT32 cgc_hex2UINT32(char *hex) {
+
+    int ret = SUCCESS;
+    UINT32 result = 0;
+    cgc_size_t i = 0;
+    UINT8 len = 0;
+    char curr;
+
+    for (len=0; '\0' != hex[len]; ++len);
+
+    for (i=0; i<8; ++i, --len) {
+        curr = hex[i];
+        if ('\0' == hex[i]) { break; }
+
+        if ('0' <= curr && curr <= '9') {
+            result += (curr-'0') * cgc_pow(16, len-1);
+        } else if ('A' <= curr && curr <= 'F') {
+            result += (curr-'A' + 10) * cgc_pow(16, len-1);
+        } else if ('a' <= curr && curr <= 'f') {
+            result += (curr-'a' + 10) * cgc_pow(16, len-1);
+        } else {
+            SENDNULLTRUNC(ERR_hex2UINT32, sizeof(ERR_hex2UINT32), ret);
+            return 0xFFFFFFFF;
+        }
+    }
+
+    return result;
 }
 
-/* The following is verbatim from EAGLE_00004, but isn't included in the
- * released binary (DEBUG is not defined), so this reuse shouldn't be a concern.
- */
-#ifdef DEBUG
+// Read until size or we see a '\n'.
+// If we receive 0 bytes, keep reading.  
+// Reuse should not be concern; rewrote much from original function.
+int cgc_recvline(int fd, char *buf, cgc_size_t size) {
 
-#ifdef WIN
-#include <stdarg.h>
-#else
-typedef __builtin_va_list va_list;
-#define va_start(ap, param) __builtin_va_start(ap, param)
-#define va_end(ap) __builtin_va_end(ap)
-#define va_arg(ap, type) __builtin_va_arg(ap, type)
-#endif
+    cgc_size_t bytes_read = 0;
+    cgc_size_t cursize = size;
 
-static FILE std_files[3] = { {0, _FILE_STATE_OPEN}, {1, _FILE_STATE_OPEN}, {2, _FILE_STATE_OPEN} };
+    if(!size)
+        return 0;
+ 
+    if (!buf)
+        return -2;
 
-FILE *cgc_stdin = &std_files[0];
-FILE *cgc_stdout = &std_files[1];
-FILE *cgc_stderr = &std_files[2];
+    // While we still have bytes to cgc_read...
+    while (0 != cursize) {
 
-int vfprintf(FILE *stream, const char *format, va_list ap);
-int vdprintf(int fd, const char *format, va_list ap);
+        bytes_read = 0;
 
-#define IS_DIGIT     1
-#define IS_UPPER     2
-#define IS_LOWER     4
-#define IS_SPACE     8
-#define IS_XDIGIT    16
-#define IS_CTRL      32
-#define IS_BLANK     64
+        // Try reading 1 byte.
+        // XXXX: We *shouldn't* need to check return value here.
+        cgc_receive(fd, buf, 1, &bytes_read);
+        buf += bytes_read;
 
-#define IS_ALPHA     (IS_LOWER | IS_UPPER)
-#define IS_ALNUM     (IS_ALPHA | IS_DIGIT)
+        // If we cgc_read 0 bytes, we assume EOF; break.
+        if (0 == bytes_read) { break; }
 
-static unsigned char type_flags[256] = {
-     0, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL,
-     IS_CTRL, IS_SPACE | IS_BLANK, IS_SPACE, IS_SPACE, IS_SPACE, IS_SPACE, IS_CTRL, IS_CTRL,
+        // If we just cgc_read a newline, we're done; break.
+        if ( *(buf-1) == '\n' ) { break; }
 
-     IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL,
-     IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL, IS_CTRL,
+        // Subtract cursize by the number of bytes cgc_read.
+        // This shouldn't underflow because we only request 1 byte at a time.
+        cursize -= bytes_read;
+    }
 
-     IS_SPACE | IS_BLANK, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    if (*(buf-1) != '\n')
+        return -1;
+    else
+        *(buf-1) = '\0';
 
-     IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT,
-     IS_DIGIT | IS_XDIGIT, IS_DIGIT | IS_XDIGIT, 0, 0, 0, 0, 0, 0,
-
-     0, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER | IS_XDIGIT, IS_UPPER,
-     IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER,
-
-     IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER, IS_UPPER,
-     IS_UPPER, IS_UPPER, IS_UPPER, 0, 0, 0, 0, 0,
-
-     0, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER | IS_XDIGIT, IS_LOWER,
-     IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER,
-
-     IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER, IS_LOWER,
-     IS_LOWER, IS_LOWER, IS_LOWER, 0, 0, 0, 0, 0,
-};
-
-int isalpha(int c) {
-   return (type_flags[c & 0xff] & IS_ALPHA) != 0;
+    return size-cursize;
 }
 
-int isdigit(int c) {
-   return (type_flags[c & 0xff] & IS_DIGIT) != 0;
-}
-
-int isxdigit(int c) {
-   return (type_flags[c & 0xff] & IS_XDIGIT) != 0;
-}
-
-int toupper(int c) {
-   if (isalpha(c)) {
-      return c & ~0x20;
-   }
-   return c;
-}
-
-int vfprintf(FILE * stream, const char *format, va_list ap) {
-   return vdprintf(stream->fd, format, ap);
-}
-
-int fprintf(FILE * stream, const char *format, ...) {
-   va_list va;
-   va_start(va, format);
-   return vfprintf(stream, format, va);
-}
-
-int cgc_printf(const char *format, ...) {
-   va_list va;
-   va_start(va, format);
-   return vfprintf(cgc_stdout, format, va);
-}
-
-struct _fd_printer {
-   int fd;
-   int err;
-   unsigned int count;
-};
-
-//if flag != 0 return number of chars output so far
-static unsigned int fd_printer(char ch, void *_fp, int flag) {
-   struct _fd_printer *fp = (struct _fd_printer *)_fp;
-   if (flag) {
-      return fp->count;
-   }
-   else {
-      fp->count++;
-      cgc_transmit(fp->fd, &ch, 1, NULL);
-   }
-   return 0;
-}
-
-#define STATE_NORMAL 0
-#define STATE_ESCAPE 1
-#define STATE_PERCENT 2
-#define STATE_OCTAL 3
-#define STATE_HEX 4
-#define STATE_FLAGS 5
-#define STATE_WIDTH 6
-#define STATE_PRECISION 7
-#define STATE_LENGTH 8
-#define STATE_CONVERSION 9
-#define STATE_WIDTH_ARG 10
-#define STATE_WIDTH_VAL 11
-#define STATE_PRECISION_ARG 12
-#define STATE_PRECISION_VAL 13
-#define STATE_NARG 15
-
-#define FLAGS_TICK 1
-#define FLAGS_LEFT 2
-#define FLAGS_SIGN 4
-#define FLAGS_SPACE 8
-#define FLAGS_HASH 16
-#define FLAGS_ZERO 32
-
-#define LENGTH_H 1
-#define LENGTH_HH 2
-#define LENGTH_L 3
-#define LENGTH_J 5
-#define LENGTH_Z 6
-#define LENGTH_T 7
-#define LENGTH_CAPL 8
-
-static char *r_utoa(unsigned int val, char *outbuf) {
-   char *p = outbuf;
-   *p = '0';
-   while (val) {
-      *p++ = (val % 10) + '0';
-      val /= 10;
-   }
-   return p != outbuf ? (p - 1) : p;
-}
-
-//outbuf needs to be at least 22 chars
-static char *r_llotoa(unsigned long long val, char *outbuf) {
-   char *p = outbuf;
-   *p = '0';
-   while (val) {
-      *p++ = (val & 7) + '0';
-      val >>= 3;
-   }
-   return p != outbuf ? (p - 1) : p;
-}
-
-static char *r_otoa(unsigned int val, char *outbuf) {
-   return r_llotoa(val, outbuf);
-}
-
-//outbuf needs to be at least 22 chars
-static char *r_llxtoa(unsigned long long val, char *outbuf, int caps) {
-   char *p = outbuf;
-   *p = '0';
-   while (val) {
-      char digit = (char)(val & 0xf);
-      if (digit < 10) {
-         digit += '0';
-      }
-      else {
-         digit = caps ? (digit + 'A' - 10) : (digit + 'a' - 10);
-      }
-      *p++ = digit;
-      val >>= 4;
-   }
-   return p != outbuf ? (p - 1) : p;
-}
-
-static char *r_xtoa(unsigned int val, char *outbuf, int caps) {
-   return r_llxtoa(val, outbuf, caps);
-}
-
-static int hex_value_of(char ch) {
-   if (isdigit(ch)) {
-      return ch - '0';
-   }
-   else if (isalpha(ch)) {
-      return toupper(ch) - 'A' + 10;
-   }
-   return -1;
-}
-
-//func is responsible for outputing the given character
-//user is a pointer to data required by func
-static void printf_core(unsigned int (*func)(char, void *, int), void *user, const char *format, va_list ap) {
-   int state = STATE_NORMAL;
-   int flags;
-   int digit_count = 0;
-   int value = 0;
-   char ch;
-   int arg_count = 0;
-   int width_value;
-   int prec_value;
-   int field_arg;
-   int length;
-   char **args = (char**)ap;
-   for (ch = *format++; ch; ch = *format++) {
-      switch (state) {
-         case STATE_NORMAL:
-            if (ch == '%') {
-               state = STATE_PERCENT;
-            }
-            else if (ch == '\\') {
-               state = STATE_ESCAPE;
-            }
-            else {
-               func(ch, user, 0);
-            }
-            break;
-         case STATE_ESCAPE:
-            switch (ch) {
-               case 'n':
-                  func('\n', user, 0);
-                  break;
-               case 't':
-                  func('\t', user, 0);
-                  break;
-               case 'r':
-                  func('\r', user, 0);
-                  break;
-               case 'b':
-                  func('\b', user, 0);
-                  break;
-               case 'f':
-                  func('\f', user, 0);
-                  break;
-               case 'v':
-                  func('\v', user, 0);
-                  break;
-               case '\\': case '\'': case '"':
-                  func(ch, user, 0);
-                  break;
-               case 'x':
-                  state = STATE_HEX;
-                  digit_count = 0;
-                  value = 0;
-                  break;
-               default:
-                  if (ch > '0' && ch < '8') {
-                     state = STATE_OCTAL;
-                     digit_count = 1;
-                     value = ch - '0';
-                  }
-                  else {
-                     func(*format, user, 0);
-                  }
-                  break;
-            }
-            if (state == STATE_ESCAPE) {
-               state = STATE_NORMAL;
-            }
-            break;
-         case STATE_PERCENT:
-            if (ch == '%') {
-               func(ch, user, 0);
-               state = STATE_NORMAL;
-            }
-            else {
-               state = STATE_NARG;
-               flags = 0;
-               format--;
-            }
-            break;
-         case STATE_OCTAL:
-            if (ch > '0' && ch < '8' && digit_count < 3) {
-               digit_count++;
-               value = value * 8 + (ch - '0');
-               if (digit_count == 3) {
-                  func(value, user, 0);
-                  state = STATE_NORMAL;
-               }
-            }
-            else {
-               func(value, user, 0);
-               state = STATE_NORMAL;
-               format--;
-            }
-            break;
-         case STATE_HEX:
-            if (isxdigit(ch) && digit_count < 2) {
-               digit_count++;
-               value = value * 16 + hex_value_of(ch);
-               if (digit_count == 2) {
-                  func(value, user, 0);
-                  state = STATE_NORMAL;
-               }
-            }
-            else {
-               func(value, user, 0);
-               state = STATE_NORMAL;
-               format--;
-            }
-            break;
-         case STATE_NARG:
-            width_value = -1;
-            prec_value = -1;
-            flags = 0;
-            length = 0;
-            field_arg = -1;
-            if (ch == '0') {
-               format--;
-               state = STATE_FLAGS;
-               break;
-            }
-            if (isdigit(ch)) {
-               //could be width or could be arg specifier or a 0 flag
-               //width and arg values don't start with 0
-               width_value = 0;
-               while (isdigit(ch)) {
-                  width_value = width_value * 10 + (ch - '0');
-                  ch = *format++;
-               }
-               if (ch == '$') {
-                  field_arg = width_value - 1;
-                  width_value = 0;
-                  state = STATE_FLAGS;
-               }
-               else {
-                  //this was a width
-                  format--;
-                  state = STATE_PRECISION;
-               }
-            }
-            else {
-               format--;
-               state = STATE_FLAGS;
-            }
-            break;
-         case STATE_FLAGS:
-            switch (ch) {
-               case '\'':
-                  flags |= FLAGS_TICK;
-                  break;
-               case '-':
-                  flags |= FLAGS_LEFT;
-                  break;
-               case '+':
-                  flags |= FLAGS_SIGN;
-                  break;
-               case ' ':
-                  flags |= FLAGS_SPACE;
-                  break;
-               case '#':
-                  flags |= FLAGS_HASH;
-                  break;
-               case '0':
-                  flags |= FLAGS_ZERO;
-                  break;
-               default:
-                  format--;
-                  if ((flags & (FLAGS_ZERO | FLAGS_LEFT)) == (FLAGS_ZERO | FLAGS_LEFT)) {
-                     //if both '-' and '0' appear, '0' is ignored
-                     flags &= ~FLAGS_ZERO;
-                  }
-                  state = STATE_WIDTH;
-                  break;
-            }
-            break;
-         case STATE_WIDTH:
-            if (ch == '*') {
-               ch = *format++;
-               int width_arg = 0;
-               if (isdigit(ch)) {
-                  while (isdigit(ch)) {
-                     width_arg = width_arg * 10 + (ch - '0');
-                     ch = *format++;
-                  }
-                  width_arg--;
-                  if (ch != '$') {
-                     //error
-                  }
-               }
-               else {
-                  width_arg = arg_count++;
-                  format--;
-               }
-               width_value = (int)args[width_arg];
-            }
-            else if (isdigit(ch)) {
-               width_value = 0;
-               while (isdigit(ch)) {
-                  width_value = width_value * 10 + (ch - '0');
-                  ch = *format++;
-               }
-               format--;
-            }
-            else {
-               //no width specified
-               format--;
-            }
-            state = STATE_PRECISION;
-            break;
-         case STATE_PRECISION:
-            if (ch == '.') {
-               //have a precision
-               ch = *format++;
-               if (ch == '*') {
-                  ch = *format++;
-                  int prec_arg = 0;
-                  if (isdigit(ch)) {
-                     while (isdigit(ch)) {
-                        prec_arg = prec_arg * 10 + (ch - '0');
-                        ch = *format++;
-                     }
-                     prec_arg--;
-                     if (ch != '$') {
-                        //error
-                     }
-                  }
-                  else {
-                     prec_arg = arg_count++;
-                     format--;
-                  }
-                  prec_value = (int)args[prec_arg];
-               }
-               else if (isdigit(ch)) {
-                  prec_value = 0;
-                  while (isdigit(ch)) {
-                     prec_value = prec_value * 10 + (ch - '0');
-                     ch = *format++;
-                  }
-                  format--;
-               }
-               else {
-                  //no precision specified
-                  format--;
-               }
-            }
-            else {
-               //no precision specified
-               format--;
-            }
-            state = STATE_LENGTH;
-            break;
-         case STATE_LENGTH:
-            switch (ch) {
-               case 'h':
-                  length = LENGTH_H;
-                  if (*format == 'h') {
-                     length++;
-                     format++;
-                  }
-                  break;
-               case 'l':
-                  length = LENGTH_L;
-                  if (*format == 'l') {
-//                     length++;
-                     format++;
-                  }
-                  break;
-               case 'j':
-                  length = LENGTH_J;
-                  break;
-               case 'z':
-                  length = LENGTH_Z;
-                  break;
-               case 't':
-                  length = LENGTH_T;
-                  break;
-               case 'L':
-                  length = LENGTH_CAPL;
-                  break;
-               default:
-                  format--;
-                  break;
-            }
-            state = STATE_CONVERSION;
-            break;
-         case STATE_CONVERSION: {
-            char num_buf[32];
-            char *num_ptr;
-            int use_caps = 1;
-            int sign;
-            int val;
-            if (field_arg == -1) {
-               field_arg = arg_count++;
-            }
-            switch (ch) {
-               case 'd': case 'i': {
-                  int len;
-                  switch (length) {
-                     case LENGTH_H:
-                        val = (short)(int)args[field_arg];
-                        sign = val < 0;
-                        if (sign) {
-                           val = -val;
-                        }
-                        num_ptr = r_utoa(val, num_buf);
-                        break;
-                     case LENGTH_HH:
-                        val = (char)(int)args[field_arg];
-                        sign = val < 0;
-                        if (sign) {
-                           val = -val;
-                        }
-                        num_ptr = r_utoa(val, num_buf);
-                        break;
-                     case LENGTH_L:
-                     default:
-                        val = (long)args[field_arg];
-                        sign = val < 0;
-                        if (sign) {
-                           val = -val;
-                        }
-                        num_ptr = r_utoa(val, num_buf);
-                        break;
-                  }
-                  len = num_ptr - num_buf + 1;
-                  if (width_value == -1) {
-                     //by default min length is the entire value
-                     width_value = len;
-                     if (sign || (flags & FLAGS_SIGN)) {
-                        width_value++;
-                     }
-                  }
-                  if (prec_value == -1) {
-                     //by default max is entire value
-                     prec_value = len;
-                     if ((flags & FLAGS_ZERO) != 0 && prec_value < width_value) {
-                        //widen precision if necessary to pad to width with '0'
-                        if (sign || (flags & FLAGS_SIGN)) {
-                           prec_value = width_value - 1;
-                        }
-                        else {
-                           prec_value = width_value;
-                        }
-                     }
-                  }
-                  else {
-                     if (prec_value < len) {
-                        prec_value = len;
-                     }
-                     //number won't need leading zeros
-                     flags &= ~FLAGS_ZERO;
-                  }
-                  if (flags & FLAGS_LEFT) {
-                     if (sign) {
-                        func('-', user, 0);
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     else if ((flags & FLAGS_SIGN) != 0) {
-                        func('+', user, 0);
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (width_value != 0) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                  }
-                  else {
-                     while (width_value > (prec_value + 1)) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                     if (sign) {
-                        func('-', user, 0);
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     else if ((flags & FLAGS_SIGN) != 0) {
-                        func('+', user, 0);
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     if (width_value > prec_value) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                     }
-                  }
-                  break;
-               }
-               case 'o': {
-                  int len;
-                  switch (length) {
-                     case LENGTH_H:
-                        num_ptr = r_otoa((unsigned short)(unsigned int)args[field_arg], num_buf);
-                        break;
-                     case LENGTH_HH:
-                        num_ptr = r_otoa((unsigned char)(unsigned int)args[field_arg], num_buf);
-                        break;
-                     case LENGTH_L:
-                     default:
-                        num_ptr = r_otoa((unsigned long)args[field_arg], num_buf);
-                        break;
-                  }
-                  if (flags & FLAGS_HASH) {
-                     if (*num_ptr != '0') {
-                        num_ptr++;
-                        *num_ptr = '0';
-                     }
-                  }
-                  len = num_ptr - num_buf + 1;
-                  if (width_value == -1) {
-                     //by default min length is the entire value
-                     width_value = len;
-                  }
-                  if (prec_value == -1) {
-                     //by default max is entire value
-                     prec_value = len;
-                     if ((flags & FLAGS_ZERO) != 0 && prec_value < width_value) {
-                        //widen precision if necessary to pad to width with '0'
-                        prec_value = width_value;
-                     }
-                  }
-                  else {
-                     if (prec_value < len) {
-                        prec_value = len;
-                     }
-                     flags &= ~FLAGS_ZERO;
-                  }
-                  if (flags & FLAGS_LEFT) {
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (width_value != 0) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                  }
-                  else {
-                     while (width_value > prec_value) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                     }
-                  }
-                  break;
-               }
-               case 'u': {
-                  int len;
-                  switch (length) {
-                     case LENGTH_H:
-                        num_ptr = r_utoa((unsigned short)(unsigned int)args[field_arg], num_buf);
-                        break;
-                     case LENGTH_HH:
-                        num_ptr = r_utoa((unsigned char)(unsigned int)args[field_arg], num_buf);
-                        break;
-                     case LENGTH_L:
-                     default:
-                        num_ptr = r_utoa((unsigned long)args[field_arg], num_buf);
-                        break;
-                  }
-                  len = num_ptr - num_buf + 1;
-                  if (width_value == -1) {
-                     //by default min length is the entire value
-                     width_value = len;
-                  }
-                  if (prec_value == -1) {
-                     //by default max is entire value
-                     prec_value = len;
-                     if ((flags & FLAGS_ZERO) != 0 && prec_value < width_value) {
-                        //widen precision if necessary to pad to width with '0'
-                        prec_value = width_value;
-                     }
-                  }
-                  else {
-                     if (prec_value < len) {
-                        prec_value = len;
-                     }
-                     flags &= ~FLAGS_ZERO;
-                  }
-                  if (flags & FLAGS_LEFT) {
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (width_value != 0) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                  }
-                  else {
-                     while (width_value > prec_value) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                     }
-                  }
-                  break;
-               }
-               case 'x':
-                  use_caps = 0;  //now fall into X case
-               case 'X': {
-                  int len;
-                  switch (length) {
-                     case LENGTH_H:
-                        num_ptr = r_xtoa((unsigned short)(unsigned int)args[field_arg], num_buf, use_caps);
-                        break;
-                     case LENGTH_HH:
-                        num_ptr = r_xtoa((unsigned char)(unsigned int)args[field_arg], num_buf, use_caps);
-                        break;
-                     case LENGTH_L:
-                     default:
-                        num_ptr = r_xtoa((unsigned long)args[field_arg], num_buf, use_caps);
-                        break;
-                  }
-                  len = num_ptr - num_buf + 1;
-                  if (width_value == -1) {
-                     //by default min length is the entire value
-                     width_value = len;
-                  }
-                  if (prec_value == -1) {
-                     //by default max is entire value
-                     prec_value = len;
-                     if ((flags & FLAGS_ZERO) != 0 && prec_value < width_value) {
-                        //widen precision if necessary to pad to width with '0'
-                        prec_value = width_value;
-                     }
-                  }
-                  else {
-                     if (prec_value < len) {
-                        prec_value = len;
-                     }
-                     flags &= ~FLAGS_ZERO;
-                  }
-                  if (flags & FLAGS_LEFT) {
-                     if (flags & FLAGS_HASH && (len != 1 || *num_ptr != '0')) {
-                        func('0', user, 0);
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                        func(use_caps ? 'X' : 'x', user, 0);
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (width_value != 0) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                  }
-                  else {
-                     while (width_value > (prec_value + 2)) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                     if (flags & FLAGS_HASH && (len != 1 || *num_ptr != '0')) {
-                        func('0', user, 0);
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                        func(use_caps ? 'X' : 'x', user, 0);
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     else {
-                        while (width_value > prec_value) {
-                           func(' ', user, 0);
-                           width_value--;
-                        }
-                     }
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                     }
-                  }
-                  break;
-               }
-               case 'f': case 'F':
-                  break;
-               case 'e': case 'E':
-                  break;
-               case 'g': case 'G':
-                  break;
-               case 'a': case 'A':
-                  break;
-               case 'c': {
-                  unsigned char ch = (unsigned char)(unsigned int)args[field_arg];
-                  if (width_value == -1) {
-                     width_value = 1;
-                  }
-                  if (flags & FLAGS_LEFT) {
-                     func((char)ch, user, 0);
-                     if (width_value > 0) {
-                        width_value--;
-                     }
-                     while (width_value != 0) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                  }
-                  else {
-                     while (width_value > 1) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                     func(ch, user, 0);
-                  }
-                  break;
-               }
-               case 's': {
-                  const char *s_arg = (const char *)args[field_arg];
-                  int len = cgc_strlen(s_arg);
-                  if (width_value == -1) {
-                     //by default min length is the entire string
-                     width_value = len;
-                  }
-                  if (prec_value == -1 || prec_value > len) {
-                     //by default max is entire string but no less than width
-                     prec_value = len;
-                  }
-                  if (flags & FLAGS_LEFT) {
-                     while (prec_value != 0) {
-                        func(*s_arg++, user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (width_value != 0) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                  }
-                  else {
-                     while (width_value > prec_value) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                     while (prec_value != 0) {
-                        func(*s_arg++, user, 0);
-                        prec_value--;
-                     }
-                  }
-                  break;
-               }
-               case 'p': {
-                  int len;
-                  flags |= FLAGS_HASH;
-                  num_ptr = r_xtoa((unsigned int)args[field_arg], num_buf, 0);
-                  len = num_ptr - num_buf + 1;
-                  if (prec_value == -1) {
-                     //by default max is entire value
-                     prec_value = len;
-                  }
-                  else {
-                     if (prec_value < len) {
-                        prec_value = len;
-                     }
-                     flags &= ~FLAGS_ZERO;
-                  }
-                  if (width_value == -1) {
-                     //by default min length is the entire value
-                     width_value = prec_value + 2;
-                  }
-                  if (flags & FLAGS_LEFT) {
-                     func('0', user, 0);
-                     if (width_value > 0) {
-                        width_value--;
-                     }
-                     func('x', user, 0);
-                     if (width_value > 0) {
-                        width_value--;
-                     }
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                        if (width_value > 0) {
-                           width_value--;
-                        }
-                     }
-                     while (width_value != 0) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                  }
-                  else {
-                     while (width_value > (prec_value + 2)) {
-                        func(' ', user, 0);
-                        width_value--;
-                     }
-                     func('0', user, 0);
-                     if (width_value > 0) {
-                        width_value--;
-                     }
-                     func('x', user, 0);
-                     if (width_value > 0) {
-                        width_value--;
-                     }
-                     while (prec_value > len) {
-                        func('0', user, 0);
-                        prec_value--;
-                     }
-                     while (prec_value != 0) {
-                        func(*num_ptr--, user, 0);
-                        prec_value--;
-                     }
-                  }
-                  break;
-               }
-               case 'n': {
-                  void *np = (void*)args[field_arg];
-                  unsigned int len = func(0, user, 1);
-                  switch (length) {
-                     case LENGTH_HH:
-                        *(unsigned char*)np = (unsigned char)len;
-                        break;
-                     case LENGTH_H:
-                        *(unsigned short*)np = (unsigned short)len;
-                        break;
-                     case LENGTH_L:
-                     default:
-                        *(unsigned int*)np = len;
-                        break;
-                  }
-                  break;
-               }
-               case 'C':
-                  break;
-               case 'S':
-                  break;
-               default:
-                  break;
-            }
-            state = STATE_NORMAL;
-            break;
-         }
-      }
-   }
-}
-
-int vdprintf(int fd, const char *format, va_list ap) {
-   struct _fd_printer fp;
-   fp.fd = fd;
-   fp.err = 0;
-   fp.count = 0;
-   printf_core(fd_printer, &fp, format, ap);
-   return fp.count;
-}
-
-#endif /* DEBUG */
 

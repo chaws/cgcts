@@ -1,94 +1,96 @@
-# OUTLAW
+# CGC Challenge Binary Template
 
 ## Author Information
 
-"Narf Industries" <info@narfindustries.com>
+"Nick Davis" <info@narfindustries.com>
 
 ### DARPA performer group
 
 Narf Industries (NRFIN)
 
-## Description:
+## Description
 
-OUTLAW provides ACaaS (Authenticated Compute as a Service).  The CB set implements a vulnerability similar to the TLS CRIME vulnerability by exposing a shared secret via a compression-like side channel.  An additional memory corruption vulnerability can be exercised by authenticated clients (or an authenticated MitM).  
+H20 Flow Inc brings you the hottest technology in programmable logic controllers (PLCs) used in the water distribution industry. We know how important it is for your water distrubition PLCs to do exactly what you tell them to do and nothing more. H2FLOW is our latest generation water flow valve controller.
 
-The CB set is composed of 3 CBs: (1) a CLIENT that issues requests to the SERVER, (2) the SERVER that responds to CLIENT requests, (3) a TAP, which speaks to the CRS and provides active MitM functionality to the CRS in the context of the CGC framework.
+### Feature List
 
-First, the CLIENT (CB1) and the SERVER (CB2) speak directly to one another and come to agreement on (1) the encryption key (enckey) used to protect the authentication key, (2) the authentication key (auth_token) used to authenticate SERVER responses to CLIENT queries as well as expose authenticated functionality to the CLIENT.
+The H2FLOW CB is a simple flow controller that manages the valves for the fill lines of several water tanks, based on commands provided by the intelligent PLC (the remote user).
 
-After this negotiation, the emulated active MitM vantage point is installed; CLIENT and SERVER speak only through TAP.  The TAP forwards all messages to the CRS, which is free to modify, drop, or forward the messages by sending a response to the TAP.  The TAP then forwards the message to the appropriate destination.  
+Each water tank has a defined capacity. Each tank also has a minimum fill level. If the fill level drops below the minimum fill level, an emergency circuit will activate the backup fill pump until the level returns to the minimum fill level. If the fill level drops below 5 units of volume, a critical fill level alarm is raised.
 
-The TAP architecture is intended to simulate an attacker that achieves active MitM following an exchange of secrets.  It should be noted, however, that even if the CRS was an active MitM during the secret negotiation phase, the secrets would not be directly revealed anyway as they require flag page knowledge.  The transition to TAP is provided as a means to demand additional reasoning on behalf of the CRS in line with what may happen in the real world.
+Each water tank has a random rate that water is flowing out of it (drain rate). This simulates periodic water usage by an end user or device.
 
-## Feature list:
-The CLIENT and SERVER (and TAP) speak a well-defined protocol that provides the following functionality:
-* SERVER-authenticated ADDs
-* SERVER-authenticated SUBTRACTs
-* SERVER-authenticated MULTIPLYs
-* SERVER-authenticated DIVIDEs
-* CLIENT-authenticated MODIFICATIONs to existing functionality.  Provided the auth_token, the CLIENT is permitted to reconfigure the ADD functionality as SUBTRACT and so on.
+There are a fixed number of tanks, their ID numbers are sequential starting from 0, the capacities are defined by the TANK\_CAP value, and initial fill level is defined by the INIT\_LEVEL value.
 
-In order to achieve authenticated message capability and some other requisite functionality (e.g. a seed-able PRNG), this CB set implements a modified form of the (public domain) Tiny Encryption Algorithm.  This modified TEA is used for both its key schedule (as PRNG output) and its encryption and decrytption capabilities (to protect the auth_token in transit).  It should be noted that different keys are used for PRNG and encryption / decryption.
+To simulate time and water flowing in and out of tanks, H2FLOW uses a sleep timer. During the sleep timer, the service is simulating execution of all received commands and the filling/emptying of tanks. 
 
-In order to implement a compression side channel, a bit-counting function that may be used as part of an RLE compression algorithm records the number of matching, starting bits between the answer to a CLIENT REQUEST and the auth_token.
+Between sleep timers, the service will iterate through the tanks. For each tank, it will send the remote user the tank status and then accept a command to apply to the valves for that tank.
 
+During each iteration, the drain and fill functions will remove water from tanks based on a random outflow rate and add water to tanks based on valve position and a fixed inflow rate. Finally, each tank will be tested for under fill.
 
-## Vulnerability 1
+H2FLOW has a very simple protocol. It accepts the following commands:
+- OPEN\_VALVE           : open fill valve
+- CLOSE\_VALVE          : close fill valve
+- NO\_CHANGE            : no valve changes
+- SET\_IN\_SERVICE      : for a tank that is OUT\_OF\_SERVICE, set the fill rate and allow tank to supply water to users
+- SET\_OUT\_OF\_SERVICE : close input valve, set fill\_rate and drain\_rate to 0
+- SET\_END\_OF\_LIFE    : same as SET\_OUT\_OF\_SERVICE, but is permanant
 
-Vuln #1 is proved vulnerable by PoV #1 and is of type 1.  It cannot be exercised without first exercising Vuln #2, so read that one first.
+## Vulnerability
 
-As a man in the middle, the attacker has successfully revealed the auth_token, as described below.  With the auth_token, the attacker is able to exercise the OP_MOD functionality of the SERVER.  This functionality is intended to allow the CLIENT to reconfigure the operations of the SERVER to redefine, say ADDITION to SUBTRACTION.
+Two things need to happen to trigger the POV.
 
-This feature is poorly implemented, but the designer's rationale is it's an authenticated feature anyway; what could go wrong?  The implementation take a function pointer out of the message and writes it to an operations table.  An attacker with the auth_token can therefore redirect a function pointer and later exercise the function pointer to achieve Type 1 PoV.
+First, a tank needs to be filled beyond capacity. Due to the tank level being an unsigned char, when it reach 255, the next unit of H2O added will cause the value to overflow to 0. The function tank.c:add_water() does not check the bounds on t->level to prevent overflow.
 
-### CWE classification
+Second, after both the combined fill and drain operation, the level of the tank must be in the range [0-5]. This will ensure the test for critically low level at operation.c:88 returns TRUE. Note, the update\_water\_levels function (drain and fill operations) is run before the low level tests are run. Thus, it is required for the drain + fill to cause a net int overflow. Also, it is possible for the int overflow to overflow to a level greater than 5, resulting in a value that is not in the range [0-5], and thus will not trigger the critical low level alert.
 
-CWE-300: Channel Accessible by Non-Endpoint ("Man in the Middle")
-CWE-465: Pointer Issues
-CWE-822: Untrusted Pointer Dereference
+When the syslog function is called in operation.c:93, the tank number variable access has a coding mistake where the array index is the TANK\_QTY, instead of idx, which causes an out of bounds access and a null pointer dereference. This will trigger SIGSEGV.
 
-### Challenges
+### Generic class of vulnerability
 
-* Being able to speak effectively in the 3-CB TAP architecture.
-* Reasoning about what *should* be allowed on this interface (or deciding to remove it entirely).
+Null pointer dereference
 
-### Difficulty
+Improper checking of loop invariant
 
-The following assumes the attacker already solved Vuln #2, which is a blocker for Vuln #1.  Although this is considered "easy", it is guarded by more difficult problems and should therefore be treated in series with Vuln #2.
+Improper array bounds checking
 
-* Discovering is easy
-* Proving is easy
-* Fixing is easy
+Integer Overflow
 
-
-## Vulnerability 2
-
-Vuln #2 is a logic bug that inadvertently discloses contents of the flag page.  Specifically, auth_token is taken directly from the flag page and may be leaked through a compression artifact side channel.  This vulnerability is meant to emulate the TLS CRIME vulnerability.
-
-To be more specific, RESPONSES from the SERVER to the CLIENT contain the answer to the CLIENTs query concatenated with the auth_token, encrypted under a shared key.  In addition, unencrypted compression artifacts are included.  This compression artifact is the number of bits in common between the answer and the auth_token.  The real-world parallel is a partially implement RLE compression algorithm applied to concat(answer, auth_token) prior to encryption. The ability to compress (or not) the concatenated values reveals information about the secret auth_token.
-
-The attacker is able to craft REQUESTs such that the (known) answer to the REQUESTs matches some number of leading bits with the auth_token.  The attack progressively improves his guess by modifying his hypothesis according to the Number of Matching Bits (NMB) field in the SERVER RESPONSES.
-
-After a maximum of 32 queries, the attacker has disclosed the auth_token through this side channel.  The attacker is able to submit the auth_token as as Type 2 flag or use it to exercise authenticated functionality to achieve a Type 1 PoV (see above). 
+Access memory beyond buffer
 
 ### CWE classification
 
-CWE-200: Information Disclosure
-CWE-201: Information Disclosure Through Sent Data
-CWE-300: Channel Accessible by Non-Endpoint ("Man in the Middle")
-CWE-310: Cryptographic Issues
-CWE-514: Covert Channel
-CWE-515: Covert Storage Channel
+Improper Input Validation
+CWE-20
 
-There does not appear to be a CWE that explicitly covers compression side channels nor the type of logic bug present in TLS and exploited by CRIME.  Notably, others have cited CWE-310 as the best category for the CRIME vulnerability - a very generic bucket.
+Wrap-around Error
+CWE-128
 
-### Challenges
+Improper Validation of Array Index
+CWE-129
 
-* Being able to speak effectively in the 3-CB TAP architecture.
-* Reasoning through a somewhat complex side channel.
+Integer Overflow or Wraparound
+CWE-190
 
-### Difficulty
+Access of Memory Location After End of Buffer
+CWE-788
 
-* Discovering is medium
-* Proving is hard
-* Fixing is easy
+Buffer Access with Incorrect Length Value
+CWE-805
+
+Access of Uninitialized Pointer
+CWE-824
+
+## Challenges
+* The protocol is pretty simple, but the first hurdle is to know that the tanks all start in the OUT\_OF\_SERVICE status. So, continued communication with the CB requires the first commands to be SET\_IN\_SERVICE to place tanks in service. After that, some of the other commands will work. A dumb random fuzzer will have problems with this because the order of commands used on a given tank matters.
+
+* To make the POV harder to exploit, the sleep() function is run once per iteration through the tanks. This makes the POV harder to exploit, because sending random commands will eventually trigger the poller timeout before it will have enough time to overflow the tank level and trigger the POV. The sleep value was chosen specifically to make so it is only possible to overflow the tank level if sending the first command as SET\_IN\_SERVICE followed by OPEN\_VALVE for every subsequent iteration. Other sequences have a high probability of ending due to timeout before they can fill the tank. To get N iterations in 15 seconds, want a sleep of 15/N. In testing we found the following results:
+** with fill_rate 10, it takes 39 iterations -> sleep 15/39 = .385s
+** with fill_rate 11, it takes 33 iterations -> sleep 15/33 = .454s
+** will fill_rate 12, it takes 26 iterations -> sleep 15/26 = .577s
+** with fill_rate 15, it takes 17 iterations -> sleep 15/17 = .882s
+
+* Additionally, to make the POV harder to reach by fuzzing, we added commands that place the tank either out-of-service or in an end-of-life state. When the tank is in the end-of-life state it can no longer be brought back into service. When the tank is in the out-of-service state, it requires the SET\_IN\_SERVICE command to bring it back into service.
+
+* One more thing that makes this more challenging is the lack of for-release pollers. This series of challenges should help to show distinctions between how CRS's use fuzzing.
+

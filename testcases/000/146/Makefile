@@ -1,4 +1,4 @@
-CHAL=REDPILL
+CHAL=middleout
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,61 +20,69 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/threads.c.o -c cb_6/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/libc.c.o -c cb_6/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/src/t5.c.o -c cb_6/src/t5.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/libc.c.o -c cb_1/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/kernel.c.o -c cb_1/src/kernel.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/threads.c.o -c cb_3/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/libc.c.o -c cb_3/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/t2.c.o -c cb_3/src/t2.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/threads.c.o -c cb_4/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/libc.c.o -c cb_4/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/src/t3.c.o -c cb_4/src/t3.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/threads.c.o -c cb_2/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/libc.c.o -c cb_2/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/t1.c.o -c cb_2/src/t1.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/threads.c.o -c cb_5/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/libc.c.o -c cb_5/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/src/t4.c.o -c cb_5/src/t4.c
-	$(CC) $(FLAGS) -o REDPILL_6_patched cb_6/lib/threads.c.o cb_6/lib/libc.c.o cb_6/src/t5.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_1_patched cb_1/lib/libc.c.o cb_1/src/kernel.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_3_patched cb_3/lib/threads.c.o cb_3/lib/libc.c.o cb_3/src/t2.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_5_patched cb_5/lib/threads.c.o cb_5/lib/libc.c.o cb_5/src/t4.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_2_patched cb_2/lib/threads.c.o cb_2/lib/libc.c.o cb_2/src/t1.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_4_patched cb_4/lib/threads.c.o cb_4/lib/libc.c.o cb_4/src/t3.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strcat.c.o -c lib/strcat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o src/meta.c.o -c src/meta.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o src/main.c.o -c src/main.c
+	$(CXX) $(FLAGS) -o middleout_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/meta.c.o src/main.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/threads.c.o -c cb_2/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/libc.c.o -c cb_2/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/t1.c.o -c cb_2/src/t1.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/threads.c.o -c cb_3/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/libc.c.o -c cb_3/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/t2.c.o -c cb_3/src/t2.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/threads.c.o -c cb_4/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/libc.c.o -c cb_4/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/src/t3.c.o -c cb_4/src/t3.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/libc.c.o -c cb_1/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/kernel.c.o -c cb_1/src/kernel.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/threads.c.o -c cb_5/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/libc.c.o -c cb_5/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/src/t4.c.o -c cb_5/src/t4.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/threads.c.o -c cb_6/lib/threads.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/libc.c.o -c cb_6/lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/src/t5.c.o -c cb_6/src/t5.c
-	$(CC) $(FLAGS) -o REDPILL_1 cb_1/lib/libc.c.o cb_1/src/kernel.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_2 cb_2/lib/threads.c.o cb_2/lib/libc.c.o cb_2/src/t1.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_3 cb_3/lib/threads.c.o cb_3/lib/libc.c.o cb_3/src/t2.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_4 cb_4/lib/threads.c.o cb_4/lib/libc.c.o cb_4/src/t3.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_5 cb_5/lib/threads.c.o cb_5/lib/libc.c.o cb_5/src/t4.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o REDPILL_6 cb_6/lib/threads.c.o cb_6/lib/libc.c.o cb_6/src/t5.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strcat.c.o -c lib/strcat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o src/meta.c.o -c src/meta.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o src/main.c.o -c src/main.c
+	$(CXX) $(FLAGS) -o middleout lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/meta.c.o src/main.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o REDPILL_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -O0 -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o middleout_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o cb_6/lib/threads.c.o cb_6/lib/libc.c.o cb_6/src/t5.c.o cb_1/lib/libc.c.o cb_1/src/kernel.c.o cb_2/lib/threads.c.o cb_2/lib/libc.c.o cb_2/src/t1.c.o cb_3/lib/threads.c.o cb_3/lib/libc.c.o cb_3/src/t2.c.o cb_3/lib/threads.c.o cb_3/lib/libc.c.o cb_3/src/t2.c.o cb_4/lib/threads.c.o cb_4/lib/libc.c.o cb_4/src/t3.c.o cb_1/lib/libc.c.o cb_1/src/kernel.c.o cb_4/lib/threads.c.o cb_4/lib/libc.c.o cb_4/src/t3.c.o cb_5/lib/threads.c.o cb_5/lib/libc.c.o cb_5/src/t4.c.o cb_6/lib/threads.c.o cb_6/lib/libc.c.o cb_6/src/t5.c.o cb_2/lib/threads.c.o cb_2/lib/libc.c.o cb_2/src/t1.c.o cb_5/lib/threads.c.o cb_5/lib/libc.c.o cb_5/src/t4.c.o REDPILL_pov_1 REDPILL_6_patched REDPILL_1_patched REDPILL_2 REDPILL_3_patched REDPILL_3 REDPILL_4 REDPILL_1 REDPILL_4_patched REDPILL_5 REDPILL_6 REDPILL_2_patched REDPILL_5_patched
+	rm -f pov_1/pov.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/meta.c.o src/main.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/meta.c.o src/main.c.o middleout_pov_1 middleout_patched middleout

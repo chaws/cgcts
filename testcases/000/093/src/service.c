@@ -23,20 +23,51 @@
 #include "cgc_libc.h"
 #include "cgc_operation.h"
 #include "cgc_service.h"
-#include "cgc_rxtx.h"
 
-
+enum {
+    CMD_ADD_HAIKU = 1492,
+    CMD_GET_HAIKU_BY_ID = 1999,
+    CMD_GET_HAIKU_RANDOM = 200042,
+    CMD_GET_COUNT = 1210000,
+    CMD_GET_IDS = 8675309,
+};
 
 int main(int cgc_argc, char *cgc_argv[]) {
 
+    uint32_t command[1] = {0};
     int ret = 0;
 
-    ret = cgc_play_game();
 
-    if (0 > ret) {
-        cgc_send_error(ret);
+    while (1) {
+        RECV(command, sizeof(uint32_t));
+
+        switch (command[0]) {
+            case CMD_ADD_HAIKU:
+                ret = cgc_add_haiku();
+                break;
+            case CMD_GET_HAIKU_BY_ID:
+                ret = cgc_get_haiku_by_id();
+                break;
+            case CMD_GET_HAIKU_RANDOM:
+                ret = cgc_get_haiku_cgc_random();
+                break;
+            case CMD_GET_COUNT:
+                ret = cgc_get_haiku_count();
+                break;
+            case CMD_GET_IDS:
+                ret = cgc_get_haiku_ids();
+                break;
+            default:
+                ret = ERR_INVALID_CMD;
+        }
+
+        if (ret < 0) {
+            SENDSI(ret);
+            return ret;
+        }
+
+        command[0] = 0;
     }
 
-	return ret;        
-
+    return ret;
 }

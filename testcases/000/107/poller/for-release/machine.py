@@ -1,747 +1,400 @@
 #!/usr/bin/env python
-#
-# Copyright (C) 2015 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 
-from generator.actions import Actions, Variable
-import string
+from generator.actions import Actions
 import random
-import itertools
-import math
-from struct import *
-
-class TemplateGenerator(Actions):
-
-	def _getRandomName(self):
-		name = ''
-		for c in range(10):
-			randomVal = ord(self.magic_page[self.magic_idx+c])
-			if randomVal % 2 == 0:
-				name += chr(ord('A') + (randomVal % 26))
-			else:
-				name += chr(ord('a') + (randomVal % 26))
-
-		self.magic_idx = (self.magic_idx + 10) % 100
-
-		return name
-
-	def _read_view(self):
-		for _ in range(self.VIEW_HEIGHT):
-			self.read(delim="\n", expect=".*", expect_format='pcre')
-
-	def _quit_game(self):
-		self.write(self.state['quit'])
-		self.write("\n")
-
-	def _move_left(self):
-		self.moves += 1
-		self.write(self.state['left'])
-		self.write("\n")
-		##self._read_view()
-
-	def _move_right(self):
-		self.moves += 1
-		self.write(self.state['right'])
-		self.write("\n")
-		#self._read_view()
-
-	def _jump(self):
-		self.moves += 1
-		self.write(self.state['jump'])
-		self.write("\n")
-		#self._read_view()
-		#self._read_view()
-		#self._read_view()
-		#self._read_view()
-
-	def _jumpLeft(self):
-		self.moves += 1
-		self.write(self.state['jumpleft'])
-		self.write("\n")
-		#self._read_view()
-		#self._read_view()
-		#self._read_view()
-
-	def _jumpRight(self):
-		self.moves += 1
-		self.write(self.state['jumpright'])
-		self.write("\n")
-		#self._read_view()
-		#self._read_view()
-		#self._read_view()
-
-	def _wait(self):
-		self.moves += 1
-		self.write(self.state['wait'])
-		self.write("\n")
-		#self._read_view()
-
-	def _getMenuInstruction(self):
-		menu_hdr = "Menu\n"
-		self.read(delim="\n", expect=menu_hdr)
-		line = "-----\n"
-		self.read(delim="\n", expect=line)
-		self.read(length=13, assign=self.state['play'])
-		self.read(length=20, assign=self.state['instructions'])
-		self.read(length=15, assign=self.state['highScore'])
-		self.read(length=13, assign=self.state['quit'])
-
-	def _getGameDescription(self):
-		self.write(self.state['instructions'])
-		self.write("\n")
-		game_menu_hdr = "Game moves\n"
-		self.read(delim="\n", expect=game_menu_hdr)
-		line = "----------\n"
-		self.read(delim="\n", expect=line)
-		self.read(length=8, assign=self.state['left'])
-		self.read(length=9, assign=self.state['right'])
-		self.read(length=8, assign=self.state['jump'])
-		self.read(length=13, assign=self.state['jumpleft'])
-		self.read(length=14, assign=self.state['jumpright'])
-		self.read(length=8, assign=self.state['wait'])
-		self.read(length=13, assign=self.state['quit'])
-
-	def _rightWin(self):
-		length = random.randint(5,20)
-		name = ''.join(random.choice(string.ascii_letters) for _ in range(length))
-		eip = 'AAAA'
-		ebp = 'BBBB'
-		sled = '0'*42
-		#name = sled + ebp + eip
-		win_pcre = r'You found the treasure at position x:([0-9]*) y:([0-9]*) after ([0-9]*) moves\n'
-		self.user_id += 1
-		varname = "user"+str(self.user_id)
-		win = Variable(varname)
-		win.set_re(win_pcre, group=3)
-		self.write(self.state['right'])
-		self.write("\n")
-		self.read(delim="\n", assign=win)
-		move_pcre = r'Move list: (.*)\n'
-		self.read(delim="\n", expect=move_pcre, expect_format='pcre')
-		get_name_msg = "Please enter your name: "
-		self.read(length=len(get_name_msg), expect=get_name_msg)
-		self.highScores.append(dict(name=name, score=win))
-		self.write(name+"\n")
-		#self.write(sled)
-		#self.write(ebp)
-		#self.write(eip)
-
-	def _diedBat(self):
-		died_pcre = r'You were killed by a bat at position x:([0-9]*) y:([0-9]*) after ([0-9]*) moves\n'
-		self.read(delim="\n", expect=died_pcre, expect_format='pcre')
-
-	def _diedZombie(self):
-		died_pcre = r'You were killed by a zombie at position x:([0-9]*) y:([0-9]*) after ([0-9]*) moves\n'
-		self.read(delim="\n", expect=died_pcre, expect_format='pcre')
-
-
-	def start(self):
-		#self.delay(100)
-		self.magic_idx = 0
-		self.user_id = 0
-		self.highScores = []
-		self.highScores.append(dict(name=self._getRandomName(), score=600))
-		self.highScores.append(dict(name=self._getRandomName(), score=601))
-		self.highScores.append(dict(name=self._getRandomName(), score=999999))
-		play_re = "Play game: (.*)\n"
-		play = Variable('play')
-		play.set_re(play_re, group=1)
-		self.state['play'] = play
-		instructions_re = "Get instructions: (.*)\n"
-		instructions = Variable('instructions')
-		instructions.set_re(instructions_re, group=1)
-		self.state['instructions'] = instructions
-		scores_re = "High Scores: (.*)\n"
-		scores = Variable('highScore')
-		scores.set_re(scores_re, group=1)
-		self.state['highScore'] = scores
-		quit_re = "Quit game: (.*)\n"
-		quit = Variable('quit')
-		quit.set_re(quit_re, group=1)
-		self.state['quit'] = quit
-		left_re = "Left: (.*)\n"
-		left = Variable('left')
-		left.set_re(left_re, group=1)
-		self.state['left'] = left
-		right_re = "Right: (.*)\n"
-		right = Variable('right')
-		right.set_re(right_re, group=1)
-		self.state['right'] = right
-		jump_re = "Jump: (.*)\n"
-		jump = Variable('jump')
-		jump.set_re(jump_re, group=1)
-		self.state['jump'] = jump
-		jumpleft_re = "Jump Left: (.*)\n"
-		jumpleft = Variable('jumpleft')
-		jumpleft.set_re(jumpleft_re, group=1)
-		self.state['jumpleft'] = jumpleft
-		jumpright_re = "Jump Right: (.*)\n"
-		jumpright = Variable('jumpright')
-		jumpright.set_re(jumpright_re, group=1)
-		self.state['jumpright'] = jumpright
-		wait_re = "Wait: (.*)\n"
-		wait = Variable('wait')
-		wait.set_re(wait_re, group=1)
-		self.state['wait'] = wait
-		self._getMenuInstruction()
-		self._firstScores()
-		self.menu()
-
-	def menu(self):
-		self._getMenuInstruction()
-
-	def instructions(self):
-		self._getGameDescription()
-		self._getMenuInstruction()
-
-	def play(self):
-		self.VIEW_HEIGHT = 13
-		self.VIEW_WIDTH = 25
-		self.SECRET_NUM = 600
-		self.moves = 0
-		self.write(self.state['play'])
-		self.write("\n")
-		#self._read_view()
-
-		#descend stairs
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-
-		#get to end
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-
-		#setup next room choice
-		for _ in range(37):
-			self._wait()
-
-	def start2zombie(self):
-		self._jumpLeft()
-		self._jumpLeft()
-		self._jumpLeft()
-		self._diedZombie()
-
-	def start2bat(self):
-		self._jumpLeft()
-		self._jumpLeft()
-		self._move_left()
-		for _ in range(3):
-			self._wait()
-		self._jumpRight()
-		self._jumpLeft()
-		self._jumpLeft()
-		self._jumpLeft()
-		self._jumpLeft()
-		self._jumpLeft()
-		self._jumpLeft()				
-		self._move_right()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._diedBat()
-
-	def start2first(self):
-		#choose first
-		self._move_left()
-
-		#get to first
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-
-		#setup next room choice
-		for _ in range(40):
-			self._wait()
-
-	def first2first(self):
-		#choose first
-		self._move_left()
-
-		#get to finish
-		self._jumpRight()
-		self._wait()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-
-		#setup next room choice
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-
-		for _ in range(24):
-			self._wait()
-
-	def first2second(self):
-		#choose second
-		self._move_right()
-
-		#get to second
-		self._jumpRight()
-		self._wait()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._move_right()
-		self._jumpLeft()
-		self._move_left()
-		self._move_left()
-		self._jumpRight()
-		self._move_right()
-
-		for _ in range(24):
-			self._wait()
-
-	def start2second(self):
-		#choose second
-		self._move_right()
-		
-		#get to finish
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpLeft()
-		self._move_left()
-		self._jumpLeft()
-		self._move_left()
-		self._jumpLeft()
-
-		#setup next room choice
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._wait()
-
-		for _ in range(24):
-			self._wait()
-
-	def second2first(self):
-		#choose first
-		self._move_left()
-
-		#get to first
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-
-		#setup next room choice
-		self._wait()
-
-		for _ in range(24):
-			self._wait()
-
-	def second2second(self):
-    	#choose second
-  		self._move_right()
-
-		#get to finish
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpLeft()
-		self._move_left()
-		self._move_left()
-		self._jumpRight()
-		self._move_right()
-
-		for _ in range(24):
-			self._wait()
-
-	def start2last(self):
-		#choose last
-		self._wait()
-
-		#move to treasure
-		self._move_right()
-		self._move_right()
-		self._wait()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._wait()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._rightWin()
-
-	def first2last(self):
-		while(self.moves < self.SECRET_NUM):
-			self.first2first()
-
-		#choose last
-		self._wait()
-
-		#move to door
-		self._jumpRight()
-		self._wait()
-		self._jumpRight()
-
-		#move to treasure
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-		self._move_right()
-		self._rightWin()
-
-	def second2last(self):
-		while(self.moves < self.SECRET_NUM):
-			self.second2second()
-
-		#choose last
-		self._wait()
-
-		#move to door
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-
-		#move to treasure
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._wait()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._rightWin()
-
-	def _firstScores(self):
-		self.write(self.state['highScore'])
-		self.write("\n")
-		#if len(self.highScores) == 0:
-		#	no_scores_msg = "NO HIGH SCORES!\n"
-		#	self.read(delim="\n", expect=no_scores_msg)
-		#else:
-		top_score_msg = "Dungeon conquered in " + str(self.highScores[0]['score']) + " moves " + self.highScores[0]['name'] + "\n"
-		self.read(delim="\n", expect=top_score_msg)
-		line_msg = "-------------------\n"
-		self.read(delim="\n", expect=line_msg)
-		title_msg =  " moves   |   name  \n"
-		self.read(delim="\n", expect=title_msg)
-		self.read(delim="\n", expect=line_msg)
-		#score_pcre = r'([0-9]*). ([0-9]*)  (.*)\n'
-		#self.read(delim="\n", expect=score_pcre, expect_format='pcre')
-		#self.read(delim="\n", expect=score_pcre, expect_format='pcre')
-		for index,score in enumerate(self.highScores[1:]):
-			score_msg = str(index+2) + ". " + str(score['score']) + "  " + score['name'] + "\n"
-			self.read(delim="\n", expect=score_msg)
-
-	def scores(self):
-		self.write(self.state['highScore'])
-		self.write("\n")
-		#if len(self.highScores) == 0:
-		#	no_scores_msg = "NO HIGH SCORES!\n"
-		#	self.read(delim="\n", expect=no_scores_msg)
-		#else:
-		top_score_msg = r'Dungeon conquered in ([0-9]*) moves (.*)\n'
-		self.read(delim="\n", expect=top_score_msg, expect_format='pcre')
-		line_msg = "-------------------\n"
-		self.read(delim="\n", expect=line_msg)
-		title_msg =  " moves   |   name  \n"
-		self.read(delim="\n", expect=title_msg)
-		self.read(delim="\n", expect=line_msg)
-		score_pcre = r'([0-9]*). ([0-9]*)  (.*)\n'
-		self.read(delim="\n", expect=score_pcre, expect_format='pcre')
-		self.read(delim="\n", expect=score_pcre, expect_format='pcre')
-		for _ in self.highScores[3:]:
-			self.read(delim="\n", expect=score_pcre, expect_format='pcre')
-
-
-	def attack1(self):
-		self.VIEW_HEIGHT = 13
-		self.VIEW_WIDTH = 25
-		self.write(self.state['play'])
-		self.write("\n")
-
-		for _ in range(64):
-			self._move_left()
-
-		for _ in range(64):
-			self._move_left()
-
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-
-		self._jumpRight()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		for _ in range(12):
-			self._wait()
-		self._jumpRight()
-		for _ in range(8):
-			self._move_right()
-		self._move_left()
-		self._move_left()
-		self._move_left()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._jump()		
-		self._move_right()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpLeft()
-		self._move_left()
-		self._jumpLeft()
-		self._jumpRight()
-		for _ in range(7):
-			self._move_right()
-		self._jumpRight()
-		for _ in range(8):
-			self._wait()
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()		
-		self._move_right()
-		for _ in range(27):
-			self._wait()		
-		self._jumpRight()
-		self._move_right()
-		self._move_right()
-		self._jumpRight()
-		for _ in range(15):
-			self._wait()
-		self._jumpRight()
-
-		self._move_right()
-		self._move_right()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._move_right()				
-		self._jumpRight()
-		self._jumpRight()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-		self._jumpRight()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._wait()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._jumpRight()
-		self._move_right()
-		self.write(self.state['right'])
-		self.write("\n")
-		self.read(delim="\n", assign=self.state['win'])
-		first_pcre = r'Move list: (.{512})'
-		flag_pcre = r'(.{40})'
-		last_pcre = r'(.*)\n'
-		flag = Variable('flag')
-		flag.set_re(flag_pcre, group=1)
-		self.state['flag'] = flag
-		self.read(length=523, expect=first_pcre, expect_format='pcre')
-		self.read(length=40, assign=self.state['flag'])
-		self.read(delim="\n", expect=last_pcre, expect_format='pcre')
-
-	def quit(self):
-		self._quit_game()
-		return -1
+import string
+from struct import pack, unpack, unpack_from
+from ctypes import *
+from math import floor
+import numpy as np
+
+NEW_FILE        = '\x01'
+CHECK_FILE      = '\x02'
+SKEW_IMAGE      = '\x03'
+ROTATE_IMAGE    = '\x04'
+BRIGHTNESS      = '\x05'
+OPACITY         = '\x06'
+COMPRESS        = '\x07'
+DECOMPRESS      = '\x08'
+SHOW_PIXEL      = '\x09'
+SCALE_IMAGE     = '\x0a'
+EXIT            = '\x0b'
+
+COORDS          = [ ('x',0) , ('y',1) , ('z',2) ]
+
+MAX_PIXELS      = 4096/10
+
+M_PI            = 3.14159265358979323846
+
+class Poller(Actions):
+
+    red_blue   = [ 0x00, 0x20, 0x40, 0x60, 0xA0, 0xC0, 0xE0, 0xFF ]
+    green      = [ 0x00, 0x60, 0xB0, 0xFF ]
+
+    def start(self):
+        self.delay(50)
+        self.read(delim='\n', expect='3D Coordinates (3DC) Image File Format Tools\n')
+        self.file_data = []
+        self.compressed = ""
+        self.compressed_colors = []
+        self.last_shown = 0
+        self.decompress_flag = 0
+        self.count = 0
+
+        # setup ctypes for prng functions
+        self.dll = CDLL('build/patched/so/CROMU_00078.so')
+        self.seed_prng = self.dll.seed_prng
+        self.seed_prng.argtypes = [ c_uint ]
+        self.seed_prng.restype = None
+        self.random_in_range = self.dll.random_in_range
+        self.random_in_range.argtypes = [ c_uint, c_uint ]
+        self.random_in_range.restype = c_uint
+        self.prng = self.dll.prng
+        self.prng.argtypes = [ ]
+        self.prng.restype = c_uint
+
+        self.multiply = self.dll.multiply
+        self.multiply.argtypes = [ c_double, c_double ]
+        self.multiply.restype = c_int
+
+        self.divide = self.dll.divide
+        self.divide.argtypes = [ c_double, c_double ]
+        self.divide.restype = c_short
+
+        self.degToRad = self.dll.degree_to_radian
+        self.degToRad.argtypes = [ c_short ]
+        self.degToRad.restype = c_short
+
+        self.cos = self.dll.cosine
+        self.cos.argtypes = [ c_short ]
+        self.cos.restype = c_double
+
+        self.sin = self.dll.sine
+        self.sin.argtypes = [ c_short ]
+        self.sin.restype = c_double
+
+    def readFile(self):
+        self.seed_prng(c_uint(unpack('<L', self.magic_page[0:4])[0]))
+
+        x = 0
+        for _ in xrange(4096/10):
+            # z, r, x, a, b, y, g
+            t = {}
+            t['x'] = c_short(self.prng()).value
+
+            x += 2
+            t['y'] = c_short(self.prng()).value
+
+            x += 2
+            t['z'] = c_short(self.prng()).value
+
+            x += 2
+            t['r'] = c_ubyte(self.prng()).value
+
+            x += 1
+            t['g'] = c_ubyte(self.prng()).value
+
+            x += 1
+            t['b'] = c_ubyte(self.prng()).value
+
+            x += 1
+            t['a'] = c_ubyte(self.prng()).value
+
+            x += 1
+            self.file_data.append(t)
+
+
+
+    def top(self):
+        self.count += 1
+        if self.count > 5:
+            self.end()
+            return -1
+        pass
+
+    def checkFile(self):
+        self.write(CHECK_FILE)
+        self.read(delim='\n', expect='CHECK_FILE selected\n')
+        for px in self.file_data:
+            self.read(delim='\n', expect='XYZ:  (%d, %d, %d)\n' % (px['x'], px['y'], px['z']) )
+            self.read(delim='\n', expect='RGBA: (#%02x%02x%02x%02x)\n' % (px['r'], px['g'], px['b'], px['a']) )
+            self.read(delim='\n', expect='\n')
+
+    def newFile(self):
+        self.write(NEW_FILE)
+        self.read(delim='\n', expect='NEW_FILE selected\n')
+        self.read(delim='\n', expect='Please submit your new file data (%d bytes):\n' % (MAX_PIXELS * 10))
+
+        self.file_data = []
+        x = 0
+
+        data_to_send = ""
+
+        while (x < 4090):
+            t = {}
+
+            new_x = random.randint(-32767,32767)
+            new_y = random.randint(-32767,32767)
+            new_z = random.randint(-32767,32767)
+            new_r = random.randint(0,255)
+            new_g = random.randint(0,255)
+            new_b = random.randint(0,255)
+            new_a = random.randint(0,255)
+
+            data_to_send += pack("<h", new_x)
+            data_to_send += pack("<h", new_y)
+            data_to_send += pack("<h", new_z)
+            data_to_send += pack("<B", new_r)
+            data_to_send += pack("<B", new_g)
+            data_to_send += pack("<B", new_b)
+            data_to_send += pack("<B", new_a)
+
+            t['x'] = new_x
+            t['y'] = new_y
+            t['z'] = new_z
+            t['r'] = new_r
+            t['g'] = new_g
+            t['b'] = new_b
+            t['a'] = new_a
+
+            x += 10
+            self.file_data.append(t)
+
+        self.write(data_to_send)
+
+        self.read(delim='\n', expect='New file loaded\n')
+
+        return
+
+
+    def skewImage(self):
+        self.write(SKEW_IMAGE)
+        self.read(delim='\n', expect='SKEW_IMAGE selected\n')
+
+        coord = random.choice(COORDS)
+        self.write(pack("<B",coord[1]))
+
+        skew_val = c_short(random.randint(-32767,32767))
+        self.write(pack("<h",skew_val.value))   # Skew amount
+
+        for px in self.file_data:
+            tmp = c_short(px[coord[0]])
+            px[coord[0]] = c_short(tmp.value + skew_val.value).value
+
+        return
+
+
+    def rotateImage(self):
+        multiply = self.multiply
+        sin = self.sin
+        cos = self.cos
+        self.write(ROTATE_IMAGE)
+        self.read(delim='\n', expect='ROTATE_IMAGE selected\n')
+
+        coord = random.choice(COORDS)
+        self.write(pack("<B",coord[1]))
+
+        degree = random.randint(-32767,32767)
+        self.write(pack("<h",degree))   # Skew amount
+
+        a = self.degToRad(degree)
+
+        for px in self.file_data:
+            if coord[0] is 'x':
+                px['y'] = c_short(multiply(px['y'], cgc_cos(a)) - multiply(px['z'], cgc_sin(a))).value
+                px['z'] = c_short(multiply(px['y'], cgc_sin(a)) + multiply(px['z'], cgc_cos(a))).value
+
+            elif coord[0] is 'y':
+                px['x'] = c_short(multiply(px['z'], cgc_sin(a)) + multiply(px['x'], cgc_cos(a))).value
+                px['z'] = c_short(multiply(px['z'], cgc_cos(a)) - multiply(px['x'], cgc_sin(a))).value
+
+            elif coord[0] is 'z':
+                px['x'] = c_short(multiply(px['x'], cgc_cos(a)) - multiply(px['y'], cgc_sin(a))).value
+                px['y'] = c_short(multiply(px['x'], cgc_sin(a)) + multiply(px['y'], cgc_cos(a))).value
+
+            else:
+                continue
+
+        return
+
+    def scaleImage(self):
+        divide = self.divide
+        multiply = self.multiply
+        self.write(SCALE_IMAGE)
+        self.read(delim='\n', expect='SCALE_IMAGE selected\n')
+        scale_val = random.randint(1,200)
+
+        self.write(pack("<h", scale_val))
+
+        percent = divide(scale_val, 100)
+
+        for px in self.file_data:
+            tmp_x = multiply(px['x'], percent)
+            tmp_y = multiply(px['y'], percent)
+            tmp_z = multiply(px['z'], percent)
+
+            if tmp_x > 0xffff:
+                if px['x'] < 0:
+                    px['x'] = -32768
+                else:
+                    px['x'] = 32767
+            else:
+                px['x'] = c_short(tmp_x).value
+
+            if tmp_y > 0xffff:
+                if px['y'] < 0:
+                    px['y'] = -32768
+                else:
+                    px['y'] = 32767
+            else:
+                px['y'] = c_short(tmp_y).value
+
+            if tmp_z > 0xffff:
+                if px['z'] < 0:
+                    px['z'] = -32768
+                else:
+                    px['z'] = 32767
+            else:
+                px['z'] = c_short(tmp_z).value
+
+        return
+
+    def brightness(self):
+        self.write(BRIGHTNESS)
+        bright_val = random.randint(-255,255)
+        self.read(delim='\n', expect='BRIGHTNESS selected\n')
+        self.write(pack("<h", bright_val))
+
+        for px in self.file_data:
+            tmp_r = px['r'] + bright_val
+            tmp_g = px['g'] + bright_val
+            tmp_b = px['b'] + bright_val
+
+            if tmp_r > 0xff:
+                px['r'] = 0xff
+            elif tmp_r < 0:
+                px['r'] = 0
+            else:
+                px['r'] = tmp_r
+
+            if tmp_g > 0xff:
+                px['g'] = 0xff
+            elif tmp_g < 0:
+                px['g'] = 0
+            else:
+                px['g'] = tmp_g
+
+            if tmp_b > 0xff:
+                px['b'] = 0xff
+            elif tmp_b < 0:
+                px['b'] = 0
+            else:
+                px['b'] = tmp_b
+
+        return
+
+
+
+    def opacity(self):
+        self.write(OPACITY)
+        self.read(delim='\n', expect='OPACITY selected\n')
+        opacity = random.randint(0x00, 0xff)
+        self.write(pack("<B", opacity))
+
+        for px in self.file_data:
+            px['a'] = opacity
+
+
+    def closestMatch(self, type, val):
+        #self.read(delim='\n', expect='color: %02x\n' % val)
+        close_diff = 0xff
+        temp_diff = 0
+        max_idx = 8 if (type == 0 or type == 2) else 4
+        close_idx = max_idx
+
+        for x in xrange(max_idx):
+            if (type == 0 or type == 2):
+                temp_diff = abs(val - self.red_blue[x])
+            else:
+                temp_diff = abs(val - self.green[x])
+
+            if (temp_diff < close_diff):
+                close_diff = temp_diff
+                close_idx = x
+
+        return close_idx
+
+
+    def compress(self):
+        self.write(COMPRESS)
+        self.read(delim='\n', expect='COMPRESS selected\n')
+
+        for px in self.file_data:
+            color = 0
+
+            color += (self.closestMatch(0, px['r']) << 5)
+            color += (self.closestMatch(1, px['g']) << 3)
+            color += (self.closestMatch(2, px['b']) << 0)
+
+            data =  pack("<h", px['x'])
+            data += pack("<h", px['y'])
+            data += pack("<h", px['z'])
+            data += pack("<B", color)
+
+            self.compressed += data
+
+        self.decompress_flag = 0
+        return
+
+    def decompress(self):
+        self.write(DECOMPRESS)
+        self.read(delim='\n', expect='DECOMPRESS selected\n')
+
+        if len(self.compressed) is 0:
+            self.read(delim='\n', expect='No compressed data.\n')
+            return
+
+        if self.decompress_flag is 1:
+            self.read(delim='\n', expect='You have already decompressed the latest data.\n')
+            return
+
+        x = 0
+        idx = 0
+
+        for t in self.file_data:
+            x += 6
+
+            new_color = unpack("<B", self.compressed[x])[0]
+            new_red = self.red_blue[(int('11100000',2) & new_color) >> 5] #& 0xff
+            new_green = self.green[(int('00011000', 2) & new_color) >> 3] #& 0xff
+            new_blue = self.red_blue[(int('00000111', 2) & new_color) >> 0] #& 0xff
+            x += 1
+
+            t['r'] = new_red
+            t['g'] = new_green
+            t['b'] = new_blue
+            t['a'] = 0xff
+
+        self.decompress_flag = 1
+        return
+
+    def showPixel(self):
+        self.write(SHOW_PIXEL)
+        self.read(delim='\n', expect='SHOW_PIXEL selected\n')
+        self.read(delim='\n', expect='Select the pixel to view:\n')
+        px_idx = random.randint(0,MAX_PIXELS-1)
+        px_idx = 0
+        self.write(pack("<h", px_idx))
+
+        px = self.file_data[px_idx]
+        self.last_shown = px_idx
+
+        self.read(delim='\n', expect='XYZ:  (%d, %d, %d)\n' % (px['x'], px['y'], px['z']) )
+        self.read(delim='\n', expect='RGBA: (#%02x%02x%02x%02x)\n' % (px['r'], px['g'], px['b'], px['a']) )
+        self.read(delim='\n', expect='\n')
+
+        return
+
+    def end(self):
+        # tell it to exit normally
+        self.write(EXIT)

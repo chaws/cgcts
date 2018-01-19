@@ -1,125 +1,54 @@
-# CGC Planet Markup Language Parser
-
-## Author Information
-
-"John Berry" <hj@cromulence.co>
+# CGC Challenge Binary (KPRCA_00056): Headscratch
 
 ### DARPA performer group
-Cromulence
+Kaprica Security (KPRCA)
 
 ## Description
-
-A user is able to submit a Planet Markup Language (PML). This will be parsed and presented to the user via menu driven options that allow the elements to be modified.
-
-This CB was designed to push the limits of the CRS' capability to handle the state space explosion problem. While this is not as complex as someting such as a browser or media player, it is large enough to serve as a milestone for CRS'. While the state space is large, the two vulnerabilities are straight forward. 
+Headscratch is an esoteric programming. Writing in headscratch is very tedious,
+results in obscenely verbose programs, and will leave most programmers scrating
+their heads out of confusion and frustration. This challenge binary implements
+a headscratch interpreter.
 
 ### Feature List
-
-PML Format:
-
-Generic format:
-
-Each element opens with {ElementId} and closes with {#ElementId}.
-No element will have itself as a sub element.
-
-Top level Planet element:
-        {Planet}        -- This is the top level id indicating a new planet descriptor
-                {Name}  AlphaNumeric  {#Name}           -- Indicate the name of the planet
-                {Period} Float {#Period}                -- Orbital period in days
-                {OrbitSpeed} Float {#OrbitSpeed}        -- Average orbital speed in km/s
-                {Aphelion} Float {#Aphelion}            -- Aphelion in km
-                {Perihelion} Float {#Perihelion}        -- Perihelion in km
-                {Radius} Float {#Radius}                -- Mean radius in km
-                {ERadius} Float {#ERadius}              -- Equatorial radius in km
-                {Mass} Float {#Mass}                    -- Mass in kg
-                {Gravity} Float {#Gravity}              -- Surface gravity in m/s
-                {Population} Integer {#Population}      -- Global population as a positive integer
-                {Country} Country Format {#Country}     -- Country sub information. For full description see the
-                                                                Country subelement formatting. Multiple country
-								Subelements are allowed
-        {#Planet}
-
-Country Element:
-        {Country}
-                {Name} AlphaNumeric {#Name}             -- Name of the country
-                {Capitol} Alphabetic {#Captiol}         -- Capitol City
-                {Population} Integer {#Population}      -- Country population as an integer
-                {Language} Alphabetic {#Language}       -- Language spoken within the country. Multiple
-								languages can be specified.
-                {Border} Lat Long start/end {#Border}   -- This indicates the start/end via latitude/longitude
-                                                                pair of coordinates. It is necessary to use multiple
-                                                                Border elements to construct a complete border. [*]
-                                                                Ex. {Border} 45.012 34.123 080.123 20.000 {#Border}
-                {Territory} Territory Format {#Territory} -- Used to define territories within a country
-        {#Country}
-
-Territory Element:
-        {Territory}
-                {Name} AlphaNumeric {#Name}
-                {Population} Integer {#Population}
-                {Established} Integer {#Established}    -- Year the county was established. Can be negavive
-                {Founder} AlphaNum+Spaces {#Founder}    -- Founder of the territory
-                {Border} Lat Long start/end {#Border}
-                {County} County Format {#County}        -- County within a territory
-        {#Territory}
-
-County Element:
-        {County}
-                {Name} AlphaNumeric {#Name}
-                {Population} Integer{#Population}
-                {Border} Lat Long start/end {#Border}
-                {Seat} Alpha {#Seat}	                -- County seat
-                {Area} Float {#Area}                    -- Total area in square kilometers
-                {Density} Float {#Density}              -- Population density in people per km^2
-                {City} City Format {#City}              -- City within a county
-        {#County}
-
-City Element:
-        {City}
-                {Name} Alphanumeric {#Name}
-                {Mayor} AlphaNum+Spaces {#Mayor}	-- Mayor of the city
-                {Url} City Website {#Url}		-- City website
-                {Population} Integer {#Population}
-                {Border} Lat Long start/end {#Border}
-        {#City}
+  Headscratch supports the following statements.
+  
+   * \> Increment the data pointer.
+   * _ Decrement the data pointer.
+   * \+ Increment the value at the data pointer.
+   * \- Decrement the value at the data pointer.
+   * [  Go to matching ] if the value at the data pointer is zero.
+   * ]  Go to matching [ if the value at the data pointer is not zero.
+   * . Output the value at the data pointer.
+   * , Read a value in and store it at the data pointer.
 
 ## Vulnerability
 
-There are seven vulnerabilities in this CB.
-
-The first vulnerability is relatively simple and is found high in the state space.
-The size of the capitol element of a Country structure is 20 bytes.
-However, in the countryMenu() function it is possible to overflow this buffer with
-	40 total bytes. This corrupts other fields of the structure. One method of
-	causing a crash after the overflow is by selecing "1" to display the country
-	information.
-
-The second vulnerability is also very straight forward but it is much deeper in the PML
-parsing code. The City structure is able to store the name of the Mayor in a 20 byte
-buffer but the function strcpy() is used without bounds checking to copy the value
-from the PML element into the field. This results in a basic heap based buffer
-overflow.
-
-The third vulnerability exists in the float_to_str() function where a large floating point value will result in a stack based buffer overflow.
-
-The fourth vulnerability is a NULL dereference when parsing a malformed Border field in the PML.
-
-The fifth vulnerability is a NULL dereference when parsing a malformed Planet mass field in the PML.
-
-The sixth vulnerability is a NULL dereference when parsing a malformed Planet period field in the PML.
-
-The seventh vulnerability is a NULL dereference when parsing a malformed name field in the PML.
+Within the interpreter exists a data pointer that points into memory which can
+be modified by the currently running program. One of the statements available
+to programmers of headscratch is the '>' statement which increments the data
+pointer to point to the next byte in the section of memory used to store the
+data available to a program. When incrementing the data pointer, the
+interpreter does not check to make sure that the data pointer does not go past
+the upper bounds of the data array which is stored on the stack. Therefore, it
+is possible to increment that data pointer past the bounds of the array and
+onto the stack frame where the program can then arbitrarily modify the stack
+frame. This results in a type 1 vulnerability.
 
 ### Generic class of vulnerability
-The first two vulnerabilities are heap-based buffer overflows
-The third is a heap based buffer overflow
-The Fourth through seventh are null pointer dereferences.
+
+Unchecked pointer use.
 
 ### CWE classification
-CWE-120 Buffer copy without checking size of input
-CWE-122 Heap-based buffer overflow
-CWE-476 NULL Pointer Dereference
+
+CWE-787: Out-of-bounds Write
+CWE-823: Use of Out-of-range Pointer Offset
 
 ## Challenges
+The primary challenge with exploiting this challenge binary is that a CRS must
+be able to construct a Headscratch program that allows for the exploitation the
+vulnerability.
 
-The primary difficulty with this challenge is handling the large number of possible combinations of element data. While the potential state space for this CB is no where near that of a standard browser, it will be useful in separating those who can more effectively manages a larger space.
+## Subjective Quantification
+Discovering: Easy
+Proving: Medium
+Fixing: Easy

@@ -1,439 +1,611 @@
+/*
+ * Copyright (C) Narf Industries <info@narfindustries.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
 #include "libcgc.h"
-#include "cgc_libc.h"
 #include "cgc_service.h"
 
-char* cgc_setValue(char* buffer, char* value) {
-    char* ptr =NULL;
-    int count =0;
-    int i =0;
-    char* delim = PARAM_DELIM;
+unsigned char rx_buf[BUF_RX_SZ];
+session_t cgc_sessions[SESSIONS_MAX] = { 0 };
+uint8_t cgc_sessions_num = 0;
+// The last byte allocated for session data. session_window must not expand 
+// beyond this.
+uint8_t *cgc_session_dat = NULL; 
+// A pointer to the lowest address currently used for sessions. This pointer is 
+// subtracted as new sessions are allocated, "widening" the window.
+uint8_t *cgc_session_window = NULL;
+uint32_t cgc_tmp = 0;
 
-    ptr = buffer;
-    while(*ptr && (*ptr!=*delim) && count < RESULT_VALUE_SIZE)
-        ptr++, count++;
 
-    cgc_memcpy(value, buffer, count);
-
-    return ++ptr;
-
+session_t * cgc_find_session(uint32_t id) {
+    for (uint32_t i = 0; i < SESSIONS_MAX; i++) {
+        if (id == cgc_sessions[i].id) {
+            return &cgc_sessions[i];
+        }
+    }
+    return NULL;
 }
 
-int cgc_parseResultSize(char* buffer)
-{
-    char* start =NULL;
-    char* end =NULL;
-    char key[KEY_SIZE] = {0};
-    char value[RESULT_VALUE_SIZE] = {0};
-    int count =0;
-    int i =0;
-    char* delim = KEYVAL_DELIM;
-    int ret =0;
-    int num_results =0;
 
-    start = buffer;
-    end = start;
-    count = 0;
-    while(*end && (*end!=*delim) && count < KEY_SIZE)
-            end++, count++;
+int cgc_do_init(session_t **session) {
 
-    cgc_memcpy(key, start, count);
-    if(cgc_strcmp(key, NUM_STR) == 0) {
-        cgc_setValue(++end, value);
-        num_results = cgc_str2int(value);
-        return num_results;
+    int ret = SUCCESS;
+    cgc_memset(rx_buf, 0, BUF_RX_SZ);
+    uint32_t requested_session_id = 0;
+
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | ENTER\n", __func__);
+    #endif
+
+    // Get session ID from CRS.
+    if (SUCCESS != (ret = cgc_recv_bytes(STDIN, (char *)&rx_buf, sizeof(uint32_t)))) { 
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | during receive ()\n", __func__);
+        #endif
+
+        ret = ERRNO_RECV;
+        goto bail;
+    }
+    requested_session_id = *(uint32_t*)&rx_buf;
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | requested_session_id = 0x%08x\n", __func__, requested_session_id);
+    #endif  
+
+    // Check for MAGIC_EXIT
+    if (MAGIC_EXIT == requested_session_id) {
+        #ifdef DEBUG
+        fprintf(stderr, "[D] %s | got MAGIC_EXIT; cgc__terminate(0)ing...\n", __func__);
+        #endif 
+        cgc__terminate(0);
     }
 
-    return 0;
-
-}
-
-int cgc_parseBalanceResult(char* buffer)
-{
-    char* start =NULL;
-    char* end =NULL;
-    char key[KEY_SIZE] ={0};
-    char value[RESULT_VALUE_SIZE] ={0};
-    int count =0;
-    int i =0;
-    char* delim = KEYVAL_DELIM;
-    int ret =0;
-    int balance =0;
-
-    start = buffer;
-    end = start;
-    count = 0;
-    while(*end && (*end!=*delim) && count < KEY_SIZE)
-            end++, count++;
-
-    cgc_memcpy(key, start, count);
-    if(cgc_strcmp(key, BAL_STR) == 0) {
-        cgc_setValue(++end, value);
-        balance = cgc_str2int(value);
-        if (balance < 0 || balance > 255)
-            return 0;
-        return balance;
-    }
-
-    return 0;
-
-}
-
-int cgc_parseSearchResult(char* buffer, Song* song)
-{
-    char* start =NULL;
-    char* end =NULL;
-    char key[KEY_SIZE] ={0};
-    int count =0;
-    int i =0;
-    char* delim = KEYVAL_DELIM;
-    int ret =0;
-
-    cgc_memset(song, 0, SONG_SIZE);
-
-    start = buffer;
-    while(1) {
-        end = start;
-        count = 0;
-        while(*end && (*end!=*delim) && count < KEY_SIZE)
-            end++, count++;
+    // Check proposed session IDs against blacklist.
+    if (MAGIC_ERR_MIN <= requested_session_id && requested_session_id <= MAGIC_ERR_MAX) {
         
-        cgc_memcpy(key, start, count);
-        if(cgc_strcmp(key, SONG_ID_STR) == 0)
-            start = cgc_setValue(++end, song->id);
-        else if(cgc_strcmp(key, PRICE_STR) == 0)
-            start = cgc_setValue(++end, song->price);
-        else if(cgc_strcmp(key, ARTIST_STR) == 0)
-            start = cgc_setValue(++end, song->artist);
-        else if (cgc_strcmp(key, ALBUM_STR) == 0)
-            start = cgc_setValue(++end, song->album);
-        else if (cgc_strcmp(key, SONG_STR) == 0) {
-            cgc_setValue(++end, song->song);
+        // Condition:
+        // - they've sent a blacklisted session ID
 
-            return 0;
-        } 
-        else
-            return 0;
+        // Send error response.
+        #ifdef DEBUG
+        fprintf(stderr, "[D] %s | bad session ID (0x%08x); rejecting\n", __func__, requested_session_id);
+        #endif  
 
-        cgc_memset(key, 0, KEY_SIZE);
-    }
-
-    return 0;
-
-}
-
-int cgc_receiveBalance(int socket)
-{
-    char buf[1024] ={0};
-    int bytes_read =0;
-    int balance =0;
-
-    bytes_read = cgc_recvline(socket, buf, sizeof(buf)-1);
-    if (bytes_read < 0)
-        cgc__terminate(2);
-
-    if (bytes_read == 0)
-        return 0;
-
-    balance = cgc_parseBalanceResult(buf);
-
-    return balance;
-}
-
-int cgc_receiveNumResults(int socket)
-{
-    char buf[1024] ={0};
-    int bytes_read =0;
-    int num_results =0;
-
-    bytes_read = cgc_recvline(socket, buf, sizeof(buf)-1);
-    if (bytes_read < 0)
-        cgc__terminate(2);
-
-    if (bytes_read == 0)
-        return 0;
-
-    num_results = cgc_parseResultSize(buf);
-    if (num_results > 0)
-        return num_results;
-    
-    return 0;
-}
-
-int cgc_receiveSearchResults(int socket, SongList* songList, int limit)
-{
-    char buf[1024] ={0};
-    int ret =0;
-    int bytes_read =0;
-    int num_results =0;
-
-    num_results = cgc_receiveNumResults(socket);
-    while(num_results) 
-    {
-        bytes_read = cgc_recvline(socket, buf, sizeof(buf)-1);
-        if (bytes_read < 0)
-            cgc__terminate(2);
-
-        if (bytes_read == 0)
-            return 0;
-
-        if(songList->size < limit) {
-            ret = cgc_parseSearchResult(buf, &songList->songs[songList->size]);
-            if (ret != 0)
-                cgc__terminate(10);
-
-            songList->size++;
+        cgc_tmp = MAGIC_ERR_BAD_ID;
+        if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)&cgc_tmp, sizeof(cgc_tmp)))) { 
+            #ifdef DEBUG
+            fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+            #endif
+            ret = ERRNO_TRANSMIT;
+            goto bail;
         }
 
-        num_results--;
-
+        // Return NULL session.
+        *session = NULL;
+        goto bail;
     }
 
-    return 0;
-}
+    // Condition:
+    // - they've sent a non-blacklisted session ID
 
-char * cgc_createSearchString(Request request)
-{
-    char* buffer =NULL;
-    int ret =0;
+    if (MAGIC_NEW_SESSION != requested_session_id) {
 
-    ret = cgc_allocate(sizeof(request)+cgc_MIN_REQ_LEN, 0, (void **) &buffer);
-    if (ret != 0)
-        cgc__terminate(3);
+        // Condition:
+        // - they're requesting an existing session
 
-    cgc_memset(buffer, 0, sizeof(request)+cgc_MIN_REQ_LEN);
-    cgc_strcat(buffer, TERM_STR);
-    cgc_strcat(buffer, KEYVAL_DELIM);
-    cgc_strcat(buffer, request.term);
-    cgc_strcat(buffer, PARAM_DELIM);
-    cgc_strcat(buffer, ATTRIBUTE_STR);
-    cgc_strcat(buffer, KEYVAL_DELIM);
-    cgc_strcat(buffer, request.attribute);
-    cgc_strcat(buffer, PARAM_DELIM);
-    cgc_strcat(buffer, LIMIT_STR);
-    cgc_strcat(buffer, KEYVAL_DELIM);
-    cgc_strcat(buffer, request.limit);
-    cgc_strcat(buffer, EOL_STR);
+        #ifdef DEBUG
+        fprintf(stderr, "[D] %s | session 0x%08x is requested\n", __func__, requested_session_id);
+        #endif
+        
+        if (NULL == (*session = cgc_find_session(requested_session_id))) {
 
-    return buffer;
-}
+            // Condition:
+            // - they're requesting an existing session
+            // - the requested session doesn't exist
 
-unsigned int cgc_getRandomNumber(unsigned int max)
-{
-    cgc_size_t bytes_written =0;
-    unsigned int index =0;
-    int ret =0;
+            // Send error code & bail.
+            #ifdef DEBUG
+            fprintf(stderr, 
+                "[D] %s | session 0x%08x doesn't exist; sending error...\n", 
+                __func__, requested_session_id);
+            #endif 
+            
+            cgc_tmp = MAGIC_ERR_SESSION_DOESNT_EXIST;
+            if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)&cgc_tmp, sizeof(cgc_tmp)))) { 
+                #ifdef DEBUG
+                fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+                #endif
+        
+                ret = ERRNO_TRANSMIT;
+                goto bail;
+            }
 
-    ret = cgc_random(&index, sizeof(index), &bytes_written);
-    if (ret != 0)
-        cgc__terminate(1);
+            goto bail;
+        }
 
-    if (bytes_written != sizeof(index))
-        cgc__terminate(2);
+        // Condition:
+        // - they're requesting an existing session
+        // - the requested session exists
 
-    index = index % max;
+        // Reflect the session ID.
+        #ifdef DEBUG
+        fprintf(stderr, "[D] %s | session 0x%08x exists; reflecting ID\n", __func__, (*session)->id);
+        #endif
 
-    return index;
-}
+        if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)&(*session)->id, sizeof(uint32_t)))) { 
+            #ifdef DEBUG
+            fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+            #endif
 
-void cgc_getRandomAttribute(Request* request)
-{
-    int index =0;
+            ret = ERRNO_TRANSMIT;
+            goto bail;
+        }
 
-    index = cgc_getRandomNumber(ATTR_NUM);
-    cgc_memcpy(request->attribute, attributes[index], cgc_strlen(attributes[index]));
-}
-
-void cgc_getRandomTerm(Request* request)
-{
-    unsigned int size =0;
-    unsigned int charset_size =0;
-    int index =0;
-
-    while(size == 0) {
-        size = cgc_getRandomNumber(RESULT_VALUE_SIZE);
+        // We're done.
+        goto bail;
     }
 
-    charset_size = cgc_strlen(cgc_charset);
-    for(index = 0; index < size; index++) {
-        int letter = cgc_getRandomNumber(charset_size);
-        request->term[index] = cgc_charset[letter];
+
+    // Condition:
+    // - they're requesting a new session
+
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | got MAGIC_NEW_SESSION; starting new session\n", __func__);
+    #endif
+
+    if (SESSIONS_MAX <= cgc_sessions_num + 1) {
+
+        // Condition:
+        // - they're requesting a new session
+        // - there's no more room for sessions
+
+        // Send error & bail.
+        #ifdef DEBUG
+        fprintf(stderr, 
+            "[D] %s | no space for a new session (%d <= %d); rejecting request\n", 
+            __func__, SESSIONS_MAX, sessions_num+1);
+        #endif 
+
+        cgc_tmp = MAGIC_ERR_NO_SPACE;
+        if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)&cgc_tmp, sizeof(uint32_t)))) { 
+            #ifdef DEBUG
+            fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+            #endif
+    
+            ret = ERRNO_TRANSMIT;
+            goto bail;
+        }
+
+        *session = NULL;
+        goto bail;
     }
 
-    request->term[size] = '\0';
+    // Condition:
+    // - they're requesting a new session
+    // - there's room for more sessions
 
-}
+    #ifdef DEBUG
+    fprintf(stderr, 
+        "[D] %s | NEW session requested; we have room (%d >= %d)\n", 
+        __func__, SESSIONS_MAX, sessions_num+1);
+    #endif
 
-void cgc_createRandomRequest(Request *request) {
-
-    cgc_memset(request, 0, REQUEST_SIZE);
-
-    cgc_getRandomTerm(request);
-    cgc_getRandomAttribute(request);
-    cgc_memcpy(request->limit, RESULT_LIMIT_STR, sizeof(RESULT_LIMIT_STR));
-
-}
-
-cgc_size_t cgc_getRandomGiftCard(char** gift_card) {
-
-    unsigned int charset_size =0;
-    int index =0;
-    int section =0;
-    int ret =0;
-
-    ret = cgc_allocate(GIFT_CARD_LEN+1, 0, (void **) gift_card);
-    if (ret != 0)
-        cgc__terminate(3);
-
-    cgc_memset(*gift_card, 0, GIFT_CARD_LEN);
-    charset_size = cgc_strlen(cgc_charset);
-
-    for(index = 0; index < GIFT_CARD_LEN; index++) {
-        int letter = cgc_getRandomNumber(charset_size);
-        (*gift_card)[index] =  cgc_charset[letter];
+    if (NULL == (*session = cgc_find_session(requested_session_id))) {
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | unable to find empty session; SHOULDN'T HAPPEN; bailing...\n", __func__);
+        #endif
+        goto bail;
     }
 
-    (*gift_card)[GIFT_CARD_LEN] = '\0';
+    // Generate a session ID.
+    cgc_size_t rnd_bytes = 0;
+    while(1) {
+        rnd_bytes = 0;
+        if (SUCCESS != cgc_random(&(*session)->id, 4, &rnd_bytes) || 4 != rnd_bytes) {
+            #ifdef DEBUG
+            fprintf(stderr, "[E] %s | during random (); SHOULDN'T HAPPEN; bailing...\n", __func__);
+            #endif
+            goto bail;
+        }
 
-    return GIFT_CARD_LEN+1;
-}
-
-int cgc_purchaseSong(int socket, Song* selectedSong, SongList* mySongList) {
-    int ret=0;
-    char price=0; 
-
-    price = cgc_str2int(selectedSong->price);
-
-#ifdef PATCHED
-    if(price < 0) {
-        ret = cgc_transmit_all(socket, INVALID_PRICE_MSG, sizeof(INVALID_PRICE_MSG)-1);
-        if (ret != 0)
-            cgc__terminate(10);
-        return INVALID_PRICE;
-    }
-#else
-#endif
-
-    if(mySongList->balance >= price) {
-
-        mySongList->balance -= price;
-        mySongList->size++;
-        cgc_memcpy(&mySongList->songs[mySongList->size-1], selectedSong, RESULT_VALUE_SIZE*3);
-
-        ret = cgc_transmit_all(socket, mySongList->songs[mySongList->size-1].id, cgc_strlen(mySongList->songs[mySongList->size-1].id));
-        if (ret != 0)
-            cgc__terminate(10);
-        ret = cgc_transmit_all(socket, "\n", cgc_strlen("\n"));
-        if (ret != 0)
-            cgc__terminate(10);
-
-        return SUCCESS;
-
+        // If we end up with a blacklisted session ID, try again.
+        if (MAGIC_NEW_SESSION == (*session)->id || (MAGIC_ERR_MIN <= (*session)->id && MAGIC_ERR_MAX >= (*session)->id)) {
+            #ifdef DEBUG
+            fprintf(stderr, "[D] %s | generated a blacklisted ID; trying again (1/16 chance)\n", __func__);
+            #endif
+            continue;
+        } else { break; }
     }
 
-    return LOW_BALANCE;
+    // Condition:
+    // - they're requesting a new session
+    // - there's room for more sessions
+    // - we've decided on an ID
+
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | NEW session ID chosen: 0x%08x\n", __func__, (*session)->id);
+    #endif
+
+    // Echo the new session ID back to the CRS.
+    if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)&(*session)->id, sizeof(uint32_t)))) {
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+        #endif
+
+        ret = ERRNO_TRANSMIT;
+        goto bail;
+    }
+
+    // Condition:
+    // - they're requesting a new session
+    // - there's room for more sessions
+    // - we've decided on an ID
+    // - we've sent the ID to them
+
+    // Next protocol step:
+    // CRS -> CB: 4B session ID | 2B session SZ 
+    if (SUCCESS != (ret = cgc_recv_bytes(STDIN, (char *)&cgc_tmp, sizeof(uint32_t)))) { 
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | during receive ()\n", __func__);
+        #endif
+
+        ret = ERRNO_RECV;
+        goto bail;
+    }
+
+    // Does this session ID pertain to the expected session?
+    if ((*session)->id != cgc_tmp) {
+        #ifdef DEBUG
+        fprintf(stderr, 
+            "[D] %s | session ID changed mid-exchange (should be: 0x%08x, is: 0x%08x); bailing...\n", 
+            __func__, (*session)->id, tmp);
+        #endif
+
+        cgc_tmp = MAGIC_ERR_HANDSHAKE_FAILURE;
+        if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)&cgc_tmp, sizeof(cgc_tmp)))) { 
+            #ifdef DEBUG
+            fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+            #endif
+            ret = ERRNO_TRANSMIT;
+            goto bail;
+        }
+
+        *session = NULL;
+        goto bail;
+    }
+
+    // Condition:
+    // - they're requesting a new session
+    // - there's room for more sessions
+    // - we've decided on an ID
+    // - we've sent the ID to them
+    // - they've sent us a packet with matching session ID
+
+    // Now we need the session size.
+    if (SUCCESS != (ret = cgc_recv_bytes(STDIN, (char *)&(*session)->sz, sizeof(uint16_t)))) { 
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | during receive ()\n", __func__);
+        #endif
+
+        ret = ERRNO_RECV;
+        goto bail;
+    }
+
+    // Reject any session size that isn't a multiple of OPERATION_SZ.
+    if (0 != (*session)->sz % OPERATION_SZ) {
+        #ifdef DEBUG
+        fprintf(stderr, "[D] %s | rejecting new session sz with a non-multiple of OPERATION_SZ\n", __func__);
+        #endif
+
+        *session = NULL;
+        goto bail;
+    }
+
+    // We've set aside SESSION_SZ for 2B base addr + opcodes + scratch space.
+    // If the requested sized exceeds this, we complain and refuse.
+    if (OPCODE_SZ_MAX < (*session)->sz) {
+        #ifdef DEBUG
+        fprintf(stderr, 
+            "[D] %s | session->sz is too large: 0x%04x (%d); sending error\n", 
+            __func__, (*session)->sz, (*session)->sz);
+        #endif
+
+        cgc_tmp = MAGIC_ERR_TOO_LARGE;
+        if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)&cgc_tmp, sizeof(uint32_t)))) { 
+            #ifdef DEBUG
+            fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+            #endif
+    
+            ret = ERRNO_TRANSMIT;
+            goto bail;
+        }
+
+        *session = NULL;
+        goto bail;
+    }
+
+    // Condition:
+    // - they're requesting a new session
+    // - there's room for more sessions
+    // - we've decided on an ID
+    // - we've sent the ID to them
+    // - they've sent us a packet with matching session ID
+    // - we've gotten a valid size request
+
+    cgc_session_window -= (BASE_ADDR_SZ + (*session)->sz + SCRATCH_SZ);
+    (*session)->buf = cgc_session_window;
+    cgc_sessions_num++;
+
+    #ifdef DEBUG
+    fprintf(stderr, 
+        "[D] %s | creation of session 0x%08x of size 0x%04x (%d), successful; finished with INIT state\n", 
+        __func__, (*session)->id, (*session)->sz, (*session)->sz);
+    #endif
+
+bail:
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | LEAVE\n", __func__);
+    #endif
+    return ret;
 }
 
-int cgc_sendSearchString(int socket, Request request) {
-    int ret =0;
-    char *search_string =NULL;
 
-    search_string = cgc_createSearchString(request);
+int cgc_do_exec(session_t *session) {
 
-    ret = cgc_transmit_all(socket, search_string, cgc_strlen(search_string));
-    if (ret != 0)
-        cgc__terminate(4);
+    int ret = SUCCESS;
 
-    return 0;
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | ENTER; session expected: 0x%08x\n", __func__, session->id);
+    #endif
+
+    // 0) cgc_read & verify (if PATCHED) session ID
+    cgc_tmp = 0;
+    if (SUCCESS != (ret = cgc_recv_bytes(STDIN, (char *)&cgc_tmp, sizeof(uint32_t)))) { 
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | during receive ()\n", __func__);
+        #endif
+
+        ret = ERRNO_RECV;
+        goto bail;
+    }
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | session received: 0x%08x\n", __func__, tmp);
+    #endif
+
+    if (session->id != cgc_tmp) {
+        #ifdef PATCHED_1
+
+        #ifdef DEBUG
+        fprintf(stderr, "[D] %s | PATCHED: session ID changed mid-exchange; bailing...\n", __func__);
+        #endif
+
+        cgc_tmp = MAGIC_ERR_HANDSHAKE_FAILURE;
+        if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)&cgc_tmp, sizeof(cgc_tmp)))) { 
+            #ifdef DEBUG
+            fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+            #endif
+            ret = ERRNO_TRANSMIT;
+            goto bail;
+        }
+
+        // This is the part that makes this the PATCHED version.
+        session = NULL;
+        goto bail;
+
+        // UNPATCHED
+        #else
+        
+        #ifdef DEBUG
+        fprintf(stderr, 
+            "[D] %s | UNPATCHED: session ID changed mid-exchange; vuln being exercised...\n", 
+            __func__);
+        #endif
+
+        // VULN HERE: If the session ID sent in this part of the handshake does 
+        // not correspond to the expected session, we don't throw an error and 
+        // terminate.  This ultimate causes us to use a confused session SZ, 
+        // resulting in linear buffer overflow.
+
+        // Terminate the PATCHED / UNPATCHED guards.
+        #endif 
+    }
+
+    // This is pointless in the PATCHED version because tmp == session->id 
+    // (and therefore the lookup should return same struct).
+    session_t *session_we_use_for_sz = NULL;
+    if (NULL == (session_we_use_for_sz = cgc_find_session(cgc_tmp))) {
+        #ifdef DEBUG
+        fprintf(stderr, "[D] %s | unable to find session; bailing\n", __func__);
+        #endif
+        goto bail;
+    }
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | found session @ 0x%08x\n", __func__, session);
+    #endif
+
+    // 1) populate BASE_ADDR
+    // Check if one already exists.
+    cgc_tmp =   (session->buf[0] <<  0) |
+            (session->buf[1] <<  8) |
+            (session->buf[2] << 16) |
+            (0x00            << 24);
+    if (0 == cgc_tmp) {
+        #ifdef DEBUG
+        fprintf(stderr, 
+            "[D] %s | NULL base_addr at session->buf; populating...\n", 
+            __func__);
+        #endif
+
+        cgc_tmp = (0xFFFFFF00 & (uint32_t)session->buf) >> 8;
+        cgc_memcpy(session->buf, &cgc_tmp, BASE_ADDR_SZ);
+    }
+
+    #ifdef DEBUG
+    tmp =   (session->buf[0] <<  0) |
+            (session->buf[1] <<  8) |
+            (session->buf[2] << 16) |
+            (0x00            << 24);
+    fprintf(stderr, 
+        "[D] %s | current base addr: 0x%08x\n", 
+        __func__, tmp);
+    #endif
+
+    // 2) cgc_read opcode buffer off the wire into the session's OPCODE buffer
+    #ifdef DEBUG
+    fprintf(stderr,
+        "[D] %s | WARNING: about to copy 0x%04x (%d) bytes into session 0x%08x; session's sz: 0x%04x (%d)\n", 
+        __func__, session_we_use_for_sz->sz, session_we_use_for_sz->sz, session->id, session->sz, session->sz);
+    #endif
+    if (SUCCESS != (ret = cgc_recv_bytes(STDIN, (char *)(session->buf + BASE_ADDR_SZ), session_we_use_for_sz->sz))) { 
+        #ifdef DEBUG
+        fprintf(stderr, 
+            "[E] %s | during receive (); session->sz: %d, got 0x%08x bytes\n", 
+            __func__, session->sz, &session->buf + BASE_ADDR_SZ);
+        #endif
+
+        ret = ERRNO_RECV;
+        goto bail;
+    }
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | successfully read opcode buffer\n", __func__);
+    #endif
+
+    // 3) execute bytecode
+    if (SUCCESS != (ret = cgc_bytecode_exec(session->buf, session->sz))) {
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | bytecode execution failed; propagating error\n", __func__);
+        #endif
+        goto bail;
+    }
+    #ifdef DEBUG
+    fprintf(stderr, "[D] %s | finished bytecode execution\n", __func__);
+    #endif
+
+    // 4) return result (the entirely of the scratch space)
+    // 4B session ID | scratch area (of length SCRATCH_SZ)
+    if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)(&session->id), 4))) { 
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+        #endif
+
+        ret = ERRNO_TRANSMIT;
+        goto bail;
+    }
+    // The address of the send needs to be derived from the BASE_ADDR for easy pwnage.
+    uint32_t base_addr = ((*(uint32_t *)session->buf) & 0x00FFFFFF) << 8;
+    uint32_t scratch_base = (base_addr | ((uint32_t)session->buf & 0x000000FF)) + BASE_ADDR_SZ + session->sz;
+    if (SUCCESS != (ret = cgc_send_bytes(STDOUT, (const char *)scratch_base, SCRATCH_SZ))) { 
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | during transmit ()\n", __func__);
+        #endif
+
+        ret = ERRNO_TRANSMIT;
+        goto bail;
+    }
+
+bail:
+    #ifdef DEBUG
+    if (NULL == session) {
+        fprintf(stderr, "[D] %s | LEAVE; session: NULL\n", __func__);
+    } else {
+        fprintf(stderr, "[D] %s | LEAVE; session: 0x%08x\n", __func__, session->id);
+    }
+    #endif
+    return ret;
 }
 
-int cgc_getBalance(SongList* mySongList) {
-    cgc_size_t size =0;
-    char* gift_card =NULL;
-    char *buffer =NULL;
-    int ret =0;
-
-    size = cgc_getRandomGiftCard(&gift_card);
-
-    ret = cgc_allocate(size+sizeof("ID=")+sizeof("\n")+1, 0, (void **) &buffer);
-    if (ret != 0)
-        cgc__terminate(3);
-
-    cgc_memset(buffer, 0, size+sizeof("ID=")+sizeof("\n")+1);
-
-    cgc_strcat(buffer,"ID=");
-    cgc_strcat(buffer,gift_card);
-    cgc_strcat(buffer,"\n");
-
-    ret = cgc_deallocate(gift_card, size);
-    if (ret != 0)
-        cgc__terminate(3);
-
-    ret = cgc_transmit_all(STDOUT, buffer, cgc_strlen(buffer));
-    if (ret != 0)
-        cgc__terminate(10);
-
-    ret = cgc_deallocate(buffer, size+sizeof("ID=")+sizeof("\n")+1);
-    if (ret != 0)
-        cgc__terminate(3);
-
-    mySongList->balance = cgc_receiveBalance(STDIN);
-#ifdef PATCHED
-    mySongList->maxSize = mySongList->balance;
-#else
-#endif
-    ret = cgc_allocate(sizeof(Song)*mySongList->balance, 0, (void**) &mySongList->songs);
-    if (ret != 0)
-        cgc__terminate(3);
-
-    return 0;
-}
-
-Song* cgc_selectSong(SongList results, Request request)
-{
-    return &results.songs[0];
-}
 
 int main(int cgc_argc, char *cgc_argv[]) {
-    int ret =0;
-    int starting_balance =0;
-#ifdef PATCHED
-    SongList mySongList ={0, 0, NULL, 0};
-    SongList results ={0, 0, NULL, 0};
-#else
-    SongList mySongList ={0, NULL, 0};
-    SongList results ={0, NULL, 0};
-#endif
-    Request request ={0,0,0};
-    Song songs[RESULT_LIMIT] ={0};
-    Song* selectedSong =NULL;
-    results.songs = songs;
 
-    cgc_getBalance(&mySongList);
+    int ret = SUCCESS;
+    uint32_t state = STATE_INIT;
+    session_t *session = NULL;
 
-    starting_balance = mySongList.balance;
-#ifdef PATCHED
-    while(mySongList.balance > 0 && mySongList.maxSize > mySongList.size) {
-#else
-    while(mySongList.balance > 0) {
-#endif
-        results.size = 0;
+    // Allocate large buffer for all session data.
+    // To have a unique upper 2B and lower 2B  for each session, we need to allocate:
+    // SESSION_SZ (0x10101) * SESSIONS_MAX (20) = 0x141414
+    // This should be feasible.
+    #define SESSION_ALLOC_LEN (SESSION_SZ * SESSIONS_MAX)
+    if (SUCCESS != (ret = cgc_allocate(SESSION_ALLOC_LEN, FALSE, (void **)&cgc_session_dat))) {
 
-        cgc_createRandomRequest(&request);
-        cgc_sendSearchString(STDOUT, request);
-        cgc_receiveSearchResults(STDIN, &results, RESULT_LIMIT);
+        #ifdef DEBUG
+        fprintf(stderr, "[E] %s | failed session_dat allocation; bailing...\n", __func__);
+        #endif
 
-        selectedSong = cgc_selectSong(results, request);
-
-        ret = cgc_purchaseSong(STDOUT, selectedSong, &mySongList);
-        if (ret == LOW_BALANCE)
-            break;
-
-        cgc_receiveBalance(STDIN);
+        goto bail;
     }
 
-    ret = cgc_deallocate(mySongList.songs, sizeof(Song)*starting_balance);
-    if (ret != 0)
-        cgc__terminate(3);
-    return ret;
+    // Initialize the window to closed. We later widen the window by 
+    // subtracting from session_window, which is initialily something like 
+    // 0xb8000000 (the first unmapped byte).
+    cgc_session_window = cgc_session_dat + SESSION_ALLOC_LEN;
+    
+    while (1) {
 
+        switch(state) {
+
+            case STATE_INIT:
+
+                #ifdef DEBUG
+                fprintf(stderr, "[D] %s | state = STATE_INIT\n", __func__);
+                #endif
+
+                session = NULL;
+                if (SUCCESS != (ret = cgc_do_init(&session))) {
+                    #ifdef DEBUG
+                    fprintf(stderr, "[E] %s | non-SUCCESS from do_init; bailing\n", __func__);
+                    #endif
+                    goto bail;
+                }
+
+                // Advance state iff we populated session.
+                if (NULL != session) { state = STATE_EXEC; }
+                break;
+
+            case STATE_EXEC:
+
+                #ifdef DEBUG
+                fprintf(stderr, "[D] %s | state = STATE_EXEC\n", __func__);
+                #endif
+
+                if (SUCCESS != (ret = cgc_do_exec(session))) {
+                    #ifdef DEBUG
+                    fprintf(stderr, "[E] %s | non-SUCCESS from do_exec; bailing\n", __func__);
+                    #endif
+                    goto bail;
+                }
+
+                state = STATE_INIT;
+                break;
+
+            default:
+                #ifdef DEBUG
+                fprintf(stderr, "[E] %s | state = INVALID (SHOULDN'T HAPPEN); bailing...\n", __func__);
+                #endif
+                ret = ERRNO_INVALID_STATE;
+                goto bail;
+                break;
+        }
+    }
+
+bail:
+    return ret;
 }
+

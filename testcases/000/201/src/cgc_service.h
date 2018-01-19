@@ -25,60 +25,23 @@
 
 #include "libcgc.h"
 #include "cgc_libc.h"
-#include "cgc_verbs.h"
 
-#if DEBUG_ENABLE
-#define DEBUG(msg) cgc_transmit(STDERR, msg, sizeof(msg), 0)
-#else
-#define DEBUG(msg) do {} while (0)
-#endif
+#define SZ_BUF_RECV 65535
+#define SZ_MAX_FILEPATH 256
 
-#define FATAL(msg, errno) DEBUG(msg); cgc_transmit(STDOUT, msg, sizeof(msg), 0); cgc__terminate(errno);
+#define TAG_SRC_OPEN "$SRC$\x06"
+#define TAG_SRC_CLSE "$!SRC$\x06"
 
-// Thing we may want to change.
-#define DELIM_URI ' '
-#define DELIM_EOF "\r" // this is sent at the end of each response
-#define CLOG_DELAY 3 // in microseconds
+#define CANON_TOKEN "()\x06"
 
-// Things we probably don't want to change.
-#define RECV_BUF_SZ 1024
-#define URI_BUF_SZ 16
-#define RND_BUF_SZ 32
-#define FILE_BUF_SZ 16
+#define NUM_CHARS_ALPHA 26
 
-#define ERRNO_RANDOM 1000+BASE_ID+4
-#define ERRNO_INVALID_VERB 1000+BASE_ID+5
-#define ERRNO_INSUFFICIENT_FUNDS 1000+BASE_ID+6
-#define ERRNO_FILE_NOT_FOUND 1000+BASE_ID+7
-#define ERRNO_INVALID_REQ 1000+BASE_ID+8
-#define ERRNO_UNK 1000+BASE_ID+1337
-
-#define ERR_RANDOM "wrong # of random bytes\n"
-#define ERR_INVALID_VERB "invalid verb\n"
-#define ERR_INVALID_REQ "invalid request\n"
-#define ERR_INSUFFICIENT_FUNDS "you're too poor to use this verb :(\n"
-#define ERR_FILE_NOT_FOUND "requested file not found\n"
+#define SZ_INDEX_PATH 16
 
 
-int cgc_dump_file(char *name);
-int cgc_head_file(char *name);
-int cgc_list_files(void);
+int cgc_canonicalize_path(char * cp, char * rp, cgc_size_t rp_len);
+int cgc_request_document(char * path, cgc_size_t recusion_depth);
 int main(int cgc_argc, char *cgc_argv[]);
-
-// stupid-simple files that have 16-character names and 16-character contents
-typedef struct fileentry {
-    char name[FILE_BUF_SZ];
-    char contents[FILE_BUF_SZ];   
-} fileentry;
-
-UINT8 num_files;
-fileentry *files;
-char buf_recv[RECV_BUF_SZ];
-char *ptr_uri_tip;
-char *ptr_uri_gimme;
-char *ptr_uri_smore;
-char *ptr_uri_mooch;
-char *ptr_uri_auth;
 
 
 #endif

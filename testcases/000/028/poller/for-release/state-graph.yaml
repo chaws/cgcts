@@ -1,20 +1,22 @@
 ---
 nodes:
 - name: start
-- name: genInstructions
-- name: genLDI
-- name: genALU
-- name: genBranch
-- name: dumpState
-
+- name: end
+- name: PowerOff
+- name: GoodTests
+- name: BadTests
 edges:
-- start: genInstructions
-- genInstructions: genLDI
-- genInstructions: genALU
-- genInstructions: dumpState
-  weight: 0.005
-- genInstructions: genBranch
+- start: GoodTests
+- start: BadTests
+
+- PowerOff: end
+
+- GoodTests: GoodTests
+- GoodTests: BadTests
+- GoodTests: PowerOff
   weight: 0.1
-- genLDI: genInstructions
-- genALU: genInstructions
-- genBranch: genInstructions
+
+- BadTests: GoodTests
+- BadTests: BadTests
+- BadTests: PowerOff
+  weight: 0.1

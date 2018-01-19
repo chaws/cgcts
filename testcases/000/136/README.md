@@ -1,66 +1,192 @@
-# Childs_Game
+# CGC Image Parser
 
 ## Author Information
-Kaprica Security
+
+"John Berry" <hj@cromulence.co>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+Cromulence
 
 ## Description
-
-A gaming system that pits a user against a basic AI
+The user has the ability to upload images formatted in one of five custom formats. They can also list, remove, or display the rendered images.
+The purpose was to challenge them with non-eight bit aligned bitwise manipulation as well as management of user derived and user influenced data.
 
 ### Feature List
+Tag Based Image Renderer (TBIR)
 
-After a user registers, there are 3 games that can be played
-Games:
-    1. Hammer, Sheet, Sheers
-    2. Guess my number
-    3. Three in a row
-    4. Give up
+Header
+32 bit magic 0xb0c4df76
 
-The games are inspired by class children's games.
+16 bit header start: 0xaaaa
+8 bit width with a max of 128
+8 bit height with a max of 128
+
+16 bit flag field: 0xaabb
+4 bits pixel type:
+	0001 - 1 bit for a ' ' or a '.'
+	0010 - 2 bits for a ' ', '#', '*', '@'
+	0110 - 6 bits for a ' a-zA-Z0-9'
+	0111 - 7 bits for ascii 0x20-0x7e 0 indexed
+4 bits load direction
+	0000 Start top row left to right then continue down
+	0001 Start top row right to left then continue down
+	0010 Start bottom row left to right then continue up
+	0011 Start bottom row right to left then continue up
+	0100 Start left column top down then continue right
+	0101 Start right column top down then continue left
+	0110 Start left column bottom up then continue right
+	0111 Start right column bottom up then continue left
+
+16 bit pixel start field: 0xaacc
+	width * height * ([1|2|6|7]) 
+	aligned to 32 bit
+
+16 bit checksum field: 0xaadd
+	32 bit xor checksum
+
+16 bit end of file: 0xaaee
+************************************************************************
+
+Total Pixel AsciiBased Image (TPAI)
+Each pixel must have a value. The ordering is specified via flags
+
+Image Header
+32 bit magic 0xcb590f31
+6 bit Width
+6 bit Height
+3 bit pixel load direction
+	000 Start top row left to right then continue down
+	001 Start top row right to left then continue down
+	010 Start bottom row left to right then continue up
+	011 Start bottom row right to left then continue up
+	100 Start left column top down then continue right
+	101 Start right column top down then continue left
+	110 Start left column bottom up then continue right
+	111 Start right column bottom up then continue left
+17 bit Reserved
+
+Width * Height Pixels
+7 bit Ascii value
+
+The pixel array must be 16 bit aligned.
+
+16 bit xor checksum of all data including the header.
+
+************************************************************************
+Fixed Point AsciiBased Image (FPAI)
+Each pixel is relative to the 0,0 (origin) point
+Each pixel can be any ascii value
+
+Image Header
+32 bit MAGIC 0x55d9b6de
+6 bit X axis
+6 bit Y axis
+3 bit axis type (origin location)
+16 bit pixel checksum (Checksum by adding all the 16-bit values)
+	Checksum only covers the pixel data
+
+1 bit reserved.
+	Should be 0
+
+Pixel:
+7 bit X value
+7 bit Y value
+7 bit Pixel Value ' ' - '~' 0 based 
+
+Image is padded to 8 bits
+
+************************************************************************
+Fixed Point TextBased Image (FPTI)
+Each pixel is relative to the 0,0 point as opposed to the previous pixel with RPTI
+Each pixel will be represented by a '.','*','#', or '+' based upon the header flag
+
+Image Header
+32 bit MAGIC 0x24c7ee85
+6 bits X axis total length (unsigned)
+	0 is an error condition
+	Max of 63
+6 bits Y axis total length (unsigned)
+	0 is an error condition
+	Max of 63
+2 bit pixel type
+	00 - '.'
+	01 - '*'
+	10 - '#'
+	11 - '+'
+3 bit axis type (origin location)
+	001 - 0,0 upper left
+	010 - 0,0 upper right
+	011 - 0,0 lower left
+	100 - 0,0 lower right
+	111 - 0,0 at midpoint rounded down
+15 bits reserved
+	Should be 0
+
+The first bit is a sign bit
+7 bits X axis relative to the origin
+7 bits Y axis relative to the origin
+
+************************************************************************
+Relative Point TextBased Image ( RPTI )
+
+32 bit MAGIC 0xc35109d3
+6 bits X axis total length
+6 bits Y axis total length
+
+The first bit of the initial position is the sign bit
+7 bits X axis initial position
+7 bits Y axis initial position
+
+3 bit Axis type:
+001 - 0,0 upper left
+010 - 0,0 upper right
+011 - 0,0 lower left
+100 - 0,0 lower right
+111 - 0,0 at midpoint rounded down
+
+3 bit reserved. Should be 0
+
+For example:
+X total of 51
+Y total of 51
+Midpoint would be at 25, 25.
+
+The initial position is based upon the 0,0 point whose location is set in the grid by the axis type flag
+
+Each "Pixel"
+The first bit is a sign bit
+7 bits X axis relative to previous point
+7 bits Y axis relative to previous point
+
+Each Image is zero padded out to a byte
+Attempt to place a pixel beyond the bound results in a failure condition
+Each pixel is based upon the relative point of the previous pixel
+************************************************************************
 
 ## Vulnerability
+The first vulnerability is in the FPTI image type. The mistake is a common one due to either a mistyping of misunderstanding of C truth statements.
+The line is:
+if ( y < miny && y > maxy ) {
+	error
+}
+Obviously this statement can never be true but it is an easy one to make. This results in an invalid bounds check of the y value and a SIGSEGV when
+the user attempts to write before an allocated buffer.
 
-### Vuln 1
-The Guess my number game let's a user choose the maximum of the range of numbers the computer will choose.
-There is an improper bounds check that doesn't account for negative numbers. The random number is generated
-from the magic page and then a bitewise & is done against the value and the range max. If a user changes the
-range max to -1, it will & with 0xFFFFFFFF. If the CRS can guess the number by doing a binary search it will
-leak 4 bytes from the magic page.
+The second bug is in the TBIR image type. It is a failure to clear certain values after a parsing error and buffer deallocation. This ultimately results in a use after free situation.
 
-### Vuln 2
-Vulnerability 2 is a fairly straightforward buffer overflow. The difficult part is reaching the code control
-that allows a user to exploit the system. The vulnerable function is only ever called after the player has
-one both games and tied with the computer 600 times in a row. At this point if a player has chosen option 4
-to create a custom 'flair', it's possible to overwrite the buffer and take control of eip and ebp. 3 in a row
-is a solved game and has deterministic behavior, but the AI will never lose and will always make optimal moves.
-Beating the computer requires an oponent to never make a suboptimal move.
+Due to the way the parsing works, the pixel needs to be the last in an image and end on a 32-bit boundary due to a check just following the code.
 
 ### Generic class of vulnerability
-Stack based buffer overflow
-Information Exposure
+The first vulnerability is an out of bounds write due to an invalid bounds check
+The second class of vulnerability is a use after free.
 
 ### CWE classification
-CWE-121: Stack-based Buffer Overflow
-CWE-839: Numeric Range Comparison Without Minimum Check
+The first is CWE-129: Improper Validation of Array Index. The product uses untrusted input when calculating or using an array index, but the product does not validate or incorrectly validates the index to ensure the index references a valid position within the array. Also known as out-of-bounds array index.
+
+The second is CWE-416: Use after free. Referencing memory after it has been freed.
+
 ## Challenges
 
-Vulnerability 1 requires using a bounds check error and then requires winning the game to obtain the leak.
-Winning the game requires doing a simple binary search against the game.
+These formats require the ability to track bitwise dataflow. It also requires that competitors track user derived and user influenced data.
 
-Vulnerability 2 allows for a function pointer overwrite the second time a user logs in. This function is called
-after a player successfully ties with the AI 100 times. The bug is a reference to a 1983 film.
-
-Vulnerability 2 allows for a buffer overflow once the opponent has beaten the AI several times. Specifically
-the player must win games 1 and 2 once and tie at game 3 (3 in a row) 600 times without losing.
-
-Both vulnernerabilities were meant to test the reasoning system of the CRS and were created such that brute force
-or fuzzing would not be a viable solution for discovering either of the vulnerabilities.
-
-## Difficulty
-
-Discovering = Easy
-Proving = Medium
-Patching = Medium
+They must also carefully track memory allocations and frees to catch their use if freed.

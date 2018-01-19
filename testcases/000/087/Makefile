@@ -1,4 +1,4 @@
-CHAL=Tick-A-Tack
+CHAL=payroll
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -21,24 +21,26 @@ all: $(LIBCGC) patched vulnerable pov
 
 patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/tt.c.o -c lib/tt.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/timecard.c.o -c src/timecard.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o Tick-A-Tack_patched lib/libc.c.o lib/tt.c.o src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o payroll_patched lib/libc.c.o src/timecard.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/tt.c.o -c lib/tt.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/timecard.c.o -c src/timecard.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o Tick-A-Tack lib/libc.c.o lib/tt.c.o src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o payroll lib/libc.c.o src/timecard.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Tick-A-Tack_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Tick-A-Tack_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o payroll_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o payroll_pov_3 pov_3/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o payroll_pov_2 pov_2/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f lib/libc.c.o lib/tt.c.o src/service.c.o pov_2/pov.c.o pov_1/pov.c.o lib/libc.c.o lib/tt.c.o src/service.c.o Tick-A-Tack_patched Tick-A-Tack_pov_2 Tick-A-Tack_pov_1 Tick-A-Tack
+	rm -f pov_3/pov.c.o pov_2/pov.c.o pov_1/pov.c.o lib/libc.c.o src/timecard.c.o src/service.c.o lib/libc.c.o src/timecard.c.o src/service.c.o payroll_pov_3 payroll_pov_2 payroll_pov_1 payroll_patched payroll

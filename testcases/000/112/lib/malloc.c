@@ -69,35 +69,14 @@ static int cgc_find_fit(cgc_size_t size, struct blk_t **blk)
   return -1;
 }
 
-static void *cgc_malloc_huge(cgc_size_t size)
-{
-    void *mem;
-    size += HEADER_PADDING;
-    if (cgc_allocate(size, 0, &mem) != 0)
-        return NULL;
-    struct blk_t *blk = mem;
-    blk->size = size;
-    blk->free = 0;
-    blk->fpred = NULL;
-    blk->fsucc = NULL;
-    blk->prev = NULL;
-    blk->next = NULL;
-    return (void *)((intptr_t)blk + HEADER_PADDING);
-}
-
 void *cgc_malloc(cgc_size_t size)
 {
   if (size == 0)
     return NULL;
 
-  if (size + HEADER_PADDING >= NEW_CHUNK_SIZE)
-    return cgc_malloc_huge(size);
-
   if (size % ALIGNMENT != 0)
     size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
 
-  if (size >= 0x80000000)
-    return NULL;
   size += HEADER_PADDING;
 
   struct blk_t *blk = NULL;
@@ -118,7 +97,7 @@ void *cgc_malloc(cgc_size_t size)
 
   /* Split the block into two pieces if possible */
   cgc_size_t sdiff = blk->size - size;
-  if (sdiff > 2 * HEADER_PADDING) {
+  if (sdiff > HEADER_PADDING) {
     struct blk_t *nb = (struct blk_t *)((intptr_t)blk + size);
 
     nb->size = sdiff;

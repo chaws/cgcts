@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "libcgc.h"
 #include "cgc_stdlib.h"
 #include "cgc_stdint.h"
-/*
+
 int cgc_memcpy( void *dest, void *src, cgc_size_t n )
 {
         cgc_size_t index = 0;
@@ -37,7 +37,7 @@ int cgc_memcpy( void *dest, void *src, cgc_size_t n )
         }
 
         return index;
-}*/
+}
 
 int cgc_islower( int c )
 {
@@ -208,7 +208,7 @@ int cgc_atoi(const char* str)
 
                 digit_count++;
 
-                if ( digit_count == 9 )
+                if ( digit_count == 10 )
                     break;
             }
             else
@@ -325,6 +325,11 @@ cgc_size_t cgc_receive_until( char *dst, char delim, cgc_size_t max )
             goto end;
         }
 
+	if (rx == 0) {
+		len = 0;
+		goto end;
+	}
+
         if ( c == delim ) {
             goto end;
         }
@@ -408,19 +413,30 @@ end:
     return length;
 }
 
-void cgc_sleep(unsigned int seconds) {
-    struct cgc_timeval sleeptime;
-
-    sleeptime.tv_sec = seconds;
-    sleeptime.tv_usec = 0;
-    cgc_fdwait(0, 0, 0, &sleeptime, 0);
-}
-
 void cgc_puts( char *t )
 {
     cgc_size_t size;
-    cgc_transmit(STDOUT, t, cgc_strlen(t), &size);
-    cgc_transmit(STDOUT, "\n", 1, &size);
+    cgc_size_t total_sent = 0;
+    cgc_size_t len;
+
+    if (!t) {
+       return;
+    }
+
+    len = cgc_strlen(t);
+
+    while (total_sent < len) {
+        if (cgc_transmit(STDOUT, t+total_sent, len-total_sent, &size) != 0) {
+            return;
+        }
+        total_sent += size;
+    }
+    size = 0;
+    while (size != 1) {
+        if (cgc_transmit(STDOUT, "\n", 1, &size) != 0) {
+            return;
+        }
+    }
 }
 
 char *cgc_strchr(const char *s, int c) {
@@ -517,13 +533,20 @@ char *cgc_strtok(char *str, const char *delim) {
 cgc_ssize_t cgc_write( const void *buf, cgc_size_t count )
 {
 	cgc_size_t size;
+	cgc_size_t total_sent = 0;
 
-	cgc_transmit(STDOUT, buf, count, &size);
+	if (!buf) {
+		return(0);
+	}
 
-	if (count != size)
-		return(-1);
+	while (total_sent < count) {
+		if (cgc_transmit(STDOUT, buf+total_sent, count-total_sent, &size) != 0) {
+			return(total_sent);
+		}
+		total_sent += size;
+	}	
 
-	return(size);
+	return(total_sent);
 
 }
 
@@ -544,3 +567,65 @@ char *cgc_strdup(char *s)
 
         return(retval);
 }
+
+heap_metadata *cgc_heap_manager = NULL;
+
+
+void *cgc_calloc(cgc_size_t count, cgc_size_t size) {
+    void *ret;
+    ret = cgc_malloc(size * count);
+    cgc_memset(ret, 0, size * count);
+    return ret;
+}
+
+void cgc_free(void *ptr) {
+    heap_header *chunkHeader;
+    heap_block_header *blockHead;
+
+    chunkHeader = (heap_header*)(((char*)ptr)-sizeof(heap_header));
+    chunkHeader->flags = FREE_FLAG;
+    blockHead = (heap_block_header *)((int)&ptr & 0xfffff000);
+    blockHead->remaining_size+=chunkHeader->size;
+    return;
+}
+
+void *cgc_malloc(cgc_size_t size) {
+    heap_block_header *blockHead;
+    if (cgc_heap_manager == NULL) {
+        void *mallocPtr;
+        //this is our first allocation.
+        cgc_allocate(4096, 0, &mallocPtr);
+        cgc_heap_manager = mallocPtr;
+        cgc_heap_manager->mem_commit = 4096;
+        cgc_heap_manager->mem_inuse = sizeof(cgc_heap_manager);
+        cgc_heap_manager->mem_free = 4096-cgc_heap_manager->mem_inuse;
+        cgc_allocate(4096, 0, (void *)&cgc_heap_manager->blocks);
+        cgc_memset(cgc_heap_manager->blocks, 0, 4096);
+        blockHead = (heap_block_header *)cgc_heap_manager->blocks;
+        blockHead->remaining_size = 4096-sizeof(heap_block_header);
+        blockHead->next = NULL;
+    }
+    blockHead = (heap_block_header *)cgc_heap_manager->blocks;
+    if(size > blockHead->remaining_size) {
+        cgc_allocate(4096, 0, (void *)&blockHead->next);
+        if(blockHead->next == NULL) {
+            cgc_puts("Not enough space available to allocate more heap.  Failure.");
+            cgc__terminate(-1);
+        }
+        blockHead = blockHead->next;
+        blockHead->remaining_size = 4096-sizeof(heap_block_header);
+    } else {
+        heap_header *chunkHeader;
+        blockHead->remaining_size-=size;
+        chunkHeader = (heap_header *)blockHead->data;
+
+        while((chunkHeader->flags & INUSE_FLAG) && (chunkHeader->size < size+sizeof(heap_header)))
+            chunkHeader = (heap_header *)(((void *)(chunkHeader)+sizeof(heap_header)) + chunkHeader->size);
+        chunkHeader->size = size;
+        chunkHeader->flags = INUSE_FLAG;
+        return (char *)chunkHeader+sizeof(heap_header);
+    }
+    return 0;
+}
+
+

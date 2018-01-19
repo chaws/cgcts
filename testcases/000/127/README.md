@@ -1,57 +1,66 @@
+# KPRCA-00028
+
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
-## Description
+## Description:
 
-This program is a small blogging site. It allows users to create content, add friends, and like posts. 
-Once a user has accumlulated enough friends, and likes, he or she is upgraded to a full user and may
-upload files to the blog post.
+This service implements a command line evaluation engine for a programming
+language referred to as SLUR. The service takes in a SLUR expression and
+evaluates it, returning the evaluated expression back to the user. The SLUR
+language is based off of lists. Each expression is itself a list, expressions
+are written usually to modify or build lists in some interesting way. The SLUR
+evaluation engine we provide supports of series of primitive functions which
+the user can use to build their programs. In addition to functions and lists,
+SLUR also has the concept of atoms which are strings of characters and numbers
+that aren't the names of functions. Formally, a list is a parenthesis pair,
+enclosing zero or more atoms or lists.
 
 ### Feature List
 
-Unregistered users may:
-1. Register
-2. Log in
-3. View a user's posts
-4. View a user's profile
-5. Quit
-
-And once registered a user can add content, friends, or remove his or her content.
-1. Add new blog post
-2. Delete blog post
-3. Update profile
-4. Add a friend
-5. View my friends
-6. Unfriend someone
-7. View my posts
-8. View my profile
-9. View a user's posts
-10. View a user's profi
-11. Log out.
+The built in functions are as follow:
+	* (quote e) returns e
+	* (cons e1 e2) returns the list formed by prepending e1 onto e2
+	* (car e) returns the first element of the list e
+	* (cdr e) returns all the elements of the list e minus the first one
+	* (atom e) returns `t` if e is an atom else returns `nil`
+	* (cond (p1 e1) ... (pn en)) returns the first e whose p is `t`
+	* (equal e1 e2) returns `t` if e1 = e2 else returns `nil`
+	* ((lambda (v1 ... vn) e) e1 ... en) returns e evaluated in the
+	  environment where v1 -> e1, ... vn -> en.
+ 
+Our SLUR machine also implements CAKE reduction functionality in the lambda
+function. If the result of our evaluated lambda is a list consisting of the
+atom "CAKE" repeated 4 times it appends the atom "That's a lot of CAKE!" to the
+list.
 
 ## Vulnerability
 
-The vulnerability is triggered by assigning a file to an extension that doesn't match the magic number.
-The AsciiArtFile uses multiple inheritance, and by type casting it as a PictureFile it's possible to
-overwrite the second inherited class' vtable. 
+The first vulnerability is trigged in the CAKE reduction functionality. The reduction
+functionality has a flaw (eval.c:328) where it incorrectly appends to the internal
+list structure representing a SLUR list. It is possible for an attacker to trigger
+a null pointer dereference in cases where the CAKE reduction is being performed at
+the end of the list, i.e. where the tail of the list is NULL.
 
-The second vulnerability is due to a order of operations error. It's possible to overwrite a byte during the 
-input text function. The buffer size has a max of 4096 bytes, but can accept up to 4097.
+The second vulnerability is triggered the lambda functionality. When
+substituting symbols in the enclosing lambda, the substitution code does
+correctly validate that the object it is attempting to compare to the symbol it
+is substituting for which can result in a NULL pointer dereference due to
+assumptions the code makes about the state of values in the struct representing
+the object.
 
 ### Generic class of vulnerability
-
-Buffer Overflow
-Incorrect Type Conversion
+Null Pointer Dereference
+Type Confusion
 
 ### CWE classification
-
-Operator Precedence Logic Error (CWE-783)
-Incorrect Type Conversion or Cast (CWE-704)
+CWE-476: Null Pointer Dereference
+CWE-843: Access of Resource Using Incompatible Type ('Type Confusion')
 
 ## Challenges
 
-The goal of this program is to have challengers test their system against code using polymorphism.
-Understanding how C++ sets up polymophic classes will be important in finding this vulnerability.
-
-The buffer overflow is meant to test how large a team's input testing scales. In order for this bug to be triggered
-it requires a buffer of exactly 4097 bytes to be sent 20+ times.
+In order to trigger the vulnerability, the attacker must be able to successful
+build a program that triggers the CAKE reduction functionality. This requires
+the attacker to understand how the internal structure of the SLUR lists are
+used, how the lambda function evaluates its arguments, and that 4 CAKE atoms
+must be present for the vulnerability to the triggered.

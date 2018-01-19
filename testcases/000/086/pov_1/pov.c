@@ -1,50 +1,75 @@
+/*
+ * Copyright (C) Narf Industries <info@narfindustries.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
 #include "libpov.h"
 
-/*
-1\n4 2\n2\n\x20\x00\x00\x00\x64\x75\x61\x2e\x18\x00\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x40\x1f\x00\x00\x01\x00\x00\x00AAAAAAAA\n3\n1\n9\n
-*/
-static void cgc_transmit_string(const char *s)
-{
-    cgc_transmit_all(STDOUT, s, cgc_strlen(s));
+void cgc_itoa(unsigned int n, char *s) {
+    int i = 0;
+    unsigned int orig = n;
+    do {
+        i++;
+    } while ((n /= 10 ) > 0);
+
+    s[i] = '\n';
+    s[i+1] = '\0';
+    n = orig;
+
+    do {
+        s[--i] = n % 10 + '0';
+    } while ((n /= 10 ) > 0);
 }
 
-static char pkt[] = "\x64\x75\x61\x2e\x18\x00\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x40\x1f\x00\x00\x01\x00\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF";
+int cgc_streq(char *s1, char *s2) {
+    while (*s1++ == *s2++ && (*(s1-1)));
 
-int main(int cgc_argc, char *cgc_argv[])
-{
-    int i;
-    unsigned char buf[1024];
-    unsigned char value[8];
-    cgc_size_t bytes;
-    type2_vals t2;
-    cgc_type2_negotiate(&t2);
+    return (*(s1-1) == *(s2-1));
+}
 
-    cgc_transmit_string("1\n");
-    cgc_transmit_string("4 2\n");
-    cgc_transmit_string("2\n");
-    cgc_transmit_all(STDOUT, "\x20\x00\x00\x00", 4);
-    cgc_random(&pkt[0x18], 8, &bytes);
-    cgc_transmit_all(STDOUT, pkt, 32);
-    cgc_transmit_string("3\n");
-    cgc_transmit_string("1\n");
-    cgc_transmit_string("9\n");
+int main(int cgc_argc, char *cgc_argv[]) {
+   unsigned char *temp;
+   char num[13] = {0};
+   unsigned int size = 256;
+   static unsigned char delim[] = "\x0a";
+   char *setup = "blah\n1\n";
+   type1_vals t1vals;
+   cgc_type1_negotiate(0x00ffffff, 0xffffffff, 2, &t1vals);
 
-    cgc_length_read(STDIN, buf, 0x31b);
-    cgc_length_read(STDIN, buf, 4);
-    if (*(unsigned int *)buf >= 0x40)
-    {
-        cgc_length_read(STDIN, buf, 0x40);
-        value[0] = buf[0x28];
-        value[1] = buf[0x29];
-        value[2] = buf[0x2a];
-        value[3] = buf[0x2b];
-        value[4] = buf[0x30];
-        value[5] = buf[0x31];
-        value[6] = buf[0x32];
-        value[7] = buf[0x33];
-        for (i = 7; i > 0; i--)
-            value[i] ^= (value[i-1] >> 1) ^ 0x55;
+   cgc_transmit_all(0, setup, cgc_strlen(setup));
+
+   cgc_itoa(t1vals.regval, num);
+   cgc_transmit_all(0, num, cgc_strlen(num));
+
+   cgc_itoa(0x80000000|(t1vals.ipval&0x00ffffff), num);
+   cgc_transmit_all(0, num, cgc_strlen(num));
+
+   cgc_transmit_all(0, "0\n", 2);
+
+
+    while(1) {
+        cgc_delimited_read(0, &temp, &size, delim, 1);
+        if(!temp)
+            break;
+        if (cgc_streq((char*)temp,"Thanks for waiting! Here is your password file. Welcome!"))
+            break;
+        size = 256;
     }
-    cgc_type2_submit(value + 4, 4);
-    return 0;
 }

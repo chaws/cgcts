@@ -26,7 +26,7 @@ patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/admin.c.o -c src/admin.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/notloggedin.c.o -c src/notloggedin.c
-	$(CC) $(FLAGS) -o Message_Service_patched lib/jlib.c.o src/sort.c.o src/loggedin.c.o src/service.c.o src/admin.c.o src/notloggedin.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Message_Service_patched lib/jlib.c.o src/sort.c.o src/loggedin.c.o src/service.c.o src/admin.c.o src/notloggedin.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/jlib.c.o -c lib/jlib.c
@@ -35,11 +35,11 @@ vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/admin.c.o -c src/admin.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/notloggedin.c.o -c src/notloggedin.c
-	$(CC) $(FLAGS) -o Message_Service lib/jlib.c.o src/sort.c.o src/loggedin.c.o src/service.c.o src/admin.c.o src/notloggedin.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Message_Service lib/jlib.c.o src/sort.c.o src/loggedin.c.o src/service.c.o src/admin.c.o src/notloggedin.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Message_Service_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Message_Service_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)

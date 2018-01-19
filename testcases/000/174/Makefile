@@ -1,4 +1,4 @@
-CHAL=Vector_Graphics_2
+CHAL=CTTP
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,35 +20,29 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/canvas.c.o -c src/canvas.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/paint.c.o -c src/paint.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/vgf.c.o -c src/vgf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/pmp.c.o -c src/pmp.c
-	$(CC) $(FLAGS) -o Vector_Graphics_2_patched lib/printf.c.o lib/stdlib.c.o src/canvas.c.o src/paint.c.o src/io.c.o src/service.c.o src/vgf.c.o src/pmp.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -O0 -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -O0 -o src/cttp.c.o -c src/cttp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -O0 -o src/prng.c.o -c src/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -g -O0 -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o CTTP_patched lib/libc.c.o src/cttp.c.o src/prng.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/canvas.c.o -c src/canvas.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/paint.c.o -c src/paint.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/vgf.c.o -c src/vgf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/pmp.c.o -c src/pmp.c
-	$(CC) $(FLAGS) -o Vector_Graphics_2 lib/printf.c.o lib/stdlib.c.o src/canvas.c.o src/paint.c.o src/io.c.o src/service.c.o src/vgf.c.o src/pmp.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o src/cttp.c.o -c src/cttp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o src/prng.c.o -c src/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o CTTP lib/libc.c.o src/cttp.c.o src/prng.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(FLAGS) -o Vector_Graphics_2_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Vector_Graphics_2_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -g -O0 -pedantic -o pov_3/pov_3.c.o -c pov_3/pov_3.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -O0 -pedantic -o pov_1/pov_1.c.o -c pov_1/pov_1.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -O0 -pedantic -o pov_2/pov_2.c.o -c pov_2/pov_2.c
+	$(CXX) $(FLAGS) -o CTTP_pov_1 pov_1/pov_1.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o CTTP_pov_2 pov_2/pov_2.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o CTTP_pov_3 pov_3/pov_3.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o pov_2/pov.c.o lib/printf.c.o lib/stdlib.c.o src/canvas.c.o src/paint.c.o src/io.c.o src/service.c.o src/vgf.c.o src/pmp.c.o lib/printf.c.o lib/stdlib.c.o src/canvas.c.o src/paint.c.o src/io.c.o src/service.c.o src/vgf.c.o src/pmp.c.o Vector_Graphics_2_pov_1 Vector_Graphics_2_pov_2 Vector_Graphics_2_patched Vector_Graphics_2
+	rm -f pov_3/pov_3.c.o pov_1/pov_1.c.o lib/libc.c.o src/cttp.c.o src/prng.c.o src/service.c.o pov_2/pov_2.c.o lib/libc.c.o src/cttp.c.o src/prng.c.o src/service.c.o CTTP_pov_3 CTTP_pov_1 CTTP_patched CTTP_pov_2 CTTP

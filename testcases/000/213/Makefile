@@ -1,4 +1,4 @@
-CHAL=Network_File_System
+CHAL=DFARS_Sample_Service
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,37 +20,25 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/fs.c.o -c lib/fs.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/proto.c.o -c src/proto.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o Network_File_System_patched lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/proto.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/cgc_libc.c.o -c lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/cgc_malloc.c.o -c lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o DFARS_Sample_Service_patched lib/printf.c.o lib/cgc_libc.c.o lib/cgc_malloc.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/fs.c.o -c lib/fs.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/math.c.o -c lib/math.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/string.c.o -c lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/proto.c.o -c src/proto.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/cgc_libc.c.o -c lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/cgc_malloc.c.o -c lib/cgc_malloc.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o Network_File_System lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/proto.c.o src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o DFARS_Sample_Service lib/printf.c.o lib/cgc_libc.c.o lib/cgc_malloc.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/service.c.o -c pov_1/service.c
-	$(CC) $(FLAGS) -o Network_File_System_pov_1 pov_1/service.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o DFARS_Sample_Service_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/service.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/proto.c.o src/service.c.o lib/malloc.c.o lib/prng.c.o lib/ctype.c.o lib/fs.c.o lib/math.c.o lib/stdlib.c.o lib/stdio.c.o lib/string.c.o src/proto.c.o src/service.c.o Network_File_System_pov_1 Network_File_System_patched Network_File_System
+	rm -f pov_1/pov.c.o lib/printf.c.o lib/cgc_libc.c.o lib/cgc_malloc.c.o src/service.c.o lib/printf.c.o lib/cgc_libc.c.o lib/cgc_malloc.c.o src/service.c.o DFARS_Sample_Service_pov_1 DFARS_Sample_Service_patched DFARS_Sample_Service

@@ -1,125 +1,282 @@
 /*
- * Copyright (C) Narf Industries <info@narfindustries.com>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Authors: Cromulence <cgc@cromulence.com>
+
+Copyright (c) 2015 Cromulence LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
 */
-#include "libcgc.h"
-#include "cgc_stdint.h"
-#include "cgc_list.h"
+
 #include "cgc_malloc.h"
+#include "cgc_stdlib.h"
+#include "cgc_stdio.h"
+#include "cgc_string.h"
 
-typedef struct node block_meta_t;
+typedef struct meta {
+	cgc_size_t length;
+	struct meta *next;
+	struct meta *prev;
+} meta, *pmeta;
 
-struct list allocated_list;
-struct list free_list;
+#define BUCKET( size )	(size > 1016 ? 0 : size / 8 )
 
-char cgc_init_heap_done = FALSE;
-cgc_size_t cgc_remaining = 0;
-block_meta_t *cgc_last = NULL;
+/// Each bucket is the head of a singly linked list
+///  The size for the bucket can be calculated via index*8
+///  However, the freelist bucket 0 also uses the prev pointer
+pmeta cgc_lookaside[128] = {NULL};
 
+void cgc_link( pmeta linkme )
+{
+	pmeta walker = cgc_lookaside[0];
 
-static void cgc_set_block_size(block_meta_t *block, cgc_size_t size) {
-	block->data = (void *)size;
-}
-
-static void cgc_init_heap() {
-	if (FALSE == cgc_init_heap_done) {
-		cgc_list_init(&allocated_list, NULL);
-		cgc_list_init(&free_list, NULL);
-		cgc_init_heap_done = TRUE;
-	}
-}
-
-static unsigned char cgc_is_enough_room(const void *free_sz, void *new_sz) {
-	if (free_sz >= new_sz) {
-		return TRUE;
+	if ( linkme == NULL ) {
+		return;
 	}
 
-	return FALSE;
-}
-
-void *cgc_malloc(cgc_size_t size) {
-
-	if (0 == size) {
-		return NULL;
+	/// Handle the case where this is <= 1016
+	if ( linkme->length <= 1016 ) {
+		//cgc_printf("Adding into bucket: $d\n", BUCKET( linkme->length) );
+		linkme->next = cgc_lookaside[ BUCKET( linkme->length ) ];
+		cgc_lookaside[ BUCKET( linkme->length ) ] = linkme;
+		return;
 	}
 
-	size += sizeof(block_meta_t); // size requested + size of block_meta_t is total size required
-	block_meta_t *ret = NULL;
+	while ( walker ) {
+		if ( walker->next == NULL ) {
+			walker->next = linkme;
+			linkme->prev = walker;
+			linkme->next = NULL;
+			return;
+		} else if ( linkme->length < walker->next->length ) {
+			linkme->next = walker->next;
+			linkme->prev = walker;
+			walker->next->prev = linkme;
+			walker->next = linkme;
+			return;
+		} else {
+			walker = walker->next;
+		}
+	}
 
-	cgc_init_heap();
+	return;
+}
 
-	// check for a block on the free_list of sufficient size
-	ret = (block_meta_t *)cgc_list_find_node_with_data(&free_list, &cgc_is_enough_room, (void *)size);
+void cgc_add_freelist_block( cgc_size_t length )
+{
+	pmeta block = NULL;
+	pmeta walker = NULL;
 
-	// found room on free_list
-	if (NULL != ret) {
-		cgc_list_remove_node(&free_list, ret);
+	/// Round to the nearest page
 
-	// no room on free_list
+	/// Account for the 4 byte length field
+	length += 4;
+
+	length = (length + 4095 ) & 0xfffff000;
+
+	if ( cgc_allocate( length, 0, (void**)&block) != 0 ) {
+		cgc_printf("[ERROR] Allocating a free list block failed: $d\n", length);
+		cgc__terminate(-1);
+	}
+
+	cgc_bzero( block, length );
+
+	block->length = length-4;
+	
+	if ( cgc_lookaside[0] == NULL ) {
+		cgc_lookaside[0] = block;
+		return;
+	}
+
+	cgc_link( block );
+
+	return;
+}
+
+void cgc_free( void *block )
+{
+	pmeta nb = NULL;
+
+	if ( block ) {
+		nb = (pmeta) (( (char*)block) - 4);
+		cgc_link(nb);
+	}
+
+	return;
+}
+
+void cgc_init_freelist( void )
+{
+	pmeta zero_block = NULL;
+	pmeta base_block = NULL;
+
+	if ( cgc_allocate(4096, 0, (void**)&cgc_lookaside) != 0 ) {
+		cgc_printf("[ERROR] Malloc fail terminate\n");
+		cgc__terminate(-1);
+	}
+
+	cgc_bzero( cgc_lookaside[0], 4096);
+
+	zero_block = cgc_lookaside[0];
+	base_block = zero_block + 1;
+
+	/// Keep a zero length head on the freelist for
+	///	ease of organization
+	zero_block->length = 0;
+	zero_block->next = base_block;
+	zero_block->prev = NULL;
+
+	base_block->length = 4096 - sizeof(meta) - 4;
+	base_block->prev = zero_block;
+	base_block->next = NULL;
+
+	//cgc_printf("Set up head: $x with walker: $d: $x\n", zero_block, base_block->length, base_block);
+
+	return;
+}
+
+void cgc_unlink( pmeta block )
+{
+	if ( block == NULL ) {
+		return;
+	}
+
+	if ( block->prev != NULL ) {
+		block->prev->next = block->next;
+	}
+
+	if ( block->next != NULL ) {
+		block->next->prev = block->prev;
+	}
+
+	return;
+}
+
+void *cgc_freelist_alloc( cgc_size_t length )
+{
+	pmeta walker = NULL;
+	pmeta newone = NULL;
+
+	/// If there isn't a block on the free list then initialize one
+	/// This should only be the case on the first allocation request
+	if ( cgc_lookaside[0] == NULL ) {
+		cgc_init_freelist();
+	}
+
+	walker = (pmeta)cgc_lookaside[0];
+
+	// Walk while looking for the smallest useable
+	while ( walker ) {
+		if ( walker->length < length ) {
+			walker = walker->next;
+		} else {
+			break;
+		}
+	}
+
+	if ( walker == NULL ) {
+		//cgc_printf("no blocks found\n");
+		cgc_add_freelist_block( length );
+		return cgc_freelist_alloc(length);
 	} else {
-		// is there room on the last partially-used page?
-		if (size <= cgc_remaining) {
-			ret = cgc_last;
-			cgc_remaining -= size;
-		} else { // no room anywhere, get new page(s)
+		//cgc_printf("foudn block size: $d\n", walker->length );
 
-			// Allocate creates new page(s), so the memory from a prevoius page where 
-			// last and remaining refer should be saved to the free_list.
-			//
-			// Only save if that space can fit a block_meta_t + some bytes
-			// else let it become dangling/unusable memory.
-			if (cgc_remaining > sizeof(block_meta_t)) {
-				cgc_set_block_size(cgc_last, cgc_remaining);
-				cgc_list_insert_node_at_end(&free_list, cgc_last);
-				cgc_last = NULL;
-				cgc_remaining = 0;
-			}
+		cgc_unlink(walker);
 
-			if (0 != cgc_allocate(size, 0, (void **)&ret)) {
-				return NULL;
-			}
-
-			cgc_remaining = PAGE_SZ - (size % PAGE_SZ);
+		/// If the block is less than the size needed for at
+		///	least an 8 byte block then return the whole thing
+		///	That means sizeof(meta) prev and next total 8 bytes
+		///	bytes on the lookaside list
+		if ( walker->length - length < sizeof(meta) ) {
+			/// Skip the 4 byte length
+			return ((char*)walker) + 4;
 		}
 
-		cgc_set_block_size(ret, size);
+		/// Break the chunk off
+		newone = (pmeta) ( ((char*)walker) + 4 + length );
+		newone->length = walker->length - (length+4);
 
-		cgc_last = (block_meta_t *)((unsigned char *)ret + size);
+		//cgc_printf("Broke $d into $d and $d\n", walker->length, length, newone->length);
+		walker->length = length;
 
+		cgc_link(newone);
+
+		//cgc_printf("Returning size: $d\n", walker->length);
+		return ((char*)walker) + 4;
 	}
 
-	// add block to allocated_list
-	cgc_list_insert_node_at_end(&allocated_list, ret);
-
-	// need casting to make the math work correctly.
-	return (void *)((unsigned char*)ret + sizeof(block_meta_t));
+	return NULL;
 }
 
-void cgc_free(void *ptr) {
-	// get block_meta for this memory
-	ptr -= sizeof(block_meta_t);
 
-	// rm block from allocated_list
-	cgc_list_remove_node(&allocated_list, (block_meta_t *)ptr);
+void *cgc_calloc( cgc_size_t length )
+{
+	void *out = cgc_malloc( length );
 
-	// add block to free_list
-	cgc_list_insert_node_at_end(&free_list, (block_meta_t *)ptr);
+	if ( !out ) {
+		return out;
+	}
+
+	length = (length+7) & 0xfffffff8;
+
+	cgc_bzero( out, length);
+
+	return out;
 }
 
+void *cgc_malloc( cgc_size_t length )
+{
+	int bucket = 0;
+	pmeta outb = NULL;
+	
+	// The minimum size for a valid request is 8 bytes
+	if ( length < 8 ) {
+		length = 8;
+	}
+
+	// Round up to nearest 8
+	length = (length+7) & 0xfffffff8;
+
+	bucket = BUCKET(length);
+
+	if ( bucket == 0 ) {
+		return cgc_freelist_alloc( length );
+	} else {
+		while ( bucket < 128 ) {
+			if ( cgc_lookaside[ bucket] != NULL ) {
+				break;
+			}
+
+			bucket++;
+		}
+	}
+
+	if ( bucket == 128 ) {
+		//cgc_printf("No available buckets freelist alloc\n");
+		return cgc_freelist_alloc( length );
+	} else {
+		//cgc_printf("Found bucket: $d\n", bucket);
+		outb = cgc_lookaside[ bucket ];
+		cgc_lookaside[bucket] = outb->next;
+
+		return ( (char*)outb ) + 4;
+	}
+
+	return NULL;
+}

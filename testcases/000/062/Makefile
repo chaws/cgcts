@@ -1,4 +1,4 @@
-CHAL=Barcoder
+CHAL=FSK_BBS
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,94 +20,81 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strdup.c.o -c lib/strdup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strchr.c.o -c lib/strchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/memmove.c.o -c lib/memmove.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strcpy.c.o -c lib/strcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strcmp.c.o -c lib/strcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/exit.c.o -c lib/exit.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strndup.c.o -c lib/strndup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/memcmp.c.o -c lib/memcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/malloc_common.c.o -c lib/malloc_common.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/fread.c.o -c lib/fread.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strsep.c.o -c lib/strsep.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/memchr.c.o -c lib/memchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/fxlat.c.o -c lib/fxlat.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strcasestr.c.o -c lib/strcasestr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strtoul.c.o -c lib/strtoul.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/free.c.o -c lib/free.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/fwrite.c.o -c lib/fwrite.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/fflush.c.o -c lib/fflush.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/fopen.c.o -c lib/fopen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/calloc.c.o -c lib/calloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strtol.c.o -c lib/strtol.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strstr.c.o -c lib/strstr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/realloc.c.o -c lib/realloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/main.c.o -c src/main.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/barcode.c.o -c src/barcode.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -o src/bitmap.c.o -c src/bitmap.c
-	$(CC) $(FLAGS) -o Barcoder_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o src/barcode.c.o src/bitmap.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strcat.c.o -c lib/strcat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o src/checksum.c.o -c src/checksum.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o src/buffer.c.o -c src/buffer.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o src/ecc.c.o -c src/ecc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o src/frame.c.o -c src/frame.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o src/modem.c.o -c src/modem.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O3 -g -o src/bbs.c.o -c src/bbs.c
+	$(CXX) $(FLAGS) -o FSK_BBS_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/checksum.c.o src/buffer.c.o src/ecc.c.o src/frame.c.o src/modem.c.o src/bbs.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strdup.c.o -c lib/strdup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strchr.c.o -c lib/strchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memmove.c.o -c lib/memmove.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strcpy.c.o -c lib/strcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strcmp.c.o -c lib/strcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/ctype.c.o -c lib/ctype.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/exit.c.o -c lib/exit.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memcpy.c.o -c lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strndup.c.o -c lib/strndup.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memcmp.c.o -c lib/memcmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc_common.c.o -c lib/malloc_common.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/fread.c.o -c lib/fread.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strsep.c.o -c lib/strsep.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memchr.c.o -c lib/memchr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/fxlat.c.o -c lib/fxlat.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strcasestr.c.o -c lib/strcasestr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strtoul.c.o -c lib/strtoul.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/free.c.o -c lib/free.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdio.c.o -c lib/stdio.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strncpy.c.o -c lib/strncpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/fwrite.c.o -c lib/fwrite.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/fflush.c.o -c lib/fflush.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/fopen.c.o -c lib/fopen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/calloc.c.o -c lib/calloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strtol.c.o -c lib/strtol.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strstr.c.o -c lib/strstr.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/realloc.c.o -c lib/realloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strlen.c.o -c lib/strlen.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/main.c.o -c src/main.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/barcode.c.o -c src/barcode.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/bitmap.c.o -c src/bitmap.c
-	$(CC) $(FLAGS) -o Barcoder lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o src/barcode.c.o src/bitmap.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strcat.c.o -c lib/strcat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o src/checksum.c.o -c src/checksum.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o src/buffer.c.o -c src/buffer.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o src/ecc.c.o -c src/ecc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o src/frame.c.o -c src/frame.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o src/modem.c.o -c src/modem.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O3 -g -o src/bbs.c.o -c src/bbs.c
+	$(CXX) $(FLAGS) -o FSK_BBS lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/checksum.c.o src/buffer.c.o src/ecc.c.o src/frame.c.o src/modem.c.o src/bbs.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/printf.c.o -c pov_1/printf.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/memmove.c.o -c pov_1/memmove.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/main.c.o -c pov_1/main.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/stdio.c.o -c pov_1/stdio.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/fwrite.c.o -c pov_1/fwrite.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/fflush.c.o -c pov_1/fflush.c
-	$(CC) $(FLAGS) -o Barcoder_pov_1 pov_1/printf.c.o pov_1/memmove.c.o pov_1/main.c.o pov_1/stdio.c.o pov_1/fwrite.c.o pov_1/fflush.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O3 -g -pedantic -O0 -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O3 -g -pedantic -O0 -o pov_3/pov.c.o -c pov_3/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O3 -g -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o FSK_BBS_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o FSK_BBS_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o FSK_BBS_pov_3 pov_3/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/printf.c.o pov_1/memmove.c.o pov_1/main.c.o pov_1/stdio.c.o pov_1/fwrite.c.o pov_1/fflush.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o src/barcode.c.o src/bitmap.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/main.c.o src/barcode.c.o src/bitmap.c.o Barcoder_pov_1 Barcoder_patched Barcoder
+	rm -f pov_2/pov.c.o pov_3/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/checksum.c.o src/buffer.c.o src/ecc.c.o src/frame.c.o src/modem.c.o src/bbs.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcat.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/memcpy.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/strsep.c.o lib/memchr.c.o lib/free.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/strncmp.c.o lib/strcasecmp.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/realloc.c.o lib/strlen.c.o src/checksum.c.o src/buffer.c.o src/ecc.c.o src/frame.c.o src/modem.c.o src/bbs.c.o FSK_BBS_pov_2 FSK_BBS_pov_3 FSK_BBS_pov_1 FSK_BBS_patched FSK_BBS

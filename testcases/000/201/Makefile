@@ -1,4 +1,4 @@
-CHAL=FASTLANE
+CHAL=GREYMATTER
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -21,22 +21,20 @@ all: $(LIBCGC) patched vulnerable pov
 
 patched:
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o src/verbs.c.o -c src/verbs.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -O0 -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o FASTLANE_patched lib/libc.c.o src/verbs.c.o src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o GREYMATTER_patched lib/libc.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o src/verbs.c.o -c src/verbs.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -O0 -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o FASTLANE lib/libc.c.o src/verbs.c.o src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o GREYMATTER lib/libc.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -O0 -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o FASTLANE_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o GREYMATTER_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/libc.c.o src/verbs.c.o src/service.c.o lib/libc.c.o src/verbs.c.o src/service.c.o FASTLANE_pov_1 FASTLANE_patched FASTLANE
+	rm -f pov_1/pov.c.o lib/libc.c.o src/service.c.o lib/libc.c.o src/service.c.o GREYMATTER_pov_1 GREYMATTER_patched GREYMATTER

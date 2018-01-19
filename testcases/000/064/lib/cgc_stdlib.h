@@ -1,39 +1,47 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
- */
-#ifndef STDLIB_H_
-#define STDLIB_H_
 
-#include "libcgc.h"
+Author: Jason Williams <jdw@cromulence.com>
 
-/* memory allocation functions */
-void *cgc_malloc(cgc_size_t size);
-void *cgc_calloc(cgc_size_t nmemb, cgc_size_t size);
-void *cgc_realloc(void *ptr, cgc_size_t size);
-void cgc_free(void *ptr);
+Copyright (c) 2014 Cromulence LLC
 
-/* miscellaneous functions */
-void cgc_exit(int ret);
-long cgc_strtol(const char *str, char **endptr, int base);
-unsigned long cgc_strtoul(const char *str, char **endptr, int base);
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-#endif
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+*/
+#ifndef __STDLIB_H__
+#define __STDLIB_H__
+
+int cgc_isspace( int c );
+int cgc_isdigit( int c );
+int cgc_isnan( double val );
+int cgc_isinf( double val );
+double cgc_atof(const char *str);
+int cgc_atoi(const char *str);
+
+char *cgc_strcpy( char *dest, char *src );
+int cgc_printf( const char *fmt, ... );
+void cgc_bzero( void *, cgc_size_t );
+int cgc_strcmp( const char *, const char * );
+char *cgc_strncat( char *dest, const char *src, cgc_size_t n );
+cgc_size_t cgc_receive_until( char *, char, cgc_size_t );
+cgc_size_t cgc_strcat( char *, char* );
+cgc_size_t cgc_strlen( char * );
+cgc_size_t cgc_itoa( char *, cgc_size_t, cgc_size_t );
+void cgc_puts( char *t );
+
+#endif // __STDLIB_H__

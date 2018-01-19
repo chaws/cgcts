@@ -26,6 +26,34 @@ THE SOFTWARE.
 #ifndef __STDLIB_H__
 #define __STDLIB_H__
 
+#define INUSE_FLAG 1
+#define FREE_FLAG 2
+
+typedef struct _heap_block_header {
+	cgc_size_t remaining_size;
+	struct _heap_block_header *next;
+	char data[1];
+} heap_block_header;
+
+
+typedef struct _heap_header {
+	cgc_size_t size;
+	char flags;
+} heap_header;
+
+typedef struct _heap_metadata {
+	cgc_size_t mem_commit;
+	cgc_size_t mem_free;
+	cgc_size_t mem_inuse;
+	heap_block_header *blocks;
+} heap_metadata;
+
+void *cgc_calloc(cgc_size_t count, cgc_size_t size);
+void cgc_free(void *ptr);
+void *cgc_malloc(cgc_size_t size);
+
+
+
 int cgc_isspace( int c );
 int cgc_isdigit( int c );
 int cgc_isnan( double val );
@@ -36,7 +64,7 @@ int cgc_islower( int c );
 int cgc_isupper( int c );
 int cgc_isalpha( int c );
 int cgc_isalnum( int c );
-//int cgc_memcpy( void *dest, void *src, cgc_size_t n);
+int cgc_memcpy( void *dest, void *src, cgc_size_t n);
 
 char *cgc_strcpy( char *dest, char *src );
 char *cgc_strncpy( char *, const char *, cgc_size_t );
@@ -48,7 +76,7 @@ int cgc_strcmp( const char *, const char * );
 char *cgc_strncat( char *dest, const char *src, cgc_size_t n );
 cgc_size_t cgc_receive_until( char *, char, cgc_size_t );
 cgc_size_t cgc_strcat( char *, char* );
-extern cgc_size_t cgc_strlen( char * );
+cgc_size_t cgc_strlen( char * );
 cgc_size_t cgc_itoa( char *, cgc_size_t, cgc_size_t );
 void cgc_puts( char *t );
 char *cgc_strchr(const char *, int);

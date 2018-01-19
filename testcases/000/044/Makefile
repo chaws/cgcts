@@ -1,4 +1,4 @@
-CHAL=Mathematical_Solver
+CHAL=Particle_Simulator
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,41 +20,29 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/solver.c.o -c src/solver.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/math_lib.c.o -c src/math_lib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/stack.c.o -c src/stack.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/shapes.c.o -c src/shapes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/string.c.o -c src/string.c
-	$(CC) $(FLAGS) -o Mathematical_Solver_patched lib/printf.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/solver.c.o src/math_lib.c.o src/stack.c.o src/shapes.c.o src/service.c.o src/string.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o src/simulation.c.o -c src/simulation.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o src/render.c.o -c src/render.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Particle_Simulator_patched lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/simulation.c.o src/render.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/solver.c.o -c src/solver.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/math_lib.c.o -c src/math_lib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/stack.c.o -c src/stack.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/shapes.c.o -c src/shapes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/string.c.o -c src/string.c
-	$(CC) $(FLAGS) -o Mathematical_Solver lib/printf.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/solver.c.o src/math_lib.c.o src/stack.c.o src/shapes.c.o src/service.c.o src/string.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o src/simulation.c.o -c src/simulation.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o src/render.c.o -c src/render.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -mfpmath=sse -msse2 -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Particle_Simulator lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/simulation.c.o src/render.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Mathematical_Solver_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Mathematical_Solver_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Mathematical_Solver_pov_3 pov_3/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -mfpmath=sse -msse2 -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o Particle_Simulator_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_3/pov.c.o pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/solver.c.o src/math_lib.c.o src/stack.c.o src/shapes.c.o src/service.c.o src/string.c.o lib/printf.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/solver.c.o src/math_lib.c.o src/stack.c.o src/shapes.c.o src/service.c.o src/string.c.o Mathematical_Solver_pov_3 Mathematical_Solver_pov_2 Mathematical_Solver_pov_1 Mathematical_Solver_patched Mathematical_Solver
+	rm -f pov_1/pov.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/simulation.c.o src/render.c.o src/service.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/simulation.c.o src/render.c.o src/service.c.o Particle_Simulator_pov_1 Particle_Simulator_patched Particle_Simulator

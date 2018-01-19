@@ -1,249 +1,462 @@
-from cStringIO import StringIO
-from generator.actions import Actions, Variable
+from generator.actions import Actions
 import random
-import string
 import struct
+import sys
+import random
 
-def le32(x):
-    return struct.pack('<I', x)
+class enemy(object):
 
-def le16(x):
-    return struct.pack('<H', x)
+	def __init__(self, x, y, board):
+		self.myBoard = board
+		self.x = x;
+		self.y = y;
+		self.quadrant = 0;
+		self.homeColumn = x/2
 
-def be32(x):
-    return struct.pack('>I', x)
+	def __eq__(self, other):
+		if (self.x == other.x) and (self.y == other.y):
+			return True
+		else:
+			return False
 
-def be16(x):
-    return struct.pack('>H', x)
+	def move(self, newQuadrant):
+		if self.quadrant == newQuadrant:
+			return
 
-def random_alphanum(max_size, min_size=2):
-    alphanum = string.letters + string.digits
-    max_size = random.randint(min_size, max_size)
-    return ''.join(random.choice(alphanum) for c in range(max_size))
+		if self.quadrant == 0:
+			if newQuadrant == 1:
+				self.x = self.x + 1
+			else:
+				self.y = self.y + 1
+		elif self.quadrant == 1:
+			if newQuadrant == 0:
+				self.x = self.x - 1
+			else:
+				self.y = self.y + 1
+		elif self.quadrant == 2:
+			if newQuadrant == 1:
+				self.y = self.y - 1
+			else:
+				self.x = self.x - 1
+		else:
+			if newQuadrant == 2:
+				self.x = self.x + 1
+			else:
+				self.y = self.y - 1
 
-class RemoteStorage(Actions):
-    def start(self):
-        self.state['attached'] = False
-        self.state['memory'] = StringIO()
-        self.state['memory'].write('\x00' * 0x10000)
+		self.quadrant = newQuadrant
 
-    def before_attach(self):
-        pass
+	def step(self, randomNumber, clearToFire, advance):
+		# check if the enemies need to move down one row
+		if advance:
+			self.y = self.y + 1
 
-    def devlist(self):
-        pkt = be16(0x0111)
-        pkt += be16(0x8008)
-        pkt += be32(0)
+		move = randomNumber%7
+		if move == 1:
+			# fire
+			if clearToFire == True:
+				self.myBoard.addEnemyBullet(self.x, self.y)
+		else:
+			# move
+			move = randomNumber%3
 
-        self.write(pkt)
+			newQuadrant = self.quadrant
 
-        pkt = be16(0x0111)
-        pkt += be16(0x0008)
-        pkt += be32(0)
-        pkt += be32(1)
-        self.read(length=0xC, expect=pkt)
+			if move == 0:
+				# move counter clockwise
+				newQuadrant = newQuadrant-1
+				if newQuadrant == -1:
+					newQuadrant = 3
+			elif move == 1:
+				# move clockwise
+				newQuadrant = newQuadrant+1
+				if newQuadrant == 4:
+					newQuadrant = 0
 
-        pkt = "/sys/devices/pci0000:00/0000:00:1d.1/usb1/1-1"
-        pkt += '\x00' * (0x100 - len(pkt))
-        self.read(length=0x100, expect=pkt)
+			self.move(newQuadrant)
 
-        self.state['busid'] = Variable('busid')
-        self.state['busid'].set_slice(0)
-        self.read(length=0x20, assign=self.state['busid'])
+class enemyBullet(object):
 
-        self.read(length=0x08)
+	def __init__(self, x, y, board):
+		self.x = x
+		self.y = y
+		self.myBoard = board
+	
+	def __eq__(self, other):
+		if (self.x == other.x) and (self.y == other.y):
+			return True
+		else:
+			return False
 
-        pkt = be32(3) + be16(0x6666) + be16(0xdead) + be16(0x100) + '\x00\x00\x00\x00\x01\x01'
-        self.read(length=0x10, expect=pkt)
-        self.read(length=4, expect='\x08\x06\x50\x00')
 
-    def import_(self):
-        if self.chance(0.9):
-            self.devlist()
-        busid = self.state.get('busid')
-        if not busid:
-            busid = random_alphanum(32)
-            busid += '\x00' * (0x20 - len(busid))
-        pkt = be16(0x0111)
-        pkt += be16(0x8009)
-        pkt += be32(0)
-        self.write(pkt)
-        self.write(busid)
+	def step(self):
+		if self.y < (self.myBoard.rows - 1):
+			self.y = self.y + 1
+			return True
+		#if the bullet == now off the screen, return false
+		return False
 
-        pkt = be16(0x0111)
-        pkt += be16(0x0009)
-        if 'busid' in self.state:
-            pkt += be32(0)
-            self.state['attached'] = True
-            self.read(length=8, expect=pkt)
-            pkt = "/sys/devices/pci0000:00/0000:00:1d.1/usb1/1-1"
-            pkt += '\x00' * (0x100 - len(pkt))
-            self.read(length=0x100, expect=pkt)
-            self.read(length=0x20)
-            self.read(length=0x08)
-            pkt = be32(3) + be16(0x6666) + be16(0xdead) + be16(0x100) + '\x00\x00\x00\x00\x01\x01'
-            self.read(length=0x10, expect=pkt)
-        else:
-            pkt += be32(1)
-            self.read(length=8, expect=pkt)
+class userBullet(object):
 
-    def after_attach(self):
-        pass
+	def __init__(self, x, y, board):
+		self.x = x
+		self.y = y
+		self.myBoard = board
 
-    def submit_req(self, out, data, setup=None):
-        seqnum = random.randint(0, 0xFFFFFFFF)
-        devid = random.randint(0, 0xFFFFFFFF)
-        ep = random.randint(1, 0xFFFFFFFF)
-        if setup:
-            ep = 0
-            setup = (setup + '\x00' * 8)[:8]
-        else:
-            setup = '\x00' * 8
+	def __eq__(self, other):
+		if (self.x == other.x) and (self.y == other.y):
+			return True
+		else:
+			return False
 
-        pkt = be32(1)
-        pkt += be32(seqnum)
-        pkt += be32(devid)
-        pkt += be32(0 if out else 1)
-        pkt += be32(ep)
-        pkt += be32(0) # flags
-        pkt += be32(len(data))
-        pkt += be32(0) # unused 
-        pkt += be32(0) # unused 
-        pkt += be32(0) # unused 
-        pkt += setup
-        if out:
-            pkt += data
-        self.write(pkt)
+	def step(self):
+		if self.y > 0:
+			self.y = self.y - 1
+			return True
+		#if the bullet == now off the screen, return false
+		return False
 
-        pkt = be32(3)
-        pkt += be32(seqnum)
-        pkt += be32(devid)
-        pkt += be32(0 if out else 1)
-        pkt += be32(ep)
-        pkt += be32(0) # flags
-        pkt += be32(len(data))
-        pkt += be32(0) # unused 
-        pkt += be32(0) # unused 
-        pkt += be32(0) # unused 
-        pkt += '\x00' * 8
-        self.read(length=len(pkt), expect=pkt)
-        if not out and len(data) > 0:
-            self.read(length=len(data), expect=data)
+class board(object):
 
-    def invalid_urb(self):
-        pass
+	def __init__(self, rows, columns, seed1, seed2):
+		self.rows = rows
+		self.columns = columns
 
-    def setup_get_device_desc(self):
-        if not self.state['attached']:
-            return
-        self.submit_req(False, '\x12\x01\x00\x02\x00\x00\x00@ff\xad\xde\x00\x01\x00\x00\x00\x01', '\x80\x06\xFF\x01')
+		self.enemies = []
+		self.enemyBullets = []
 
-    def setup_get_config_desc(self):
-        if not self.state['attached']:
-            return
-        self.submit_req(False, '\t\x02 \x00\x01\x01\x00\x802\t\x04\x00\x00\x02\x08\x06P\x00\x07\x05\x81\x02\x00\x02\x00\x07\x05\x02\x02\x00\x02\x00', '\x80\x06\xDE\x02')
+		self.userBullets = []
+		self.shipCords = [0, rows-1]
 
-    def setup_set_config(self):
-        if not self.state['attached']:
-            return
-        self.submit_req(True, '', '\x00\x09\x01')
+		self.level = 0
+		
+		self.seed1 = seed1
+		self.seed2 = seed2
 
-    def setup_get_max_lun(self):
-        if not self.state['attached']:
-            return
-        self.submit_req(False, '\x01', '\xA1\xFE')
+		# Add enemies
+		self.rowCount = 2;
+		for i in xrange(self.rowCount):
+			for j in xrange(int(self.columns/2)):
+				newEnemy = enemy(j*2, i*2, self)
+				self.enemies.append(newEnemy)
 
-    def setup_reset(self):
-        if not self.state['attached']:
-            return
-        self.submit_req(True, '', '\x21\xFF')
+	def getRandomInt(self):
+		self.seed1 = (((42871 * (self.seed1 & 0xFFFF)) & 0xffffffff) + (self.seed1 >> 16)) & 0xffffffff
+		self.seed2 = (((28172 * (self.seed2 & 0xFFFF)) & 0xffffffff) + (self.seed2 >> 16)) & 0xffffffff
+		return ((self.seed1 << 16) + self.seed2) & 0xffffffff;	
 
-    def command(self, cb, out, data, error=False, residue=0):
-        tag = random.randint(0, 0xFFFFFFFF)
+	def addEnemyBullet(self, x, y):
+		self.enemyBullets.append(enemyBullet(x, y, self))
 
-        pkt = le32(0x43425355)
-        pkt += le32(tag)
-        pkt += le32(len(data))
-        pkt += chr(0)
-        pkt += chr(1)
-        pkt += chr(len(cb))
-        cb += '\x00' * (16 - len(cb))
-        pkt += cb
-        self.submit_req(True, pkt)
+	def addEnemy(self, x, y):
+		self.enemies.append(x, y, self)
 
-        if data is not None:
-            if out:
-                if len(data) > 512:
-                    split = random.randint(0, len(data) - 10)
-                    if split > 0:
-                        self.submit_req(True, data[0:split])
-                    self.submit_req(True, data[split:])
-                else:
-                    self.submit_req(True, data)
-            else:
-                self.submit_req(False, data)
+	def addUserBullet(self, x, y):
+		self.userBullets.append(userBullet(x, y, self))
 
-        pkt = le32(0x53425355)
-        pkt += le32(tag)
-        pkt += le32(residue)
-        pkt += chr(1 if error else 0)
-        self.submit_req(False, pkt)
+	def updateUser(self, action):
+		#check if user == dead
+		for ele in self.enemyBullets:
+			if (self.shipCords[0] == ele.x) and (self.shipCords[1] == ele.y):
+				return False
 
-    def cmd_read_capacity(self):
-        if not self.state['attached']:
-            return
-        self.command('\x25', False, '\x00\x00\x00\x7F\x00\x00\x02\x00')
+		#fire
+		if action == "~":
+			self.addUserBullet(self.shipCords[0], self.shipCords[1])
+		#up
+		elif action == "w":
+		   if self.shipCords[1] > 0:
+			   self.shipCords[1] = self.shipCords[1] - 1
+		#right
+		elif action == "d":
+		   if self.shipCords[0] < self.columns - 1:
+			   self.shipCords[0] = self.shipCords[0] + 1
+		#down
+		elif action == "s":
+		   if self.shipCords[1] < self.rows - 1:
+			   self.shipCords[1] = self.shipCords[1] + 1
+		#left
+		elif action == "a":
+		   if self.shipCords[0] > 0:
+			   self.shipCords[0] = self.shipCords[0] - 1
+		else:	
+			self.addUserBullet(self.shipCords[0], self.shipCords[1])
 
-    def cmd_inquiry(self):
-        if not self.state['attached']:
-            return
-        data = '\x0e\x00\x04\x02\x20\x00\x00\x00' + '\x00'*28
-        length = random.randint(0, len(data)) 
-        data = data[:length]
-        self.command('\x12\x00\x00\x00' + chr(length), False, data)
+		for ele in self.enemyBullets:
+			if (self.shipCords[0] == ele.x) and (self.shipCords[1] == ele.y):
+				return False
+		return True
 
-    def cmd_read(self):
-        if not self.state['attached']:
-            return
-        if True: #self.chance(0.9):
-            lba = random.randint(0, (0x10000 / 512) - 1)
-            length = min(0x10000 - lba * 512, 0x1000)
-            length = random.randint(1, length / 512)
-            self.state['memory'].seek(lba * 512)
-            data = self.state['memory'].read(length * 512)
-            self.command('\x28\x00' + be32(lba) + '\x00' + be16(length), False, data)
-        elif self.chance(0.5):
-            lba = random.randint((0x10000 / 512), 0xFFFFFFFF)
-            length = random.randint(0, 0xFFFF)
-            self.command('\x28\x00' + be32(lba) + '\x00' + be16(length), False, None, error=True)
-        else:
-            lba = random.randint(0, (0x10000 / 512) - 1)
-            length = (0x10000 - lba * 512) / 512
-            self.state['memory'].seek(lba * 512)
-            data = self.state['memory'].read(length * 512)
+	def step(self, advance):
+		output = ""
+		#step the enemies
+		for ele in self.enemies:
+			# Check if enemy should be allowed to fire
+			clearToFire = True
+			for ele2 in self.enemies:
+				if ele != ele2:
+					if (ele2.homeColumn == ele.homeColumn) and (ele2.y > ele.y):
+						clearToFire = False
+			val = self.getRandomInt()
+			output += str(val%1000) + "\n"
+			ele.step(val, clearToFire, advance)
 
-            length += random.randint(1, 1000)
-            self.command('\x28\x00' + be32(lba) + '\x00' + be16(length), False, None, error=True)
+		#step enemy bullets
+		self.enemyBullets = [x for x in self.enemyBullets if x.step()]
 
-    def cmd_write(self):
-        if not self.state['attached']:
-            return
-        lba = random.randint(0, (0x10000 / 512) - 1)
-        length = min(0x10000 - lba * 512, 0x1000)
-        length = random.randint(512, length) / 512
-        data = ''.join(chr(random.randint(0,255)) for c in xrange(length * 512))
-        self.state['memory'].seek(lba * 512)
-        self.state['memory'].write(data)
-        self.command('\x2A\x00' + be32(lba) + '\x00' + be16(length), True, data)
+		#step user bullets
+		self.userBullets = [x for x in self.userBullets if x.step()]
 
-    def cmd_mode_sense(self):
-        if not self.state['attached']:
-            return
-        data = '\x00\x10\x00\x00\x00\x00\x00\x00\x86\x08\x01\x02\x00\x00\x00\x00\x00\x80'
-        self.command('\x5A\x00\x3F', False, data)
+		#check for enemy collisions
+		enemyHold = []
+		userBulletHold = []
+		for ele in self.enemies:
+			for bullet in self.userBullets:
+				if (ele.x == bullet.x) and (ele.y == bullet.y):
+					enemyHold.append(ele)
+					userBulletHold.append(bullet)
+					
+		for ele in enemyHold:
+			self.enemies.remove(ele)
 
-    def invalid_cmd(self):
-        pass
+		for ele in userBulletHold:		
+			self.userBullets.remove(ele)
+		
+		return output
 
-    def quit(self):
-        pass
+	def draw(self, username, levelAdv):
+		output = ""
+	
+		output += "\tWelcome to Attackers General " + username + "!"
+
+		output += '\n'
+		for i in xrange(self.columns+2):
+			output += '-'
+		output += '\n'
+
+		for i in xrange(self.rows):
+			output += '|'
+			for j in xrange(self.columns):
+				printed = False;
+				# Check if we should print the user's ship
+				if(self.shipCords[0] == j and self.shipCords[1] == i):
+					output += 'W'
+					printed = True
+
+				# Check if we should print enemy bullet
+				for ele in self.enemyBullets:
+					if(ele.x == j and ele.y == i) and (printed == False):
+						output += '+'
+						printed = True
+						break
+
+				# Check if we should print an enemy
+				for ele in self.enemies:
+					if(ele.x == j and ele.y == i) and (printed == False):
+						output += '#'
+						printed = True
+						break
+				# Check if we should print user bullet
+				for ele in self.userBullets:
+					if(ele.x == j and ele.y == i) and (printed == False):
+						output += '!'
+						printed = True
+						break
+
+				# If there wasn't anything to draw, draw a space
+				if(printed == False):
+					output += ' '
+
+			output += '|\n'
+		for i in xrange(self.columns+2):
+			output += '-'
+		output += '\n'
+
+		if levelAdv:
+			self.level = self.level + 1
+
+		# print level
+		output += '\t\tLevel #' + str(self.level) + "\n"
+
+		# Return the output of the draw
+		return output
+
+rows = 25
+columns = 25
+
+class game(object):
+
+	def __init__(self, username, seed1, seed2, f):
+		self.f = f
+		self.username = username
+		if self.username == "magic":
+			self.seed1 = 0
+			self.seed2 = 0
+		else:
+			self.seed1 = seed1
+			self.seed2 = seed2
+		
+		self.lost = False		
+		
+		self.currentUserInput = ""
+		
+		self.turnCounter = 0
+		self.level = 1	
+		# Create the board
+		self.myBoard = board(rows, columns, self.seed1, self.seed2)
+	
+	def next(self, userInput):
+		enemyCount = len(self.myBoard.enemies)
+		output = ""
+		
+		# If the user just pressed enter, account for that
+		if len(userInput) == 0:
+			userInput = "~"
+		else:
+			userInput = userInput[0]
+	
+		if enemyCount != 0:
+			if self.turnCounter != 0:
+				# Take action
+				alive = self.myBoard.updateUser(self.currentUserInput)
+				enemyCount = len(self.myBoard.enemies)
+
+				if (self.turnCounter+1)%20 == 0:
+					self.level += 1
+
+				if (alive == False) or ((self.level >= 23) and (self.turnCounter%20 == 0)):
+					#self.f.comment('you lose %d %d %d', alive, self.level, self.turnCounter)
+					output += "\t\tyou lose\n\n\n\n\n"
+					self.lost = True
+					return output
+				else:
+					self.myBoard.step(((self.turnCounter%20) == 0))	
+
+			# Draw the board
+			output += self.myBoard.draw(self.username, (((self.turnCounter)%20) == 0))
+			
+			self.currentUserInput = userInput
+			self.turnCounter += 1
+		# We won
+		if enemyCount == 0:
+			danceX = 4
+			danceY = 5
+			num = 0
+			for i in xrange(100000):
+				output += "\t\t!!!DANCE MODE!!!\n\n\n\n\n\n\n\n"
+
+				# Draw top of dance box
+				for j in xrange(12):
+					output += '-'
+				output += '\n'
+
+				# Draw out board
+				for m in xrange(10):
+					output += '|'
+					for n in xrange(10):
+						if (m == danceY) and (n == danceX):
+							output += 'W'
+						else:
+							output += ' '
+					output += '|\n'
+
+				# Draw bottom of dance box
+				for j in xrange(12):
+					output += '-'
+				output += '\n'
+
+				output += "Bust a move (w = +1, s=SaveDigit, d=FIRE)\n"
+				output += str(num) + '\n'
+				input = raw_input()
+				if len(input) == 0:
+					input = "~"
+				if input[0] == "w":
+					num = num + 1
+				elif input[0] == "s":
+					num = 0
+
+				# Move the ship randomly
+				r = random.randint(0,4)
+				if r == 0:
+					if danceY == 0:
+						danceY = 9
+					else:
+						danceY = danceY - 1
+				elif r == 1:
+					if danceY == 9:
+						danceY = 0
+					else:
+						danceY = danceY + 1
+				if r == 2:
+					if danceX == 0:
+						danceX = 9
+					else:
+						danceX = danceX - 1
+				elif r == 3:
+					if danceX == 9:
+						danceX = 0
+					else:
+						danceX = danceX + 1
+
+		return output
+
+
+def random_string(cnt):
+	return ''.join([chr(random.randint(97, 122)) for x in xrange(cnt)])
+def random_input(cnt):
+	rndStr = random_string(cnt)
+	rndInp = ""
+	for ele in rndStr:
+		if ele != '\n':
+			rndInp += ele
+	
+	return rndInp
+
+class TemplateGenerator(Actions):
+	def init_rng(self):
+		vals = struct.unpack('<IIII', self.magic_page[0:16])
+		self.state['seed1'] = (vals[0] ^ vals[1]) & 0xffffffff
+		self.state['seed2'] = (vals[2] ^ vals[3]) & 0xffffffff
+
+	def start(self):
+		#self.delay(100)
+		# read prompt
+		self.read(delim='\n', expect='Please input your name:\n')
+
+		# send name
+		self.state['username'] = random_input(32)
+		newUsername = ""
+		for ele in self.state['username']:
+			if ((ord(ele) >= 97) and (ord(ele) <= 122)):
+				newUsername += ele
+			else:
+				break
+		self.write(self.state['username'] + '\n')
+		self.state['username'] = newUsername
+
+		# Pull the secret values out		
+		self.init_rng()
+
+		# Setup game object
+		self.game = game(self.state['username'], self.state['seed1'], self.state['seed2'], self)
+
+	def go(self):
+		while True:
+			if self.game.lost == True:
+				break
+			# Get user input
+			userInput = random_input(1) 
+			# Get predicted gameboard state
+			boardState = self.game.next(userInput)
+			if not self.game.lost:
+				self.write(userInput + '\n')
+			
+			#self.read(delim='\n', expect = str(struct.unpack('<i', struct.pack('<I', self.game.seed1))[0]) + " " + str(struct.unpack('<i', struct.pack('<I', self.game.seed2))[0]) + "\n")
+			# Check if predicted gameboard state matches realtiy
+			lines = boardState.split('\n')
+			del lines[-1]
+			for line in lines:
+				self.read(delim='\n', expect=line+'\n')
+
+	def quit(self):
+		pass

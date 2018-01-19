@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright (C) 2014 Narf Industries <info@narfindustries.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -19,57 +17,20 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 ---
 nodes:
 - name: start
-- name: issue
-- name: balance
-- name: recharge
-- name: purchase
-- name: history
-- name: refund
+- name: move
+  continue: 0.8
+- name: valid_move
+- name: invalid_move
+- name: finish
+
 edges:
-- start: issue
-#
-- issue: issue
-- issue: balance
-- issue: recharge
-- issue: purchase
-- issue: history
-- issue: refund
-#
-- balance: issue
-- balance: balance
-- balance: recharge
-- balance: purchase
-- balance: history
-- balance: refund
-#
-- recharge: issue
-- recharge: balance
-- recharge: recharge
-- recharge: purchase
-- recharge: history
-- recharge: refund
-#
-- purchase: issue
-- purchase: balance
-- purchase: recharge
-- purchase: purchase
-- purchase: history
-- purchase: refund
-#
-- history: issue
-- history: balance
-- history: recharge
-- history: purchase
-- history: history
-- history: refund
-#
-- refund: issue
-- refund: balance
-- refund: recharge
-- refund: purchase
-- refund: history
-- refund: refund
+- start: move
+- move: valid_move
+  weight: 0.8
+- move: invalid_move
+  weight: 0.2
+- valid_move: move
+- invalid_move: move

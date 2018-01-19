@@ -1,0 +1,17 @@
+src/service.c:57 # req is declared
+src/service.c:59 # req is heap-allocated: req->recv[1044] and req->resp[1024]
+src/service.c:62 # rearrange req to stay at the end of the memory page
+src/service.c:67 # reads input from user into req->recv
+src/service.c:68 # checks if the input starts with Edgar's identifier
+src/service.c:69 # process input according to Edgar's strategy
+src/members.c:55 # check for string `Leonore'
+src/members.c:56 # calls matching function
+src/members.c:37:CWE122 # attempts to copy a 1044 buffer over a 1024 one
+lib/libc.c:95 # req->recv is passed as s2 and req->resp as s1, which is pointed to tmp
+lib/libc.c:97:CWE122 # writes to an address that might be far from the 1024th position of req->resp
+src/members.c:38:CWE122 # attempts to concatenate `EDGROVFSTR' to req->resp without checking if it'll overflow
+lib/libc.c:118 # req->resp is s1, which is pointed to tmp
+lib/libc.c:119:CWE122 # reads an address that might be far from the 1024th position of req->resp
+src/members.c:40:CWE122:fix # forces the copy of buffers up to req->resp's length
+src/members.c:41:CWE122:fix # forces the concatenation of EDGROVFSTR up to req->resp's length
+

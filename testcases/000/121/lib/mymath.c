@@ -27,18 +27,6 @@ THE SOFTWARE.
 #include "cgc_mymath.h"
 #include "cgc_stdint.h"
 
-int cgc_expi( int base, int exponent)
-{
-	int result = 1;
-
-	while( exponent ) {
-		result *= base;
-		exponent--;
-	}
-
-	return result;
-}
-
 double cgc_floor( double val )
 {
     if ( val > 0.0 )

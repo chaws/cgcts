@@ -1,62 +1,27 @@
-# KPRCA-00002: RRPN
+# KPRCA-00014
 
-## Author Information
-"Brian Pak" <brian.pak@kapricasecurity.com>
-
-### DARPA performer group
+## DARPA performer group
 Kaprica Security (KPRCA)
 
 ## Description:
 
-This service implements a simple Reverse Polish Notation (RPN) calculator that 
-supports a few arithmetic operations. The service uses Just-In-Time (JIT) 
-compilation to emit native x86 code to compute the result.
+This service implements a basic virtual machine that receives one instruction at a time and sends back the VM's current register state.
 
-The RPN calculator works like a normal stack machine, but it uses __%eax__ and 
-__%edi__ registers as the first two items on the stack in order to make the 
-JIT'd code simpler (with no memory access). The most recent operand always 
-resides in __%eax__ and the second most recent opeand is in __%edi__.
-
-In case of (RPN stack) underflow or invalid operator, the service outputs an 
-error. Also, the result is whatever the value that is on the top of the stack 
-at the end of parsing (in case there are more numbers than operators consumed).
-
-Note: The order of operands used in binary operation is different from the 
-normal RPN (where the notation is reversed but not the order of operands). For 
-example, if the input is "a b -" (with a being at the bottom of the stack), the 
-result is b - a. This should not affect the vulnerability, however.
+The protocol starts with a header that has a magic check and fields to allow initialization of the VM's registers and memory. Each instruction is 32-bits and is generally in the format: 8-bit opcode, 4-bit destination register, 4-bit source register, 16-bit literal.
 
 ### Feature List
-This calculator supports basic operations like addition, subtraction, 
-multiplication, and division, as well as absolute value, bitwise negation, and 
-power. Number can be provided in octal, decimal, or hexadecimal, and output 
-will be given as both decimal and hexadecimal.
+
+The virtual machine implements basic arithmetic such as addition, subtraction, division, and multiplication, as well as integer comparisons and basic IO. The machine state consists of 15 general purpose registers and 64KB of memory. For performance, the interpreter utilizes computed gotos instead of the more common if statements or switch statement.
 
 ## Vulnerability
 
-The vulnerability is triggered while generating and pushing integers (operands) 
-to the allocated memory. The JIT structure contains the code page and the stack 
-of fixed sizes, and without the overflow validation, the code generated and the 
-operands on the stack could collide each other. The code grows up while the 
-stack grows down in memory. With a carefully crafted input, which should be a 
-valid input to the RPN calculator, it is possible to run arbitrary code.
-
-### Generic class of vulnerability
-Heap-based Buffer Overflow
+The 8-bit opcode that is parsed from the instruction is used to index into an array of label values, and the result is the target of the computed goto statement (main.c:110). There is a check to make sure the opcode is not greater than the number of elements in the array (main.c:109), but the opcode is a signed integer which can lead to an underflow. By specifying a negative 8-bit opcode, an attacker can force the program to execute invalid memory.
 
 ### CWE classification
-CWE-122: Heap-based Buffer Overflow
+CWE-127: Buffer Under-read
 
 ## Challenges
 
-This service challenges some of the non-trivial, real-world aspects of the 
-program analysis:
+The primary challenge for this service is to correctly reason about computed jumps and then protect against the vulnerability. Depending on the implementation, control flow integrity protections may not correctly handle computed gotos.
 
-* executable memory page
-* JIT compilation
-* string processing
-
-The main focus of this challenge is to test if the program analysis can handle 
-dynamically generated code. The vulnerability is not necesarilly related to the 
-JIT operation, but one has to realize that the code being generated and the 
-data being pushed can collide in memory, which gets executed later.
+Discovering the vulnerability should be possible with any means of testing, including both fuzzing and symbolic execution. The protocol is small and simple which should reduce state explosion.

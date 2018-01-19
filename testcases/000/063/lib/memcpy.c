@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  *
  */
+
 #include "cgc_string.h"
 
 void *cgc_memcpy(void *dest, const void *src, cgc_size_t n)

@@ -1,24 +1,61 @@
-# BitBlaster
+# REMATCH_5--File_Explorer--LNK_Bug
 
-@Author: Lok Yan <Lok.Yan@us.af.mil>
-@Group: AFRL
+## Author Information
 
-## Description:
+debbie@cromulence.com
 
-This is a simple puzzle game where the user is presented with a rectangular board of size 32x32. At the start of the game, the board is littered with 4*n bits (n <= 64) which are set positions. The goal of the game is to clear the board by moving the bits towards the bottom left of the board. When the lower left 2x2 grid is filled with bits, they will disappear. There are only two kinds of movements that are allowed - rotate right or rotate down.
+### DARPA performer group
+Cromulence LLC (CROMU)
 
-For example the following puzzle (the ... represents a bunch of 0s)
-1100 0000 0000 0000 ...
-... 
-1100 0000 0000 0000 ...
+## Description
+The LNK bug is a vulnerability in the Windows shell that allowed malware to execute from the USB drive with little or no user interaction. CVE-2010-2568 was patched by Microsoft in August 2010 and thought to be fixed until a security researcher reported in January of 2015 that even patched systems were still vulnerable to what is largely the same attack. 
 
-Has the solution: 0D x 31 and 1D x 31 (in any order).
+CVE-2010-2568 was a logic bug in how the Windows shell displays icons for shortcut (.lnk) files. The shortcut file can direct Windows to load an icon from a dll file. In order to access the icon, Windows calls LoadLibrary() which allows code execution from the DLL. If the .lnk and .dll file are both located on a thumb drive, arbitrary code execution will occur as soon as Windows displays the contents of the drive (either via AutoRun or the user opening the drive to view files in Explorer). The patch issued by Microsoft in 2010 attempted to prevent this condition by checking to make sure the .dll file was in a valid Windows folder before loading it. However, an off by one error combined with faulty program logic allow a well crafted file name to pass all of the checks and still get loaded. 
 
-## Vulnerability Class: 
+This service recreates the spirit of that bug by implementing a basic memory based file system with a text based shell and loader. The ‘icon’ is represented by flavor text loaded from a pre-populated location in the file system. When an appropriately formatted shortcut file and companion flavor text file are uploaded, the loader will execute code from the uploaded library file when it attempts to display the flavor text during a file listing. 
 
-The vulnerability is a an explicit NULL Pointer Dereference by calling NULL as a function. This vulnerability is triggered once a solution to the puzzle at hand is found. In essence, this CB should be easy to patch, but more difficult to POV. This vulnerability falls under [CWE-824: Access of Uninitialized Pointer](http://cwe.mitre.org/data/definitions/824.html) and [CWE-476: Null Pointer Derefernece](http://cwe.mitre.org/data/definitions/476.html)
+### Feature List
+This service implements a text based interactive shell. The user can execute several commands:
 
-## Additional Notes:
+  'u' - Upload a new file
+  'r' - Read an existing file
+  'd' - Delete a file
+  'l' - List the files in a directory recursively
+  'g' - List the files in a directory with details and flavor text
+  'c' - Create a new directory
+  'w' - List the present working directory
+  'h' - Change the working directory
+  'x' - Exit the shell
 
-This CB is designed to help CRSes determine well they handle bit-wise operations include the bit-based protocol  as the ability to support bit-wise operations (mainly the rotate operations). There is the potential difficulty of the rotate down operation but the clear function boundaries should help with the behavior and logic recovery. The major challenge is in how a CRS might be able to find a "solution" to the puzzle at hand. To minimize this, we ensured that the default starting position is just the bottom two rows having all 1's. This means that only the right shift is needed to generate the POV. A user can change the code in the future accordingly.
+The file system contains a system file containing default flavor text that cannot be accessed by the interactive shell. Flavor text files are a custom file format patterned after a simple executable file. 
 
+Files can be of several different types: 
+  FILE_TEXT       
+  FILE_EXECUTABLE 
+  FILE_IMAGE      
+  FILE_LINK       
+  FILE_RAW        
+  FILE_LIBRARY    
+  FILE_DIRECTORY  
+  FILE_INVALID   
+
+A LINK file will contain a reference to the target of the link. If the link target is a shared library file that contains flavor text, and if it meets several other requirements, the shell will load the shared library and use its reference section as flavor text when a long listing is performed on that file. 
+
+The custom loader reads the shared library header, checks it for accuracy, and then executes the 'SharedLibraryMain' function. The object code in these shared libraries is a custom limited instruction set that allows reading from memory, writing to memory, and outputting values to STDOUT. 
+
+## Vulnerability
+These vulnerabilities closely mimic the logic bug disclosed in CVE-2010-2568, and the bypass of the original patch of that bug that was disclosed in CVE-2015-0096. In order to exercise these vulnerabilities, a specially crafted shared library file and a specially crafted link file that points to that library must be uploaded to the file system and then a long listing performed on the directory containing those files. When that occurs, the contents of the shared library will be loaded by a custom loader and the 'SharedLibraryMain' function will be 'executed', allowing both a type 1 or type 2 proof of vulnerability. In order to bypass the protections of the original patch, the link target filename must be crafted in a special way to get through several different checks that are intended to prevent it from pointing to a file outside of the system directory.
+
+First, the filename of the link target will be checked to see if it falls in the 'System/Special' directory. If it lies outside, the filename is appended with a special character and the ascii string '-1'. This buffer is then copied to another location for processing, but due to an incorrect calculation on string length, the new buffer is too short to hold the entire string and the '1' at the end is truncated. When further program logic performs atoi() on the number at the end of the string, it sees only '-' because the '1' has been truncated and without a number present, atoi() defaults to returning a 0. The program then continues processing as if the original string had contained the ascii string for '0' instead of '-1' which allows the link target to masquerade as having been in the 'System/Special' directory. There are a few more hoops to jump through and then the target shared library will be loaded and its main function executed. 
+
+### Generic class of vulnerability
+Copying to a buffer that is one byte too short. 
+
+### CWE classification
+CWE-193 - Off by one error
+
+## Challenges
+This service may prove difficult for CRSs due to the complex cascade of logic required to access the underlying vulnerability. 
+Find: Hard
+Prove: Medium
+Patch: Medium

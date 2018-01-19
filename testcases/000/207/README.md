@@ -1,46 +1,44 @@
+# CGC Challenge Binary 00040 - Recipe Database
+
+## Author Information
+
+Steve Wood <swood@cromulence.co>
+
 ### DARPA performer group
-Kaprica Security (KPRCA)
+
+Cromulence
 
 ## Description
 
-This application allows a user to sign up for university classes. It will check for scheduling conflicts
-as well as enforce university rules, such as limiting the number of credits taken per semester,
-limiting the number of in major classes, and forcing a student to take classes with 3 or more credits
-unless it is an in major class.
+The program is an application to collect food recipes and allow for searching for wanted recipes by title and ingredient.  Individual recipes can be tagged for later printing.  In addition, the ingredients from recipes that have been tagged can be combined into a sorted shopping list. 
 
 ### Feature List
-The application lets a student add classes for the semester. In doing so the student can search for classes
-by its Course number, Course Id or professor. Once a student finds a class or classes, he or she can
-add up to 7 classes to his or her schedule.
 
-1 - Search Classes
-2 - Add Class
-3 - Remove Class
-4 - Print Schedule
-5 - Exit
+New recipes can't be added.  Recipes can also be searched for by keyword including the use of wildcards that search the recipe title and ingredient list.  For example, all recipes that use artichoke hearts could be found and tagged.  A list of tagged recipes can be printed to STDOUT to create a menu for a dinner and finally a shopping list of the ingredients used in tagged recipes can be printed.
 
 ## Vulnerability
 
-The first vulnerability is due to a bad bounds check. If a user can add enough low credit classes it's possible
-to overflow the array containing the list of classes. This may allow the attacker to overwrite a function 
-pointer.
+The vulnerability occurs in the way that recipes are captured and later displayed.  If the entry of ingredients is terminated without enterying any ingredient, the recipe is invalid and is deleted.  However, entering a recipe with no step by step instructions is allowed.  When being searched for and displayed for tagging, the program properly checks for the instructions to be a valid list.  However, when subsequently printing a tagged list of recipes, this check is not performed and a zero pointer dereference occurs causing a SEGFAULT.
 
-The second vulnerability is due to a order of operations error. It's possible to overwrite a byte in the global
-g_all_profs variable. The bug is due to readline checking the buf size bounds after the read, instead of before,
-allowing 1025 bytes to be written, instead of 1024.
+The second vulnerability is an off by one error due to invalid validation of a length.
+
+The third vulnerabilility exists in the traversing of the book structures without ensureing that the pointer is non-null.
 
 ### Generic class of vulnerability
 
-Buffer Overflow
+Off by one overwrite
+NULL Pointer Dereference.
 
 ### CWE classification
 
-Operator Precedence Logic Error (CWE-783)
-Heap-Based Buffer Overflow (CWE-122)
+CWE-476 -- Null dref
+CWE-193 - Off by one error
 
 ## Challenges
 
-This binary has been built with a lot of data embedded in it. It's slightly larger than the average CGC
-binary, coming in at close to .5 MB. The data itself is always referenced by pointers in order to avoid additional creation on the heap. The CB's goal is to be able to ensure a time can navigate through large text sections.
+This vulnerability requires two steps to demonstrate it crashing the program.  First a recipe has to be entered with no step by step instructions, then the recipe has to be searched and tagged.  Finally, it must be displayed as part of the tagged list.
 
-Overwriting the single byte in the professor address only affects the system if the user then tries to search by professors after.
+
+
+
+

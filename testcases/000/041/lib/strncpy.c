@@ -23,7 +23,7 @@
  
 char *cgc_strncpy(char *dest, const char *src, cgc_size_t size) {
 
-    cgc_size_t idx = 0;
+    unsigned int idx = 0;
     for (; idx < size && src[idx] != '\0'; idx++) {
         dest[idx] = src[idx];
     }

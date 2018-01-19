@@ -1,8 +1,8 @@
 /*
 
-Author: Joe Rogers <joe@cromulence.com>
+Author: Debbie Nuttall <debbie@cromulence.com>
 
-Copyright (c) 2015 Cromulence LLC
+Copyright (c) 2016 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,38 +23,57 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
-#ifndef FS_H
-#define FS_H
-#include "libcgc.h"
+#ifndef FILE_H
+#define FILE_H
+
 #include "cgc_stdint.h"
 
-#define PERMS_READ (0x4)
-#define PERMS_WRITE (0x2)
+#define MAX_TREES 10
+#define MAX_FILES_PER_TREE 10
 
-#define MAX_FILES (16)
-#define MAX_FILE_SIZE (4096)
-typedef struct _filesystem {
-	char Filename[32];
-	char Data[MAX_FILE_SIZE];
-	char Owner[32];
-	char Group[32];
-	uint16_t Perms;
-	uint16_t Size;
-} Filesystem, *pFilesystem;
+// Error codes
+#define FS_ACCESS_DENIED  0x10
+#define FS_FILE_NOT_FOUND 0x20
 
-typedef struct _file {
-	pFilesystem fp;
-	char *CurrPosition;
-	uint8_t mode;
-} FILE, *pFILE;
+// File modes
+#define FS_MODE_CREATE    0x31
+#define FS_MODE_READ      0x32
+#define FS_MODE_OVERWRITE 0x33
+#define FS_MODE_WRITE     0x34
 
-void cgc_InitFilesystem(void);
-void cgc_ListFiles(void);
-pFILE cgc_fopen(char *Filename, char *Mode, uint8_t Suid);
-char *cgc_fgets(char *str, uint32_t size, pFILE stream);
-uint8_t cgc_fclose(pFILE stream);
-cgc_size_t cgc_fread(void *restrict ptr, cgc_size_t size, cgc_size_t nitems, FILE *restrict stream);
-cgc_size_t cgc_fwrite(const void *restrict ptr, cgc_size_t size, cgc_size_t nitems, FILE *restrict stream);
-uint8_t cgc_Dump(char *filename);
+#define MAX_FILENAME_LEN  128
+#define MAX_TREENAME_LEN  128
+#define MAX_SERVICE_NAME  64
+#define MAX_SERVICE_TYPES 5
+#define MAX_FILESIZE      1024
+
+typedef struct file_s {
+  uint16_t fileID;
+  char filename[MAX_FILENAME_LEN];
+  uint16_t numBytes;
+  uint8_t isOpen;
+  uint8_t *bytes;
+} fs_file;
+
+typedef struct tree_s {
+  uint32_t treeID; 
+  char treeName[MAX_TREENAME_LEN];
+  char serviceType[MAX_SERVICE_NAME];
+  fs_file *files[MAX_FILES_PER_TREE];
+} fs_tree;
+
+extern fs_tree allTrees[MAX_TREES];
+extern char cgc_serviceTypes[MAX_SERVICE_TYPES][MAX_SERVICE_NAME];
+
+void cgc_InitializeFileSystem();
+fs_file *cgc_CreateFile(fs_tree *tree, uint8_t *filename, uint32_t userID, uint32_t mode);
+void cgc_CloseFile(fs_file *file);
+fs_file *cgc_FindFileByName(fs_tree *tree, uint8_t *filename);
+int cgc_ReadFile(uint8_t *dest, fs_file *file, uint16_t offset, uint16_t length);
+int cgc_WriteFile(fs_file *file, uint8_t *source, uint16_t offset, uint16_t length);
+fs_tree *cgc_FindTreeByPath(uint32_t userID, uint8_t *path, uint8_t *service);
 
 #endif
+
+
+

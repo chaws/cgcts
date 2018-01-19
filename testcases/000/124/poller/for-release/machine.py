@@ -1,265 +1,235 @@
-from generator.actions import Actions
-import math
+#!/usr/bin/env python
+
+from generator.actions import Actions, Variable
 import random
 import string
 import struct
+import sys
+from collections import OrderedDict
 
-def random_alphanum(max_size, min_size=2):
-    alphanum = string.letters + string.digits
-    max_size = max_size if max_size >= min_size else min_size
-    return ''.join(random.choice(alphanum) for c in range(max_size))
+CURRENT_VER = 103
+MAX_KEY_LEN = 128
+MAX_TEXT_LEN = 1024
+MAX_DATA_LEN = 512
 
-def random_cell():
-    column = random.randint(0, 25)
-    row = random.randint(0, 99)
-    return '%s%d' % (chr(ord('A') + column), row)
+OP_QUEUE = 0
+OP_PROCESS = 1
+OP_QUIT = 2
 
-def random_double():
-    return random.uniform(-100000, 100000)
+LMT_HELO = 0x4f4c4548
+LMT_KEYX = 0x5859454b
+LMT_DATA = 0x41544144
+LMT_TEXT = 0x54584554
 
-def stddev(args):
-    # get the mean of the population
-    mean = sum(args) / len(args)
+def random_string_n(size=20):
+  return ''.join([random.choice(string.printable) for x in xrange(size)])
 
-    # calculate the variance
-    variance = sum(map(lambda x: (x - mean) ** 2, args)) / len(args)
+def random_string(size=20):
+  return ''.join([random.choice(string.printable) for x in xrange(random.randint(1,size))])
 
-    if any(map(lambda x: math.isnan(x), args)):
-        print args, math.cgc_sqrt(variance)
-    return math.cgc_sqrt(variance)
+def random_digits(size=20):
+  return ''.join([random.choice(string.digits) for x in xrange(random.randint(1,size))])
 
-def cell_sortable(cell):
-    if cell[0] in string.letters and cell[1] in string.digits:
-        row = cell[0:1]
-        col = cell[1:]
-    elif cell[0] in string.letters and cell[1] in string.letters:
-        row = cell[0:2]
-        col = cell[2:]
+def random_bytes(size=20):
+  return ''.join([chr(random.randint(0,255)) for x in xrange(size)])
+
+def xor_s(s, key, inv=False):
+  i = 0
+  x = []
+  while i < len(s):
+    if inv:
+      x.append(chr((ord(s[i]) ^ ~ord(key[i % len(key)])) & 0xFF))
     else:
-        raise Exception('Bad row string')
+      x.append(chr(ord(s[i]) ^ ord(key[i % len(key)])))
+    i += 1
+  return ''.join(x)
 
-    return '%s%02d' % (row, int(col))
+def compute_guard(data):
+  guard = 0
+  for c in data:
+    guard = ((guard << 10) ^ (guard + ord(c))) & 0xFFFFFFFF
+  return guard
 
-class Spreadsheet(Actions):
-    class Value(object):
-        def __init__(self):
-            pass
+def make_op(op, payload=''):
+  s = struct.pack('<I', op) + payload
+  s = struct.pack('<I', len(s)) + s
+  return s
 
-    class Double(Value):
-        def __init__(self, value):
-            self.value = value
+class AWPLSIMP(Actions):
 
-        def __str__(self):
-            if math.isnan(self.value):
-                return '!FORMULA: CIRREF/STR/DIV0'
-            if self.value == 0.0:
-                return '%.03f' % 0
-            return '%.03f' % self.value
+  def start(self):
+    self.state['queue'] = list()
+    self.state['dms'] = OrderedDict()
+    self.state['helo'] = None
+    self.state['keyx'] = None
+    self.state['seq'] = 1
 
-        def evaluate(self):
-            return round(self.value, 3)
-
-    class Cell(Value):
-        def __init__(self, cells, cell):
-            self.cell = cell
-            self.cells = cells
-
-        def __str__(self):
-            return self.cell
-
-        def evaluate(self):
-            # prevent circular references
-            old_value = self.cells.get(self.cell, None)
-            self.cells[self.cell] = float('NaN')
-
-            try:
-                if old_value is None:
-                    result = 0.0
-                elif isinstance(old_value, float):
-                    if math.isnan(old_value):
-                        raise ValueError()
-                    result = old_value
-                else:
-                    result = round(old_value.evaluate(), 3)
-            finally:
-                self.cells[self.cell] = old_value
-
-            return result
-
-    class Formula(Value):
-        def __init__(self, op, args):
-            self.op = op
-            self.args = args
-            if self.op.numargs is not None:
-                assert len(self.args) == self.op.numargs
-
-        def __str__(self):
-            if self.op.infix:
-                assert self.op.numargs == 2
-                return '(%s %s %s)' % (self.args[0], self.op.name, self.args[1])
-            else:
-                return '%s(%s)' % (self.op.name, ', '.join(map(lambda x: str(x), self.args)))
-
-        def evaluate(self):
-            result = round(self.op.evaluate(map(lambda x: x.evaluate(), self.args)), 3)
-            if math.isinf(result):
-                return float('nan')
-            return result
-
-    class String(Value):
-        def __init__(self, value):
-            self.value = value
-
-        def __str__(self):
-            return '"%s"' % (self.value)
-
-        def evaluate(self):
-            raise ValueError('Cell is a String')
-
-    class Op(object):
-        def __init__(self, name, numargs=None, infix=False, f=None):
-            self.name = name
-            self.numargs = numargs
-            self.infix = infix
-            self.f = f
-
-        def evaluate(self, args):
-            return self.f(args)
-
-    OPERATORS = [
-        Op('AVG', f=lambda args: sum(args)/len(args) if len(args) > 0 else float('NaN')),
-        Op('COUNT', f=lambda args: float(len(args))),
-        Op('MAX', f=lambda args: max(args)),
-        Op('MIN', f=lambda args: min(args)),
-        Op('STDDEV', f=stddev),
-        Op('ABS', 1, f=lambda args: abs(args[0])),
-        Op('+', 2, True, f=lambda args: args[0] + args[1]),
-        Op('COS', 1, f=lambda args: math.cgc_cos(args[0])),
-        Op('LN', 1, f=lambda args: math.cgc_log(args[0])),
-        Op('LOG10', 1, f=lambda args: math.cgc_log10(args[0])),
-        Op('POWER', 2, f=lambda args: args[0] ** args[1]),
-        Op('*', 2, True, f=lambda args: args[0] * args[1]),
-        Op('/', 2, True, f=lambda args: args[0] / args[1]),
-        Op('SIN', 1, f=lambda args: math.cgc_sin(args[0])),
-        Op('SQRT', 1, f=lambda args: math.cgc_sqrt(args[0])),
-        Op('-', 2, True, f=lambda args: args[0] - args[1]),
-        Op('SUM', f=lambda args: sum(args))
-    ]
-
-    def cell_text(self, cell):
-        value = self.state['cells'].get(cell)
-        if value is None:
-            valuetext = ''
-        elif isinstance(value, self.Formula):
-            valuetext = '=' + str(value)
+  def gen_msg(self, typ):
+    if typ == LMT_HELO:
+      if self.state['helo'] is None:
+        self.state['helo'] = {}
+        self.state['helo']['ttl'] = random.randint(1, 200)
+        self.state['helo']['secure'] = random.choice([True, False])
+        p = struct.pack('<IbbI', LMT_HELO, CURRENT_VER, self.state['helo']['secure'], self.state['helo']['ttl'])
+        p += struct.pack('<I', compute_guard(p))
+      else:
+        p = struct.pack('<IbbI', LMT_HELO, CURRENT_VER, random_bytes(1), random_bytes(4))
+        p += struct.pack('<I', compute_guard(p))
+      return p
+    elif typ == LMT_KEYX:
+      if self.state['keyx'] is None:
+        self.state['keyx'] = {}
+        self.state['keyx']['option'] = random.choice([0x00, 0x30]) | random.choice([0x00, 0x07])
+        self.state['keyx']['key'] = random_bytes(random.randint(1, MAX_KEY_LEN))
+        p = struct.pack('<IbI', LMT_KEYX, self.state['keyx']['option'], len(self.state['keyx']['key']))
+        p += self.state['keyx']['key']
+        p += struct.pack('<I', compute_guard(p))
+      else:
+        key = random_bytes(random.randint(1, MAX_KEY_LEN))
+        p = struct.pack('<IbI', LMT_KEYX, random_bytes(1), len(key))
+        p += key
+        p += struct.pack('<I', compute_guard(p))
+      return p
+    elif typ == LMT_DATA:
+      dummy = random_bytes(4)
+      if self.state['keyx']:
+        inv = (self.state['keyx']['option'] & 0xF0 == 0x30)
+        s = random_string(MAX_DATA_LEN)
+        d = xor_s(s, self.state['keyx']['key'], inv=inv)
+        self.state['dms'][self.state['seq']] = s
+        if self.state['keyx']['option'] & 0x0F == 0x07:
+          d = dummy + d
         else:
-            valuetext = str(value)
-        return valuetext
+          d = d + dummy
+        p = struct.pack('<III', LMT_DATA, self.state['seq'], len(d))
+        p += d
+        p += struct.pack('<I', compute_guard(p))
+        self.state['seq'] += 1
+      else:
+        d = random_string(MAX_DATA_LEN)
+        p = struct.pack('<III', LMT_DATA, random.randint(0, 200), len(d))
+        p += d
+        p += struct.pack('<I', compute_guard(p))
+      return p
+    elif typ == LMT_TEXT:
+      d = random_string(MAX_TEXT_LEN)
+      p = struct.pack('<II', LMT_TEXT, len(d))
+      p += d
+      p += struct.pack('<I', compute_guard(p))
+      return p
 
-    def start(self):
-        self.state['cells'] = {}
+    return None
 
-    def menu(self):
-        self.read(length=len('Accel:-$ '), expect='Accel:-$ ')
+  def decode_msg(self, es):
+    if self.state['keyx']['option'] & 0x0F == 0x07:
+      es = es[4:]
+    else:
+      es = es[:-4]
+    inv = (self.state['keyx']['option'] & 0xF0 == 0x30)
+    ds = xor_s(es, self.state['keyx']['key'], inv=inv)
+    return ds
 
-    def random_value(self):
-        if self.chance(0.5):
-            # double
-            return self.Double(random_double())
-        elif self.chance(0.5):
-            return self.Cell(self.state['cells'], random_cell())
+  def ops(self):
+    pass
+
+  def queue_msg(self):
+    if self.state['helo'] is None:
+      self.state['queue'].append(self.gen_msg(LMT_HELO))
+    else:
+      if self.state['helo']['secure']:
+        if self.state['keyx'] is None:
+          self.state['queue'].append(self.gen_msg(LMT_KEYX))
         else:
-            return self.random_formula()
+          self.state['queue'].append(self.gen_msg(LMT_DATA))
+      else:
+        self.state['queue'].append(self.gen_msg(LMT_TEXT))
 
-    def random_formula(self):
-        op = random.choice(self.OPERATORS)
-        length = op.numargs or random.randint(1, 10)
-        args = map(lambda x: self.random_value(), xrange(length))
-        return self.Formula(op, args)
+  def process_msg(self):
+    for m in self.state['queue']:
+      self.write(make_op(OP_QUEUE, m))
+      self.read(length=len('QUEUED\n'), expect='QUEUED\n')
 
-    def _show(self, cell):
-        self.write('SHOW %s\n' % cell)
-        value = self.state['cells'].get(cell)
-        if value is None:
-            valuetext = ''
-        elif isinstance(value, self.String):
-            valuetext = str(value)
+    self.write(make_op(OP_PROCESS))
+
+    helo, keyx = False, False
+    ttl = 0
+    seqs = list()
+    if len(self.state['queue']) > 0:
+      for m in self.state['queue']:
+        if helo and ttl > self.state['helo']['ttl']:
+          break
+        typ = m[:4]
+        if typ == 'HELO':
+          s = 'HELO [VERSION %d] [SECURE %s] [TTL %d]\n' % \
+              (CURRENT_VER, 'on' if self.state['helo']['secure'] else 'off', self.state['helo']['ttl'])
+          self.read(length=len(s), expect=s)
+          helo = True
+          # TODO: Maybe implement wrong version + handler code
+        elif typ == 'KEYX':
+          if not helo:
+            break
+          if not keyx:
+            if not self.state['helo']['secure']:
+              self.read(length=len('KEYX IN NON-SECURE\n'), expect='KEYX IN NON-SECURE\n')
+              break
+            if len(self.state['keyx']['key']) == 0:
+              self.read(length=len('NO KEY\n'), expect='NO KEY\n')    # Impossible case for the poller
+            s = 'KEYX [OPTION %s | %s] [LEN %d]\n' % \
+                ('prepend' if self.state['keyx']['option'] & 0x0F == 0x07 else 'append', \
+                 'inverted' if self.state['keyx']['option'] & 0xF0 == 0x30 else 'as-is', \
+                 len(self.state['keyx']['key']))
+            self.read(length=len(s), expect=s)
+            keyx = True
+        elif typ == 'DATA':
+          if not helo:
+            break
+          if not self.state['helo']['secure']:
+            self.read(length=len('DATA IN NON-SECURE\n'), expect='DATA IN NON-SECURE\n')
+            break
+          if not keyx:
+            self.read(length=len('DATA BEFORE KEYX\n'), expect='DATA BEFORE KEYX\n')
+            break
+          seq, l = struct.unpack('<II', m[4:12]) 
+          seqs.append(seq)
+          s = 'DATA [SEQ %d] [LEN %d]\n' % (seq, l)
+          self.read(length=len(s), expect=s)
+        elif typ == 'TEXT':
+          if not helo:
+            break
+          if self.state['helo']['secure']:
+            self.read(length=len('TEXT IN SECURE\n'), expect='TEXT IN SECURE\n')
+            break
+          l = struct.unpack('<I', m[4:8])[0]
+          if l == 0:
+            self.read(length=len('NO TEXT MSG\n'), expect='NO TEXT MSG\n')    # Impossible case for the poller
+          msg = m[8:8+l]
+          s = 'TEXT [LEN %d] [MSG %s]\n' % (l, msg)
+          self.read(length=len(s), expect=s)
         else:
-            try:
-                value = value.evaluate()
-            except OverflowError:
-                value = float('NaN')
-            except ValueError:
-                value = float('NaN')
-            except ZeroDivisionError:
-                value = float('NaN')
-            valuetext = str(self.Double(value))
-        if value is not None and isinstance(value, float) and not math.isnan(value):
-            # XXX getting the rounding the match is impossible
-            length_to_match = min(6, valuetext.index('.') + 2)
-            self.read(length=len('Cell Value: ')+length_to_match, expect='Cell Value: %s' % valuetext[:length_to_match])
-            self.read(delim='\n')
-        else:
-            self.read(delim='\n', expect='Cell Value: %s\n' % valuetext)
-        self.read(delim='\n', expect='Success.\n')
+          pass
+        ttl += 1
 
-    def show(self):
-        cell = random_cell()
-        if self.chance(0.5):
-            # repr
-            self.write('REPR %s\n' % cell)
-            self.read(delim='\n', expect='Cell Repr: %s\n' % self.cell_text(cell))
-            self.read(delim='\n', expect='Success.\n')
-        else:
-            # show
-            self._show(cell)
+      self.state['dms'] = filter(lambda x: x[0] in seqs, self.state['dms'].items())
+      if self.state['helo']['secure'] and len(self.state['dms']) > 0:
+        #dc = filter(lambda x: x[:4] == 'DATA', self.state['queue'])
+        #dcd = OrderedDict([(struct.unpack('<I', x[4:8])[0], x[12:12+struct.unpack('<I', x[8:12])[0]]) for x in dc])
+        #out = ''.join([self.decode_msg(x[1]) for x in dcd.items()])
+        exp_out = ''.join(map(lambda x: x[1], self.state['dms']))
+        self.read(length=len('SECURE MESSAGE:\n'), expect='SECURE MESSAGE:\n')
+        self.read(length=len(exp_out + '\n'), expect=exp_out + '\n')
 
-    def show_table(self):
-        self.write('SHOW TABLE\n')
+    if not helo:
+      self.read(length=len('HELO MISSING\n'), expect='HELO MISSING\n')
 
-        cells = self.state['cells']
-        for k in sorted(cells.keys(), key=lambda x: cell_sortable(x)):
-            if cells[k] is not None:
-                self.read(delim='\n', expect='%s=%s\n' % (k, self.cell_text(k)))
-        self.read(delim='\n', expect='Success.\n')
+    self.read(length=len('PROCESS DONE\n'), expect='PROCESS DONE\n')
+    self.read(length=len('QUEUE CLEARED\n'), expect='QUEUE CLEARED\n')
+    self.state['queue'] = list()
+    self.state['dms'] = OrderedDict()
+    self.state['helo'] = None
+    self.state['keyx'] = None
+    self.state['seq'] = 1
 
-    def clear(self):
-        cell = random_cell()
-        self.write('CLEAR %s\n' % cell)
-        if cell in self.state['cells']:
-            del self.state['cells'][cell]
-        self.read(delim='\n', expect='Success.\n')
+  def quit(self):
+    self.write(make_op(OP_QUIT))
+    self.read(length=len('QUIT\n'), expect='QUIT\n')
 
-    def assign(self):
-        cell = random_cell()
-
-        if self.chance(0.5):
-            # double
-            value = self.Double(random_double())
-            valuetext = str(value)
-        elif self.chance(0.5):
-            # string
-            value = self.String(random_alphanum(100))
-            valuetext = str(value)
-        else:
-            # formula
-            valuetext = None
-            while valuetext is None:
-                value = self.random_formula()
-                if len(str(value)) < 500:
-                    valuetext = '=' + str(value)
-
-        self.write('%s=%s\n' % (cell, valuetext))
-        self.state['cells'][cell] = value
-        self.read(delim='\n', expect='Success.\n')
-
-    def quit(self):
-        # iterate over all cells to make sure things are right
-        cells = self.state['cells']
-        for k in cells.keys():
-            if cells[k] is not None:
-                self._show(k)
-                self.read(length=len('Accel:-$ '), expect='Accel:-$ ')
-
-        self.write('EXIT\n')
-        self.read(delim='\n', expect='Exiting...\n')

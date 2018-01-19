@@ -1,219 +1,94 @@
 #!/usr/bin/env python
+#
+# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
 
 from generator.actions import Actions
+from os.path import dirname, abspath, join
 import struct
-import random
-import string
-import numpy as np
+import sys
 
-g_secret = None
+sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
+from support import Support
 
-CMD_ADD = 0x903C5CE4
-CMD_SUB = 0xC66AC07F
-CMD_MUL = 0x3FD26000
-CMD_DIV = 0xC5554A87
-CMD_MOD = 0x5EAC467D
-CMD_EXP = 0xAE22983D
-CMD_IMP = 0xB635A8AD
-CMD_CMP = 0x285C3CB4
-CMD_QUT = 0x7DA7BAE3
+class UtfLate(Actions):
+    SUCCESS = struct.pack('<i', 0)
+    FAILURE = struct.pack('<i', -1)
 
-def g_prng():
-  global g_state
-  g_state = g_state * 1103515247 + 13579
-  return (g_state / 65536) % 32768
+    def start(self):
+        self.state['model'] = Support()
 
-def init_g_state(secret):
-  global g_state
-  g_state = secret * 1103515247 + 13579
+    def cmd(self):
+        pass
 
-def pack(x):
-  return struct.pack('<I', x)
+    def read_file(self):
+        pass
 
-def spack(x):
-  return struct.pack('<i', x)
+    def valid_read_file(self):
+        name = self.state['model'].get_filename()
+        if not name:
+            return
+        exp = self.state['model'].read_file(name)
+        if exp is not None:
+            self.write(self.state['model'].make_read_file(name))
+            self.read(length=len(exp), expect=exp)
+            self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
 
-def random_bytes(n=20):
-  return ''.join(chr(random.randint(0,255)) for _ in range(n))
+    def invalid_read_file(self):
+        name = self.state['model'].get_new_filename()
+        self.write(self.state['model'].make_read_file(name))
+        self.read(length=len(self.FAILURE), expect=self.FAILURE)
 
-def random_string(n=20):
-  s = string.ascii_letters + string.digits
-  return ''.join(random.choice(s) for _ in range(n))
+    def write_file(self):
+        pass
 
-class Op(object):
+    def valid_write_file(self):
+        name = self.state['model'].get_filename()
+        if not name:
+            return
+        contents = self.state['model'].get_new_contents()
+        exp = self.state['model'].write_file(name, contents)
+        if exp:
+            self.write(self.state['model'].make_write_file(name, len(contents), contents))
+            self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
 
-  OP_ADD = 0x45FD1D19
-  OP_SUB = 0x9B6A4495
-  OP_MUL = 0xA2F78B10
-  OP_DIV = 0xE8BBACD2
-  OP_MOD = 0x2BAE191D
-  OP_IMP = 0xA9A367A0
-  OP_EXP = 0xEC810F07
-  OP_CMP = 0x76FC2ED2
+    def invalid_write_file(self):
+        name = self.state['model'].get_filename()
+        if not name:
+            return
+        contents = ''
+        self.write(self.state['model'].make_write_file(name, len(contents), contents))
+        self.read(length=len(self.FAILURE), expect=self.FAILURE)
 
-  def __init__(self, typ, arg1, arg2):
-    self.typ = typ
-    self.arg1 = arg1
-    self.arg2 = arg2
-    self.result = 0
+    def too_big_write_file(self):
+        name = self.state['model'].get_new_filename()
+        self.write(self.state['model'].make_write_file(name, 2 * self.state['model'].MAX_FILE_SIZE, ''))
+        self.read(length=len(self.FAILURE), expect=self.FAILURE)
 
-  def compute(self):
-    if self.typ == self.OP_ADD:
-      self.result = self.arg1 + self.arg2
-    elif self.typ == self.OP_SUB:
-      self.result = self.arg1 - self.arg2
-    elif self.typ == self.OP_MUL:
-      self.result = self.arg1 * self.arg2
-    elif self.typ == self.OP_DIV:
-      if self.arg2 == 0:
-        return
-      self.result = self.arg1 / self.arg2
-    elif self.typ == self.OP_MOD:
-      if self.arg2 == 0:
-        return
-      self.result = self.arg1 % self.arg2
+    def list_files(self):
+        exp = self.state['model'].list_files()
+        self.write(self.state['model'].make_list_files())
+        if exp:
+            self.read(length=len(exp), expect=exp)
+        self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
 
-class Calc(Actions):
-
-  def start(self):
-    #self.delay(100)
-    global g_secret
-    g_secret = self.magic_page
-
-    sm = 0
-    for i in xrange(4096/4):
-      sm += struct.unpack('<I', self.magic_page[i*4:i*4 +4])[0]
-    sm %= 128
-    if ord(self.magic_page[0]) & 1:
-      sm = -sm
-    self.rslr = sm
-    s = struct.pack('<h', self.rslr)
-    self.read(length=len(s), expect=s)
-    if random.randint(1, 1000) <= 5:
-      n = random.randint(0, 2)
-    else:
-      n = random.randint(3, 30)
-    self.write(pack(n))
-    self.n = n
-    if n < 3:
-      s = '\xFF\xFF\xFF\xF0'
-      self.read(length=len(s), expect=s)
-    self.calcs = []
-
-  def do_calc(self, cmd):
-    if cmd == CMD_ADD:
-      typ = Op.OP_ADD
-    elif cmd == CMD_SUB:
-      typ = Op.OP_SUB
-    elif cmd == CMD_MUL:
-      typ = Op.OP_MUL
-    elif cmd == CMD_DIV:
-      typ = Op.OP_DIV
-    elif cmd == CMD_MOD:
-      typ = Op.OP_MOD
-
-    while True:
-      arg1 = np.int32(random.randint(-2147483648, 2147483647))
-      if arg1 != 0:
-        break
-    while True:
-      arg2 = np.int32(random.randint(-2147483648, 2147483647))
-      if arg2 != 0:
-        break
-    self.write(spack(arg1) + spack(arg2))
-    self.calcs.append(Op(typ, arg1, arg2))
-
-  @staticmethod
-  def gen_random_op():
-    typ = random.choice([Op.OP_ADD, Op.OP_SUB, Op.OP_MUL])
-    while True:
-      arg1 = np.int32(random.randint(-2147483648, 2147483647))
-      if arg1 != 0:
-        break
-    while True:
-      arg2 = np.int32(random.randint(-2147483648, 2147483647))
-      if arg2 != 0:
-        break
-    op = Op(typ, arg1, arg2)
-    return op
-
-  def do_imp(self):
-    self.n = random.randint(3, 30)
-    self.write(pack(self.n))
-    self.calcs = []
-    s = ''
-    for i in xrange(self.n):
-      op = self.gen_random_op()
-      self.calcs.append(op)
-      s += pack(op.typ) + spack(op.arg1) + spack(op.arg2) + spack(0)
-    self.write(s)
-
-  @staticmethod
-  def print_cmp(op):
-    o_s = '?'
-    if op.typ == Op.OP_ADD:
-      o_s = '+'
-    elif op.typ == Op.OP_SUB:
-      o_s = '-'
-    elif op.typ == Op.OP_MUL:
-      o_s = '*'
-    elif op.typ == Op.OP_DIV:
-      o_s = '/'
-    elif op.typ == Op.OP_MOD:
-      o_s = '%'
-    s = 'A: %d, B: %d\n' % (op.arg1, op.arg2)
-    s += 'Result of A %s B: %d\n' % (o_s, op.result)
-    return s
-
-  def do_cmp(self):
-    s = '\n'
-    for i, op in enumerate(self.calcs):
-      op.compute()
-      op.result += self.rslr
-      s += 'Slot #%02d\n' % (i + 1)
-      s += self.print_cmp(op)
-    self.read(length=len(s), expect=s)
-
-  def do_commands(self):
-    if self.n < 3:
-      return
-
-    cmds = []
-    for i in xrange(random.randint(15, 40)):
-      cmds.append(random.choice([CMD_ADD, CMD_SUB, CMD_MUL, CMD_EXP, CMD_IMP, CMD_CMP]))
-
-    for cmd in cmds:
-      self.write(pack(cmd))
-      if cmd in [CMD_ADD, CMD_SUB, CMD_MUL]:
-        if self.n == len(self.calcs):
-          s = '\xFF\xFF\xFF\xAB'
-          self.read(length=len(s), expect=s)
-        else:
-          self.do_calc(cmd)
-      elif cmd == CMD_EXP:
-        results = []
-        for c in self.calcs:
-          c.compute()
-          c.result += self.rslr
-          results.append(spack(c.result))
-        s = ''.join(results)
-        if s != '':
-          self.read(length=len(s), expect=s)
-      elif cmd == CMD_IMP:
-        self.do_imp()
-      elif cmd == CMD_CMP:
-        self.do_cmp()
-
-    if random.randint(1, 100) <= 2:
-      cmd = random.randint(0, 0xFFFFFFFF)
-      while cmd in [CMD_ADD, CMD_SUB, CMD_MUL, CMD_EXP, CMD_IMP, CMD_CMP, CMD_QUT]:
-        cmd = random.randint(0, 0xFFFFFFFF)
-      self.write(pack(cmd))
-      s = '\xFF\xFF\xFF\xFF'
-      self.read(length=len(s), expect=s)
-
-    cmd = CMD_QUT
-    self.write(pack(cmd))
-    s = '\x00\x00\x00\x00'
-    self.read(length=len(s), expect=s)
-
+    def finish(self):
+        self.write(self.state['model'].make_quit())

@@ -1,4 +1,4 @@
-CHAL=String_Storage_and_Retrieval
+CHAL=Packet_Receiver
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,37 +20,41 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/parse.c.o -c src/parse.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/delete_matches.c.o -c src/delete_matches.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/string_token.c.o -c src/string_token.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/bst.c.o -c src/bst.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/find_matches.c.o -c src/find_matches.c
-	$(CC) $(FLAGS) -o String_Storage_and_Retrieval_patched lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/parse.c.o src/delete_matches.c.o src/string_token.c.o src/service.c.o src/bst.c.o src/find_matches.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o lib/string.cc.o -c lib/string.cc
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/datastream.cc.o -c src/datastream.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagerenderer.cc.o -c src/messagerenderer.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagehandler.cc.o -c src/messagehandler.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/doublelist.cc.o -c src/doublelist.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagepacket.cc.o -c src/messagepacket.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -fno-exceptions -fno-rtti -o src/service.cc.o -c src/service.cc
+	$(CXX) $(FLAGS) -o Packet_Receiver_patched lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/datastream.cc.o src/messagerenderer.cc.o src/messagehandler.cc.o src/doublelist.cc.o src/messagepacket.cc.o src/service.cc.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/parse.c.o -c src/parse.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/delete_matches.c.o -c src/delete_matches.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/string_token.c.o -c src/string_token.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/bst.c.o -c src/bst.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/find_matches.c.o -c src/find_matches.c
-	$(CC) $(FLAGS) -o String_Storage_and_Retrieval lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/parse.c.o src/delete_matches.c.o src/string_token.c.o src/service.c.o src/bst.c.o src/find_matches.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/new_printf.c.o -c lib/new_printf.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o lib/string.cc.o -c lib/string.cc
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -fno-exceptions -fno-rtti -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/datastream.cc.o -c src/datastream.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagerenderer.cc.o -c src/messagerenderer.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagehandler.cc.o -c src/messagehandler.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/doublelist.cc.o -c src/doublelist.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/messagepacket.cc.o -c src/messagepacket.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -I lib -I src -I include -fno-exceptions -fno-rtti -o src/service.cc.o -c src/service.cc
+	$(CXX) $(FLAGS) -o Packet_Receiver lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/datastream.cc.o src/messagerenderer.cc.o src/messagehandler.cc.o src/doublelist.cc.o src/messagepacket.cc.o src/service.cc.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o String_Storage_and_Retrieval_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -g -fno-exceptions -fno-rtti -pedantic -O0 -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -fno-exceptions -fno-rtti -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o Packet_Receiver_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Packet_Receiver_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/parse.c.o src/delete_matches.c.o src/string_token.c.o src/service.c.o src/bst.c.o src/find_matches.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/parse.c.o src/delete_matches.c.o src/string_token.c.o src/service.c.o src/bst.c.o src/find_matches.c.o String_Storage_and_Retrieval_pov_1 String_Storage_and_Retrieval_patched String_Storage_and_Retrieval
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/datastream.cc.o src/messagerenderer.cc.o src/messagehandler.cc.o src/doublelist.cc.o src/messagepacket.cc.o src/service.cc.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/string.cc.o lib/stdlib.c.o src/datastream.cc.o src/messagerenderer.cc.o src/messagehandler.cc.o src/doublelist.cc.o src/messagepacket.cc.o src/service.cc.o Packet_Receiver_pov_2 Packet_Receiver_pov_1 Packet_Receiver_patched Packet_Receiver

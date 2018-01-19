@@ -1,50 +1,104 @@
-# CGC Challenge Binary Template
+# CLOUDCOMPUTE
 
 ## Author Information
 
-"Jason Rogers" <info@narfindustries.com>
+"Narf Industries" <info@narfindustries.com>
 
 ### DARPA performer group
+
 Narf Industries (NRFIN)
 
-## Description
+## Description:
 
-This service is a Music Store Client looking for a Music Store Server to purchase songs from. The client sends a gift card ID to obtain a balance from the Music Store. The client then begins searching the Music Store by artist, album, or song title. Once a list of songs that match the search critiria is returned, The Music Store Client selects a song to purchase. The Music Store Client continues searching and purchasing songs until the balance is zero. 
+Remember: the Cloud is really just someone else's computer.  Why bog down your own computer when you can use someone else's?
 
-### Feature List
+Inspired by LANGSEC, the CLOUDCOMPUTE platform offers arbitrary arithmetic computation in a regular expression language!  By limiting the protocol to the regular domain, it becomes possible to write verifiable recognizers for the language, not that we verified our own.
 
-The client begins the session by providing the server with the gift card id in order to receive a starting balance. The client then queries the server for all songs up to a requested limit whose artist, album, or song matches a term. The client selects a song from the list returned by the server and requests to purchase it. The client continues to purchase songs until the blanance is below the minimum price for a song.
+CLOUDCOMPUTE offers up to 20 distinct arithmetic sessions for all 20 of your arithmetic needs! 
 
-## Vulnerability
-By providing a negative price for a song that is eventually purchased by the client, the balance is incremented instead of decremented. Eventually, more songs are purchased than can be stored on the heap resulting in a overflow.
+Each session has backing memory that contains (1) BASE_ADDR (explained later), (2) an opcode buffer (of varying length), (3) a scratch buffer (256 bytes).  CLOUDCOMPUTE interprets the bytecode in the opcode buffer and works off memory addressed in part by BASE_ADDR and offsets listed in the opcodes.  Under normal conditions, this will cause writes to memory in the session's scratch buffer, which is returned at the end of a session instance.  Under exploitative conditions, these writes will be directed elsewhere.
 
-In order to prevent trivial triggering of the vulnerability, the server must continue to provide valid responses to the client, such that the client purchases enough songs to overflow the buffer.
+Each session has it's own memory segment, depicted below:
+------------------------------------------------------------------
+| session N's BASE_ADDR | N's opcode buffer | N's scratch buffer | 
+------------------------------------------------------------------
+^ session N's limit - (3 + N + 256)                              ^ -1 byte from the end of session N-1's space
+... 
+----------------------------------------------------
+| 1's BASE_ADDR | 1's opcode buf | 1's scratch buf | 
+----------------------------------------------------
+^ session 1's limit - (3 + N + 256)                ^ -1 byte from the end of session 0's space
+------------------------------------------------------------------------------------
+| 0's BASE_ADDR (3 bytes) | 0's opcode buf (N bytes) | 0's scratch buf (256 bytes) |
+------------------------------------------------------------------------------------
+^ allocate() limit - (3 + N + 256)                                                 ^ top of the allocate() region
 
-The service also has a heap overflow caused by sending songs with a zero price. The original buffer size is allocated based on the balance that is received. Since the balance is never decremented due to the zero prize the originally allocated heap-based buffer to hold the purchased songs can be exceeded.
+Memory notes:
+- As the number of sessions grows, the session memory space grows toward lower addresses.
+- Opcode buffer sizes are established during session negotiation and are denoted as N in the above.
 
-### Generic class of vulnerability
-Buffer Overflow
-Heap-Based Buffer Overflow
-Improper Input Validation
-Numeric Range Comparison Without Minimum Check
-Out-of-bounds Write
+Sessions are created and used thusly:
+- CRS -> CB: 4B MAGIC_NEW_SESSION
+- CRS <- CB: 4B (generated) session ID
+- CRS -> CB: 4B session ID | 2B session SZ
+- CRS -> CB: 4B session ID | opcodes (of length session->sz)
+- CRS <- CB: 4B session ID | scratch area (of length SCRATCH_SZ)
+
+Existing sessions are interacted with thusly:
+- CRS -> CB: 4B (existing) session ID
+- CRS <- CB: 4B (reflected) session ID
+- CRS -> CB: 4B session ID | opcodes (of length session->sz)
+- CRS <- CB: 4B session ID | scratch area (of length SCRATCH_SZ)
+
+During session creation / exercise, opcodes are sent to CLOUDCOMPUTE and are written into the corresponding session's opcode buffer.  These opcodes are the portion of the protocol designed to be LANGSEC-compliant (it's a regular language).
+
+The opcode "spec":
+form: [operation][\x00][' '][offset][' '][immediate]
+smpl: ADD\x00 \xAA \xBB - will add \xBB to the byte in the session's scratch buffer at offset \xAA
+
+Operations:
+"NUL": offset = \x00
+"SET": offset = immediate
+"ADD": offset += immediate
+"SUB": offset -= immediate
+"MUL": offset *= immediate
+"DIV": offset /= immediate
+"SHR": offset >>= immediate
+"SHR": offset <<= immediate
+
+Operation notes:
+- Over/underflows are not handled in any special manner.
+- If the immediate to a DIV instruction is 0, offset is assigned \xAA.
+- The SHR & SHL instructions are limited to a maximum of an 8 bit shift.  Anything more results in offset = \x00 to avoid ambiguity among architectures.
+- The absolute address of the arithmetic instruction is calculated with the current session's BASE_ADDR, the size of the opcode buffer and the offset encoded in the operation.  BASE_ADDR is a 3 byte value that's supposed to (and is assumed to always) hold the most significant 3 bytes of the scratch base address.  This field is critical to the vulnerability included in this CB.  If an attacker is able to control a session's BASE_ADDR field, the attacker can use CLOUDCOMPUTE functionality to perform arbitrary computation on arbitrary memory.
+
+When done computing, CLOUDCOMPUTE will send the scratch buffer back to the client.  The address of the scratch buffer is computed with BASE_ADDR, meaning control of BASE_ADDR confers the ability to leak the flag page.  The scratch buffer is what is verified by the pollers.
+
+## Vulnerability 1
+
+Despite the opcode protocol being LANGSEC compliant, there exists a vulnerability during session establishment / exercise.  
+
+Each step in session negotiation involves sending the session ID.  If the session ID is changed mid-session, CLOUDCOMPUTE becomes confused and copies opcodes into an opcode buffer with wrong session's size.  If this wrong size is larger than the target opcode buffer, a buffer overflow will occur.  Because sessions are immediately adjacent in memory, this overflow confers the ability to control the adjacent session's BASE_ADDR.
+
+As noted before, control of a session's BASE_ADDR allows the attacker to author both Type 1 and Type 2 PoVs.
+- Type 1: Control of BASE_ADDR confuses the location of the scratch buffer and therefore which memory is affected by opcodes.  The attacker can use, e.g. the "SET" opcode to write arbitrary bytes over arbitrary memory, allowing for code execution.
+- Type 2: Confusion of the scratch buffer location means the wrong memory is returned during the final step of the protocol.  An attacker can control BASE_ADDR to point to the flag page and wait for the CB to send back 256 bytes of the page during the final protocol step.
 
 ### CWE classification
-Buffer Overflow
-CWE-120
-Heap-based Buffer Overflow
-CWE-122
-Improper Input Validation
-CWE-20
-Numeric Range Comparison Without Minimum Check
-CWE-839
-Out-of-bounds Write
-CWE-787
 
+CWE-122: Heap-based Buffer Overflow
+CWE-843: Access of Resource Using Incompatible Type ('Type Confusion')
 
+CWE-843 doesn't perfectly fit.  The vulnerability will confuse two different sessions, but they are technically the same "type".  I am not aware of a better CWE identifier for this.
 
-## Challenges
+### Challenges
 
-The challenges for the automated system will be:
-a) Be able to determine the structure of the client-server protocol. Invalid responses will be rejected, and no songs will be purchased.
-b) Be able to understand how a negative price can influence the calculation of the balance. A negative price will result in the balance being incremented.
+- The memory segments devoted to the different sections will likely appear to be an opaque blob with complex operations.  Some CRSs might have difficulty accurately differentiating sessions in memory - a likely first step in determining where things go wrong.
+- CLOUDCOMPUTE provides arbitrary arithmetic operations by design.  Determining the memory that the opcodes access is a relatively complex operation.  Naive patching strategies might try to place bounds on memory accesses / operations wholesale, severely reducing performance.  More sophisticated CRSs will need to perform additional root cause analysis to avoid the performance impact of a naive patching strategy.
+- In order to produce a Type 1 PoV, the CRS must utilize opcodes to perform memory accesses - a process that may prove difficult.
+
+### Difficulty
+- Discovering is medium
+- Proving is medium/hard (depening on PoV type)
+- Patching is medium
+

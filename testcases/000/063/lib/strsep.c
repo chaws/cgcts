@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  *
  */
+
 #include "libcgc.h"
 #include "cgc_string.h"
 
@@ -33,10 +34,8 @@ char *cgc_strsep(char **stringp, const char *delim)
   char *i;
   for (i = *stringp; *i && !cgc_strchr(delim, *i); i++);
 
-  // No longer need delim. Ditch semantic integrity for stack space
   delim = *stringp;
 
-  // Found delimiter
   if (*i) {
     *i = '\0';
     *stringp = i + 1;

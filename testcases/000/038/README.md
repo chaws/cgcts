@@ -1,79 +1,44 @@
-# Cereal Mixup - A Cereal Vending Machine Controller
+# KPRCA-00030
 
-## Author Information
-
-"Nick Davis" <info@narfindustries.com>
-
-### DARPA performer group
-
-Narf Industries (NRFIN)
+## DARPA performer group
+Kaprica Security (KPRCA)
 
 ## Description:
 
-The hottest new thing in the beverage industry is the vending machine with a touch screen that lets a customer mix and match their favorite beverages into one drink.
+This CB is based on Conways Game of Life and uses a Quadtree to implement the infrastructure. The CB turned the rules of Conways game of life into a shooter type game. When imagined it was thought of as a space shooter, where the person is controlling some kind of ship shooting and bombing other enemy ships. But it is completely up to the players imagination. 
 
-What we are bringing to the table is the same hotness, but for breakfast cereal. Cereal Mixup is a breakfast cereal vending machine controller board. This magical board accepts the mix choices from the touch screen and directs the internal machinery to fill the user's bowl with the desired contents.
+The game spans an 8k by 8k board and upon a new game creates 25 "ships" or "runners". Each runner travels the diagnoally across the board to the further corner. The game ends in 10000 steps, which typically isn't enough time for any of the runners to get to the end of the board. A player has two options, the first is to shoot at an unrevealed board and receive 100 points for each successful pixel hit. The second option is to plant a bomb after seeing the current position of the board. Bombs are detonated 10 steps after the runners start moving, and the minimum number of steps a player can choose is 100. This was more or less arbitary but it seemed a litlte more fun this way. Bombing is the way to rack up major points, because each bomb hits 9 squares, the pixel its planted on and the 8 adjacent pixels. Each runner pixel that is blown up via a single bomb gives a multiplicative score bonus.
 
-But, wait, this gets even more exciting!! We also provide an API over wifi, so you can use our unpatentable smartphone app to make your super yummy breakfast mixture selections from the palm of your clammy hand.
+The rules aren't necessarily explained to the user, but the game is simple enough that it shoudln't be difficult to figure out.
 
-The poller/pov/CRS play the role of the touch screen and Wifi API that are sending commands to this controller.
+### Feature List
+Before the board is revealed, the player may choose:
+1. Shoot!
+2. Reveal Board
+3. New Game
+4. Quit
 
-The vulnerabilities in this CB simulate some of the most common object serialization bugs found in Java.
+After the board is revealed the player may choose to:
+1. Place Bomb
+2. Reveal Board
+3. Let them Run!
+4. New Game
+5. Quit
 
-## Feature List:
+And once the game is over the player may either:
+1. New Game
+2. Quit
 
-A bowl of cereal can be made by selecting one or more liquids, cereals, and toppings.
+## Vulnerability
 
-The touch screen has the following options and sub-options that the Cereal Mixup controller can process:
+The vulnerability is triggered when a user places two bomb close enough to one another such that they both destroy the same cell. The code doesn't properly check the return value from the qt_get_pixel function, but instead assumes that the cell will always exist since it's already in the living cells linked list. However, because the program tries to remove the dead cell from the tree, this assumption is wrong with multiple adjacent bombs and causes the program to crash.
 
-- Add liquids
-    - Dairy Milk
-    - Dairy Cream
-    - Water
-    - Soy Milk
-    - Almond Milk
-- Add cereal
-    - Sugar Loops
-    - Maize Flakes
-    - Marshmallow Figurines
-    - Chocolate Rice Pellets
-    - Ohhs of Oats
-    - Crunchy Puffs
-    - Fruitz-n-Nutz
-- Add topping
-    - Chocolate Drops
-    - Blue Berries
-    - Berry Medley
-    - Sugar Cube
-    - Strawberries
+### CWE classification
 
-The API provided over Wifi accepts the same options and sub-options and the transmission is in a custom serialized format.
+CWE-690: Unchecked Return Value
 
-## Vulnerability 1
+## Challenges
 
-The serialized stream can contain types other than what are needed to make a breakfast. These types represent built-in objects/classes that may exist in imported libraries or default namespace. If one of the other types is de-serialized, its existence and instantiation is outside of the expectations of the Cereal Mixing code and can lead to unexpected operations.
+This challenge attempts to do a few things in order to make it difficult. The first challenge is obscurity, the program gives no real guidance on how the game should be played and it's not obvious what the rules are. Additionally bombs are triggered after 10 steps, but the minimum number of steps run is 100. This was intended to make it slightly less obvious to determine what triggers a bomb. Additionally the runners follow a Conways game of life time trajectory, but that isn't specified to the player.
 
-In this case, one of those other objects 'CommandRunner' is an object that will execute the command as given on the command line. It takes a function address and 1 - 3 arguments. It calls the function at the given address and passes the 3 arguments to it.
-
-To POV this CB, the function address is the IP Value and the second argument is the REG value. The first and third arguments are also passed via registers, but the POV itself uses the 2nd argument.
-
-### Generic Class of Vulnerability
-
-Deserialization of Untrusted Data
-
-### CWE Classification
-
-CWE-502: Deserialization of Untrusted Data
-CWE-822: Untrusted Pointer Dereference
-
-### Challenges
-
-* This CB was designed to test how well a CRS can determine which input is required for functionality of the CB/polls and which input is superfluous. And further if the CRS is capable of putting in any checks that NOP out or prevent the access to the superfluous functionality.
-* There are a significant number of ways to cause this CB to crash/SEGFAULT, so the challenge for a CRS will be to determine which of those crashes are actually useful to prove POV.
-
-
-### Difficulty
-
-* Discovering is medium
-* Proving is medium
-* Fixing is hard
+The second challenge was contraining resources (namely bombs) while creating a large game board. The size of the board is 8192 x 8192, which is meant to make brute forcing slightly more difficult.

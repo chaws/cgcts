@@ -28,295 +28,235 @@ import sys
 
 
 sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-import support as sp
-from gofish import GoFish, Card
+from support import Support
 
 
 
-class FishyXml(Actions):
+class HighCoo(Actions):
 
 	DEBUG = False
 	DEBUG_ERR = DEBUG or False
 	DEBUG_FUNC = DEBUG or False
 	DEBUG_INIT = DEBUG or False
-	FAIL_CHANCE = 0.001
+
+
+	MAX_HAIKU_LINE_LEN = 1362
+	MAX_HAIKU_LEN = 4087
 
 	def start(self):
-		self.state['g'] = GoFish(sp.random_string(5, 20))
+		self.state['m'] = Support()
+		self.state['created'] = False
+		self.state['invalid'] = False
+
+	def _send_command(self, command_name):
+		if self.DEBUG_FUNC:
+			print('-- _send_command-- {0}'.format(command_name))
+
+		if self.chance(0.007):
+			cmd = self.state['m'].pack_command('BAD')
+			self.write(cmd)
+			self._recv_error('ERR_INVALID_CMD')
+			if self.DEBUG_ERR:
+				print('exiting due to BAD command.')
+			return -1
+		else:
+			cmd = self.state['m'].pack_command(command_name)
+			self.write(cmd)
+			return 0
 
 	def _recv_error(self, error_name):
-		expected = sp.serialize_error(error_name)
+		expected = self.state['m'].pack_error(error_name)
 		self.read(length=len(expected), expect=expected)
 		if True == self.DEBUG_ERR:
 			print('exiting due to {0}'.format(error_name))
 
-	def _books(self):
-		'''
-		Process the act of removing books from hand and reporting the count.
-		'''
-		turn = self.state['g'].get_turn_pid()
-		count = self.state['g'].books_qty()
+	def add_haiku(self):
+		if self.DEBUG_FUNC:
+			print('- add_haiku -')
 
-		if True == self.DEBUG_FUNC:
-			print "pid {0} books this turn: {1}".format(turn, count)
+		# send add_haiku command
+		if 0 > self._send_command('CMD_ADD_HAIKU'):
+			return -1
 
-		msg = sp.serialize_books(count)
+		haiku = ''
 
-		if 0 == turn:
-			self.write(msg)
+		# send haiku size
+		# sending size in the valid range of sizes, that is smaller than
+		# the length of the haiku will cause crash, so leave that for POV.
+		if self.chance(0.01): # size zero
+			cmd = self.state['m'].pack_single_uint16(0)
+			self.write(cmd)
+			self._recv_error('ERR_INVALID_HAIKU_LEN')
+			if self.DEBUG_ERR:
+				print('exiting due to zero sized haiku length.')
+			return -1
+		elif self.chance(0.01): # size too large
+			cmd = self.state['m'].pack_single_uint16(self.MAX_HAIKU_LEN + 5)
+			self.write(cmd)
+			self._recv_error('ERR_INVALID_HAIKU_LEN')
+			if self.DEBUG_ERR:
+				print('exiting due to over-sized haiku length.')
+			return -1
 		else:
-			self.read(length=len(msg), expect=msg)
+			cmd = ''
+			if self.chance(0.01): #invalid haiku
+				haiku = self.state['m'].generate_random_haiku(self.MAX_HAIKU_LINE_LEN,
+															self.MAX_HAIKU_LEN, 
+															invalid=True)
+				cmd = self.state['m'].pack_single_uint16(len(haiku))
+				self.state['invalid'] = True
 
-		return 0
-
-	def _fishing(self, rank):
-		'''
-		Process the act of going fishing.
-		'''
-		turn = self.state['g'].get_turn_pid()
-		if True == self.DEBUG_FUNC:
-			print "pid {0} going fishing.".format(turn)
-
-		FAIL = ''
-		if 0 == turn:
-			# these msg's need 4 chars to prevent recv timeout
-			if self.chance(self.FAIL_CHANCE): # correct len, wrong tags for this msg
-				msg = sp.serialize_draw_request()
-				FAIL = 'ERR_INVALID_XML'
 			else:
-				msg = sp.serialize_fishing()
-			self.write(msg)
+				haiku = self.state['m'].generate_random_haiku(200, 1000)
+				cmd = self.state['m'].pack_single_uint16(len(haiku))
 
-		if '' != FAIL:
-			self._recv_error(FAIL)
+			self.write(cmd)
+			self.state['created'] = True
+
+		# send haiku
+		packed_haiku = self.state['m'].pack_single_string(haiku)
+		self.write(packed_haiku)
+
+		if True == self.state['invalid']:
+			self._recv_error('ERR_INVALID_HAIKU')
+			if self.DEBUG_ERR:
+				print('exiting due to invalid haiku.')
 			return -1
 
-		# if pool is out of cards, card == None; will get xml shell w/o a card
-		card = self.state['g'].go_fishing()
-		msg = sp.serialize_cards([card])
-		if 0 == turn:
-			self.read(length=len(msg), expect=msg)
+		haiku_id = self.state['m'].add_haiku(haiku)
+		# recv haiku id
+		packed_id = self.state['m'].pack_single_uint32(haiku_id)
+		self.read(length=len(packed_id), expect=packed_id)
 
-		if True == self.DEBUG_FUNC:
-			print " fishing card:{0}, rank:{1}, msg:{2}".format(card, rank, msg)
 
-		ZERO = False
-		if (None != card) and (False == card.has_rank(rank)):
-			msg = sp.serialize_cards([None])
-			ZERO = True
+	def get_haiku_by_id(self):
+		if self.DEBUG_FUNC:
+			print('- get_haiku_by_id -')
 
-		if 0 == turn:
-			if self.chance(self.FAIL_CHANCE): #  invalid card and incorrect for this msg
-				if True == ZERO:
-					msg = sp.serialize_draw_request() # just need 4 bytes
-				else:
-					msg = sp.serialize_cards([Card(5,15)]) # just need bogus card (12 bytes)
-				FAIL = 'ERR_INVALID_CARD'
-
-			self.write(msg)
-		else:
-			self.read(length=len(msg), expect=msg)
-
-		if '' != FAIL:
-			self._recv_error(FAIL)
+		# send get_haiku_by_id command
+		if 0 > self._send_command('CMD_GET_HAIKU_BY_ID'):
 			return -1
 
-		return 0
+		if False == self.state['created']:
+			self._recv_error('ERR_LIST_NOT_EXIST')
+			if self.DEBUG_ERR:
+				print('exiting due to haiku list not exiting.')
+			return -1
 
-	def _reload_empty_hand(self):
-		'''
-		Process the act of reloading hand with cards if it is empty.
-		'''
-		turn = self.state['g'].get_turn_pid()
-		if True == self.state['g'].is_hand_empty():
-			if True == self.DEBUG_FUNC:
-				print "pid {0} drawing hand.".format(turn)
-
-			FAIL = ''
-			if 0 == turn:
-				if self.chance(self.FAIL_CHANCE): # correct len, wrong tags for this msg
-					msg = sp.serialize_turn(0)
-					msg = msg[5:]
-					FAIL = 'ERR_INVALID_XML'
-				else:
-					msg = sp.serialize_draw_request()
-				self.write(msg)
-
-			new_hand = self.state['g'].draw_new_hand()
-
-			if 0 == turn:
-				if '' != FAIL:
-					msg = sp.serialize_error(FAIL)
-					self.read(length=len(msg), expect=msg)
+		haiku = ''
+		if self.chance(0.008): # easter egg id
+			haiku = self.state['m'].get_haiku(idnum=31337)
+			cmd = self.state['m'].pack_single_uint32(31337)
+			self.write(cmd)
+		elif self.chance(0.008): #invalid id
+				cmd = self.state['m'].pack_single_uint32(10)
+				self.write(cmd)
+				if 0 == self.state['m'].get_haiku_list_len():
+					self._recv_error('ERR_LIST_EMPTY')
+					if self.DEBUG_ERR:
+						print('exiting due to haiku list empty.')
 					return -1
 				else:
-					msg = sp.serialize_cards(new_hand)
-					self.read(length=len(msg), expect=msg)
-
-			if True == self.DEBUG_FUNC:
-				print "  new hand: {0}".format(new_hand)
-
-		return 0
-
-
-	def _ask_give_cards(self, rank):
-		'''
-		Process the action of giving cards to other player
-		as a result of an ask request.
-		'''
-		turn = self.state['g'].get_turn_pid()
-		if True == self.DEBUG_FUNC:
-			print "pid {0} accepting cards.".format(turn)
-
-		FAIL = ''
-		cards = self.state['g'].ask_response_give(rank)
-		msg = sp.serialize_cards(cards)
-		if 0 == turn:
-			self.read(length=len(msg), expect=msg)
+					self._recv_error('ERR_INVALID_ID')
+					if self.DEBUG_ERR:
+						print('exiting due to invalid haiku id.')
+					return -1
 		else:
-			cnt = len(cards)
-			if self.chance(self.FAIL_CHANCE) and 1 <= cnt: #  invalid card and incorrect for this msg
-				msg = sp.serialize_cards([Card(5,15)])
-				FAIL = 'ERR_INVALID_CARD'
-
-			self.write(msg)
-
-		if '' != FAIL:
-			self._recv_error
-			return -1
-
-		return 0
-
-	def _ask(self):
-		'''
-		Process the act of asking the other player for cards having a given rank.
-		'''
-		turn = self.state['g'].get_turn_pid()
-		if True == self.DEBUG_FUNC:
-			print "pid {0} asking.".format(turn)
-
-		FAIL = ''
-
-		rank = self.state['g'].ask_rank()
-		msg = sp.serialize_ask(rank)
-		if 0 == turn:
-			if self.chance(self.FAIL_CHANCE): # invliad rank
-				msg = sp.serialize_ask(20)
-				FAIL = 'ERR_INVALID_RANK'
-			elif self.chance(self.FAIL_CHANCE): # wrong tags for this msg
-				# length needs to be 7
-				msg = sp.serialize_fishing() # len 4
-				msg = msg[:-1] + msg # len 3 + 4
-				FAIL = 'ERR_INVALID_XML'
-
-			self.write(msg)
-		else:
-			self.read(length=len(msg), expect=msg)
-
-		if True == self.DEBUG_FUNC:
-			print "  asked for rank {0}.".format(rank)
-
-		if '' != FAIL:
-			self._recv_error(FAIL)
-			return -1
-
-
-		qty = self.state['g'].ask_response_qty(rank)
-		msg = sp.serialize_go_fish(qty)
-		if 0 == turn:
-			self.read(length=len(msg), expect=msg)
-		else:
-			if self.chance(self.FAIL_CHANCE): # wrong qty
-				msg = sp.serialize_go_fish(6)
-				FAIL = 'ERR_INVALID_QTY'
-			elif self.chance(self.FAIL_CHANCE): # wrong tags for this msg
-				msg = sp.serialize_fishing()
-				msg = msg[1] + msg
-				FAIL = 'ERR_INVALID_XML'
-
-
-			self.write(msg)
-
-		if True == self.DEBUG_FUNC:
-			print "  asked player has qty {0}.".format(qty)
-
-		if '' != FAIL:
-			self._recv_error(FAIL)
-			return -1
-
-
-		if 0 == qty:
-			return self._fishing(rank)
-		else:
-			return self._ask_give_cards(rank)
-
-	def _name(self):
-		# send remote player's name
-		msg = ''
-		FAIL = ''
-
-		if self.chance(self.FAIL_CHANCE): # malformed xml, with delim
-			msg = sp.serialize_player_name(self.state['g'].get_remote_player_name())
-			msg = msg[3:]
-			FAIL = 'ERR_INVALID_XML'
-		else:
-			msg = sp.serialize_player_name(self.state['g'].get_remote_player_name())
-
-
-		self.write(msg)
-
-		if '' != FAIL:
-			self._recv_error(FAIL)
-			return -1
-
-		return 0
-
-
-	def game(self):
-		'''
-		Run the game logic.
-		'''
-		if True == self.DEBUG_FUNC:
-			print "Starting game."
-
-		if 0 > self._name():
-			return -1
-
-		# recv initial cards
-		my_init_hand = self.state['g'].deal()
-		msg = sp.serialize_cards(my_init_hand)
-		self.read(length=len(msg), expect=msg)
-
-		if True == self.DEBUG_FUNC:
-			print "  initial hand: {0}.".format(my_init_hand)
-
-		# do turns
-		while (False == self.state['g'].is_game_over()):
-			turn = self.state['g'].get_turn_pid()
-			if True == self.DEBUG_FUNC:
-				score = self.state['g'].get_score()
-				print "pid {0} turn; books (p0, p1):{1}".format(turn, score)
-
-			msg = sp.serialize_turn(turn)
-			self.read(length=len(msg), expect=msg)
-
-			if 0 > self._reload_empty_hand():
+			haiku = self.state['m'].get_haiku()
+			cmd = self.state['m'].pack_single_uint32(haiku['id'])
+			self.write(cmd)
+			if 0 == self.state['m'].get_haiku_list_len():
+				self._recv_error('ERR_LIST_EMPTY')
+				if self.DEBUG_ERR:
+					print('exiting due to haiku list empty.')
 				return -1
 
-			if 0 > self._ask():
-				return -1
+		packed = self.state['m'].pack_single_uint32(haiku['id'])
+		self.read(length=len(packed), expect=packed)
+		packed = self.state['m'].pack_single_uint16(haiku['length'])
+		self.read(length=len(packed), expect=packed)
 
-			if 0 > self._books():
-				return -1
+		## full match
+		packed = self.state['m'].pack_single_string(haiku['content'])
+		self.read(length=len(packed), expect=packed)
 
-			self.state['g'].turn_complete()
+		## regex match
+		# content_list = haiku['content'].split('\x07')
+		# self.read(length=len(content_list[0]), expect="(.+)", expect_format='pcre')
+		# self.read(length=len(content_list[1]), expect="(.+)", expect_format='pcre')
+		# self.read(length=len(content_list[2]), expect="(.+)", expect_format='pcre')
 
+	def get_haiku_random(self):
+		if self.DEBUG_FUNC:
+			print('- get_haiku_random -')
 
-		# recv final results
-		score = self.state['g'].get_score()
-		msg = sp.serialize_final_results(score[0], score[1])
-		self.read(length=len(msg), expect=msg)
+		if 0 > self._send_command('CMD_GET_HAIKU_RANDOM'):
+			return -1
 
-		return
+		if False == self.state['created']:
+			self._recv_error('ERR_LIST_NOT_EXIST')
+			if self.DEBUG_ERR:
+				print('exiting due to haiku list not exiting.')
+			return -1
 
+		if 0 == self.state['m'].get_haiku_list_len():
+			self._recv_error('ERR_LIST_EMPTY')
+			if self.DEBUG_ERR:
+				print('exiting due to haiku list empty.')
+			return -1
 
+		# id
+		self.read(length=4, expect=r'(.+)', expect_format='pcre')
+
+		# length
+		self.read(length=2, expect=r'(.+)', expect_format='pcre')
+
+		# content
+		self.read(delim='\x07', expect=r'(.+)', expect_format='pcre')
+		self.read(delim='\x07', expect=r'(.+)', expect_format='pcre')
+		self.read(delim='\x07', expect=r'(.+)', expect_format='pcre')
+
+	def get_haiku_count(self):
+		if self.DEBUG_FUNC:
+			print('- get_haiku_count -')
+
+		if 0 > self._send_command('CMD_GET_HAIKU_COUNT'):
+			return -1
+
+		if False == self.state['created']:
+			self._recv_error('ERR_LIST_NOT_EXIST')
+			if self.DEBUG_ERR:
+				print('exiting due to haiku list not exiting.')
+			return -1
+
+		count = self.state['m'].get_haiku_list_len()
+		packed = self.state['m'].pack_single_uint32(count)
+		self.read(length=len(packed), expect=packed)
+
+	def get_haiku_ids(self):
+		if self.DEBUG_FUNC:
+			print('- get_haiku_ids -')
+
+		if 0 > self._send_command('CMD_GET_HAIKU_IDS'):
+			return -1
+
+		if False == self.state['created']:
+			self._recv_error('ERR_LIST_NOT_EXIST')
+			if self.DEBUG_ERR:
+				print('exiting due to haiku list not exiting.')
+			return -1
+
+		count = self.state['m'].get_haiku_list_len()
+		packed = self.state['m'].pack_single_uint32(count)
+		self.read(length=len(packed), expect=packed)
+
+		id_list = self.state['m'].get_haiku_id_list()
+
+		packed_list = ''
+		for h_id in id_list:
+			packed_list += self.state['m'].pack_single_uint32(h_id)
+
+		self.read(length=len(packed_list), expect=packed_list)
+
+	def cmd_done(self):
+		pass

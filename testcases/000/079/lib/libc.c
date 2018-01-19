@@ -23,347 +23,397 @@
 #include "libcgc.h"
 #include "cgc_libc.h"
 
-void cgc_promptc(char *buf, uint16_t  size, char *prompt) {
+static char *last_strtok_str;
 
-    SSEND(cgc_strlen(prompt), prompt);
+struct FILE {
+    int fd;
+    unsigned char *buf;
+    cgc_size_t bufsize;
+    cgc_size_t bufpos;
+};
 
-    SRECV((uint32_t)size, buf);
- }
+static unsigned char stdin_buf[PAGE_SIZE];
 
-int cgc_sendall(int fd, const char *buf, cgc_size_t size) {
-    cgc_size_t sent = 0;
-    cgc_size_t total = 0;
+static FILE stdfiles[3] = {
+    { STDIN, stdin_buf, 0, 0 },
+    { STDOUT, NULL, 0, 0 },
+    { STDERR, NULL, 0, 0 }
+};
 
-    if (!buf)
-        return -1;
+FILE *cgc_stdin = &stdfiles[0];
+FILE *cgc_stdout = &stdfiles[1];
+FILE *cgc_stderr = &stdfiles[2];
 
-    if (!size)
-        return 0;
+static void *
+cgc_memchr(void *ptr, int value, cgc_size_t num)
+{
+    unsigned char *ptr_ = ptr;
+    while (num--)
+        if (*ptr_ == (unsigned char)value)
+            return ptr_;
+        else
+            ptr_++;
 
-    while (size) {
-        if (cgc_transmit(fd, buf, size, &sent)){
-            return -1;
+    return NULL;
+}
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
+cgc_ssize_t
+cgc_fread(void *ptr, cgc_size_t size, FILE *stream)
+{
+    cgc_ssize_t ret = 0;
+    cgc_size_t bytes_rx, buffered, whole_chunks;
+    unsigned char *ptr_ = ptr;
+
+    if (size > SSIZE_MAX)// || stream->mode != READ)
+        return EXIT_FAILURE;
+
+    if (size == 0)
+        return ret;
+
+    // Copy remaining bytes
+    if (stream->bufsize > 0) {
+        buffered = MIN(size, stream->bufsize);
+
+        cgc_memcpy(ptr_, &stream->buf[stream->bufpos], buffered);
+        stream->bufsize -= buffered;
+        stream->bufpos = stream->bufsize ? stream->bufpos + buffered : 0;
+        size -= buffered;
+        ptr_ += buffered;
+        ret += buffered;
+
+        if (size == 0)
+            return ret;
+
+        stream->bufsize = 0;
+        stream->bufpos = 0;
+    }
+
+    // Read whole chunks
+    if (size >= PAGE_SIZE) {
+        whole_chunks = size & ~(PAGE_SIZE - 1);
+
+        if ((bytes_rx = cgc_readall(stream->fd, (char *)ptr_, whole_chunks)) != whole_chunks)
+            return EXIT_FAILURE;
+
+        size &= PAGE_SIZE - 1;
+        ptr_ += whole_chunks;
+        ret += whole_chunks;
+
+        if (size == 0)
+            return ret;
+    }
+
+//    // Read the remainder, attempting to overread to fill buffer but breaking
+//    // once all of our data has been cgc_read
+//    if (!stream->buf && allocate_buffer(stream) != EXIT_SUCCESS)
+//        return EXIT_FAILURE;
+
+    while (stream->bufsize < size) {
+        if (cgc_receive(stream->fd, &stream->buf[stream->bufpos + stream->bufsize],
+                    PAGE_SIZE - stream->bufsize, &bytes_rx) != 0 ||
+                bytes_rx == 0)
+            return EXIT_FAILURE;
+
+        stream->bufsize += bytes_rx;
+    }
+
+    if (stream->bufsize >= size) {
+        buffered = MIN(size, stream->bufsize);
+
+        cgc_memcpy(ptr_, &stream->buf[stream->bufpos], buffered);
+        stream->bufsize -= buffered;
+        stream->bufpos = stream->bufsize ? stream->bufpos + buffered : 0;
+        ret += buffered;
+    }
+
+    return ret;
+}
+
+cgc_ssize_t
+cgc_fread_until(void *ptr, unsigned char delim, cgc_size_t size, FILE *stream)
+{
+    cgc_ssize_t ret = 0;
+    cgc_size_t buffered, bytes_rx;
+    char *delim_ptr = NULL;
+    unsigned char *ptr_ = ptr;
+
+    // Remove upper bound check to enable pov
+    if (size < 1)// || size > SSIZE_MAX || stream->mode != READ)
+        return EXIT_FAILURE;
+
+//    // Read the remainder, attempting to overread to fill buffer but breaking
+//    // once all of our data has been cgc_read
+//    if (!stream->buf && allocate_buffer(stream) != EXIT_SUCCESS)
+//        return EXIT_FAILURE;
+
+    while (size - 1) {
+        if (stream->buf && stream->bufsize > 0) {
+            if ((delim_ptr = cgc_memchr(&stream->buf[stream->bufpos], delim, stream->bufsize)))
+                buffered = (unsigned char *)delim_ptr - &stream->buf[stream->bufpos] + 1;
+            else
+                buffered = stream->bufsize;
+
+            buffered = MIN(size - 1, buffered);
+
+            cgc_memcpy(ptr_, &stream->buf[stream->bufpos], buffered);
+            stream->bufsize -= buffered;
+            stream->bufpos = stream->bufsize ? stream->bufpos + buffered : 0;
+            size -= buffered;
+            ptr_ += buffered;
+            ret += buffered;
+
+            if (size == 1 || delim_ptr) {
+                if ((delim_ptr = cgc_memchr(ptr, delim, ret)))
+                    *delim_ptr = '\0';
+                else
+                    *ptr_ = '\0';
+
+                return ret;
+            }
         }
 
-        buf += sent;
-        total += sent;
-        size -= sent;
+        if (cgc_receive(stream->fd, &stream->buf[stream->bufpos + stream->bufsize],
+                    PAGE_SIZE - stream->bufsize, &bytes_rx) != 0 ||
+                bytes_rx == 0)
+            return EXIT_FAILURE;
+
+        stream->bufsize += bytes_rx;
     }
 
-    return total;
+    return EXIT_FAILURE;
 }
 
+cgc_size_t cgc_readline(int fd, char *buf, cgc_size_t s) {
+    cgc_size_t i,read_;
 
-int cgc_sendline(int fd, const char *buf, cgc_size_t size) {
-    int ret;
-    ret = cgc_sendall(fd, buf, size);
-    if(ret < 0){
-        return ret;
-    } else {
-        if (cgc_transmit(fd, "\n", 1, &size))
-            return -1;
-        else
-            return ++ret;
+    for (i=0; i < s; i+=read_) {
+        read_ = 0;
+        if (cgc_receive(fd, buf+i, 1, &read_))
+            DIE(READFAIL);
+        //EOF when we didn't expect
+        if (!read_)
+            DIE(READFAIL);
+        if (*(buf+i) == NEWLINE)
+            break;
     }
+    
+    if (*(buf+i) != NEWLINE)
+        DIE(READFAIL);
+
+    *(buf+i) = '\0';
+
+    return i;
 }
 
-int cgc_recv(int fd, char *buf, cgc_size_t size) {
-    cgc_size_t bytes_read = 0;
-    cgc_size_t total_read = 0;
+cgc_size_t cgc_readall(int fd, char *buf, cgc_size_t s) {
+    cgc_size_t i,recvd = 0;
 
-    if(!size)
-        return 0;
-
-    if (!buf)
-        return -1;
-
-    while (size) {
-        if (cgc_receive(fd, buf++, 1, &bytes_read))
-            return -1;
-        
-        total_read++;
-        size--;
-    }
-
-    return total_read;
-
-}
-int cgc_recvline(int fd, char *buf, cgc_size_t size) {
-    cgc_size_t bytes_read = 0;
-    cgc_size_t total_read = 0;
-
-    if(!size)
-        return 0;
-
-    if (!buf)
-        return -1;
-
-    while (size) {
-        if (cgc_receive(fd, buf++, 1, &bytes_read))
-            return -1;
-        
-        total_read++;
-        size--;
-        
-        if(*(buf-1) == '\n')
+    for (i=0; i < s; i+=recvd) {
+        if (cgc_receive(fd, buf+i, s-i, &recvd))
+            DIE(READFAIL);
+        if (!recvd)
             break;
     }
 
-    if (*(buf-1) != '\n')
-        return -2;
-    else
-        *(buf-1) = '\0';
-
-    return total_read;
+    return i;
 }
 
-//non-standard convention, returns num bytes copied instead of s1
-cgc_size_t cgc_strcpy(char *s1, char *s2) {
-    char *tmp = s1;
-    while(*s2){
-        *tmp = *s2;
-        tmp++;
-        s2++;
-    }
-    *(tmp++)='\0';
-    return tmp-s1-1;
+cgc_size_t cgc_sendall(int fd, char *buf, cgc_size_t s) {
+    cgc_size_t i,sent;
+
+    for (i=0; i < s; i+=sent) 
+        if (cgc_transmit(fd, buf+i, s-i, &sent))
+            DIE(WRITEFAIL);
+    
+    return s;
 }
 
-//non-standard convention, returns num bytes copied instead of s1
-cgc_size_t cgc_strncpy(char *s1, char *s2, cgc_size_t n) {
-    char *tmp = s1;
-    while((tmp-s1 < n) && *s2){
-        *tmp = *s2;
-        tmp++;
-        s2++;
-    }
-    *(tmp++)='\0';
-    return tmp-s1-1;
+void *cgc_memset(void *s, int c, cgc_size_t n) {
+    cgc_size_t i;
+
+    for (i=0; i < n; i++)
+        *((char *)s+i) = (char)c;
+
+    return s;
 }
 
-char * cgc_strcat(char *s1, char *s2) {
-    char *tmp = s1;
-    while(*tmp) tmp++;
-    cgc_strcpy(tmp,s2);
-    return s1;
+int cgc_streq(char *s1, char *s2) {
+    while (*s1++ == *s2++ && (*(s1-1)));
+
+    return (*(s1-1) == *(s2-1));
 }
 
-cgc_size_t cgc_strlen(char *s){
-    char *tmp = s;
-    while(*tmp) tmp++;
-    return (cgc_size_t)(tmp-s);
+int cgc_strlen(const char *s) {
+    const char *o = s;
+
+    while(*s++);
+    
+    return s-o-1;
 }
 
-int cgc_streq(char *s1, char *s2){
-    while(*s1 && *s2){
-        if(*s1 != *s2)
-            return 0;
-	s1++;
-	s2++;
-    }
-    return (*s1 == '\0') && (*s2 == '\0');
+void cgc_strcpy(char *s1, const char *s2) {
+    while ((*s1++ = *s2++));
 }
 
-int cgc_startswith(char *s1, char *s2){
-    while(*s1 && *s2){
-        if(*s1 != *s2)
-            return 0;
-	s1++;
-	s2++;
-    }
-    return *s2 == '\0';
-}
-
-// takes a uint32 and converts it to a string saved in str_buf
-// str_buf must be large enough to fit the number(s) and '\0'
-// returns 0 on success, -1 if error due to buf_size
-int cgc_uint2str(char* str_buf, int buf_size, uint32_t i) {
-
-    int idx = 0;
-    uint32_t tmp;
-    int digit;
-
-    // at least fits 1 digit and '\0'
-    if (buf_size < 2) {
-        return -1;
-    }
-
-
-    // i is always 0 or negative at this point.
-    tmp = i;
-
-    // increment index in str_buf to where rightmost digit goes
-    do {
-        idx++;
-        tmp = tmp/10;
-    } while(tmp > 0);
-
-    // see if this number will fit in the buffer
-    if (idx >= buf_size)
-        return -1;
-
-    //testing
-    // str_buf[0] = '0' - i;
-    // str_buf[1] = '\0';
-
-    // insert '\0'
-    str_buf[idx--] = '\0';
-
-    // move left through string, writing digits along the way
-    do {
-        digit = i % 10;
-        str_buf[idx--] = '0' + digit;
-        i /= 10;
-
-    } while (i > 0);
-
-    return 0;
-}
-
-// takes an int32 and converts it to a string saved in str_buf
-// str_buf must be large enough to fit the sign, number(s), and '\0'
-// returns 0 on success, -1 if error due to buf_size
-int cgc_int2str(char* str_buf, int buf_size, int i) {
-
-    int idx = 0;
-    int tmp;
-    int digit;
-
-    // at least fits 1 digit and '\0'
-    if (buf_size < 2) {
-        return -1;
-    }
-
-    if (i < 0) {
-        if (buf_size < 3)
-            return -1;
-        str_buf[idx++] = '-';
-    } else {
-        i *= -1; // make i negative
-    }
-
-    // i is always 0 or negative at this point.
-    tmp = i;
-
-    // increment index in str_buf to where rightmost digit goes
-    do {
-        idx++;
-        tmp = tmp/10;
-    } while(tmp < 0);
-
-    // see if this number will fit in the buffer
-    if (idx >= buf_size)
-        return -1;
-
-    //testing
-    // str_buf[0] = '0' - i;
-    // str_buf[1] = '\0';
-
-    // insert '\0'
-    str_buf[idx--] = '\0';
-
-    // move left through string, writing digits along the way
-    do {
-        digit = -1 * (i % 10);
-        str_buf[idx--] = '0' + digit;
-        i /= 10;
-
-    } while (i < 0);
-
-    return 0;
-}
-
-// takes a string and converts it to an int32
-// MAX int32 is +/- 2^31-1 (2,147,483,647) which is 10 digits
-// returns 0 if str_buf is "0" or has no digits.
-uint32_t cgc_str2uint(const char* str_buf) {
-    int result = 0;
-    int temp = 0;
-    int max_chars = 10; // max number of chars cgc_read from str_buf
+void cgc_memcpy(void *dest, void *src, cgc_size_t len) {
     int i = 0;
 
-    if (str_buf == NULL)
-        return result;
+    for (i = 0; i < len; i++)
+        *((char*)dest+i) = *((char*)src+i);
+}
 
-    for (; i < max_chars; i++) {
-        if ( (str_buf[i] == '0') ||
-             (str_buf[i] == '1') ||
-             (str_buf[i] == '2') ||
-             (str_buf[i] == '3') ||
-             (str_buf[i] == '4') ||
-             (str_buf[i] == '5') ||
-             (str_buf[i] == '6') ||
-             (str_buf[i] == '7') ||
-             (str_buf[i] == '8') ||
-             (str_buf[i] == '9') ) {
-            result *= 10;
-            temp = str_buf[i] - '0';
-            result += temp;
+unsigned int cgc_atoi(char *s) {
+    unsigned int res = 0;
 
-        } else {
-            break;
+    while(*s)
+        res = res*10 + *s++ - '0';
+        
+    return res;
+}
+
+char * cgc_strcat(char *dest, const char *src) {
+    char *res = dest;
+
+    while(*dest++);
+
+    dest--;
+
+    while(*src)
+        *dest++ = *src++;
+
+    *dest='\0';
+
+    return res;
+}
+
+char *cgc_tohex(int val, char *s) {
+    int i;
+
+    for (i=7; i >= 0; i--) {
+        s[7-i] = HEXC((val>>(i*4) & 0xf));
+    }
+
+    s[8] = '\0';
+    return s;
+}
+
+void cgc_sprintf(char *buf, const char *fmt, ...) {
+    va_list argp;
+    va_start(argp, fmt);
+    cgc_vsprintf(buf, fmt, argp);
+    va_end(argp);
+}
+
+void cgc_vsprintf(char *buf, const char *fmt, va_list argp) {
+    char num[9] = {0};
+    char *s, *p;
+    int i;
+
+    for (p = (char *)fmt; *p; p++) {
+        if (*p != FMTCHAR) {
+            *buf++ = *p;
+            continue;
+        }
+
+        switch(*++p) {
+            case 'b':
+                //char buffer
+                s = va_arg(argp, char *);
+                cgc_strcpy(buf, s);
+                buf += cgc_strlen(s);
+                break;
+            case 'i':
+                //print hex
+                i = va_arg(argp, int);
+                cgc_tohex(i, num);
+                cgc_strcpy(buf, num);
+                buf += cgc_strlen(num);
+                break;
+            case FMTCHAR:
+                *buf++ = *p;
+                break;
         }
     }
-
-    return result;
 }
 
-void * cgc_memset(void *dst, char c, cgc_size_t n) {
-    cgc_size_t i;
-    for(i=0; i<n; i++){
-        *((uint8_t*)dst+i) = c;
+void cgc_printf(const char *fmt, ...) {
+    va_list argp;
+    va_start(argp, fmt);
+    cgc_vfdprintf(STDOUT, fmt, argp);
+    va_end(argp);
+}
+
+void cgc_fdprintf(int fd, const char *fmt, ...) {
+    va_list argp;
+    va_start(argp, fmt);
+    cgc_vfdprintf(fd, fmt, argp);
+    va_end(argp);
+}
+
+void cgc_vfdprintf(int fd, const char *fmt, va_list argp) {
+    char hex[9];
+    char *s, *p;
+    int i;
+
+    for (p = (char *)fmt; *p; p++) {
+        if (*p != FMTCHAR) {
+            cgc_sendall(fd, p, 1);
+            continue;
+        }
+
+        switch(*++p) {
+            case 'b':
+                //char buffer
+                s = va_arg(argp, char *);
+                cgc_sendall(fd, s, cgc_strlen(s));
+                break;
+            case 'h':
+                //print hex
+                i = va_arg(argp, int);
+                cgc_tohex(i, hex);
+                cgc_sendall(fd, hex, cgc_strlen(hex));
+                break;
+            case FMTCHAR:
+                cgc_sendall(fd, p, 1);
+                break;
+        }
     }
-    return dst;
 }
 
-void * cgc_memcpy(void *dst, void *src, cgc_size_t n) {
-    cgc_size_t i;
-    for(i=0; i<n; i++){
-        *((uint8_t*)dst+i) = *((uint8_t*)src+i);
+char *cgc_strtok(char *s, char sep) {
+    char *cur;
+
+    if (s == NULL) {
+        if (last_strtok_str != NULL)
+            s = last_strtok_str;
+        else
+            return NULL;
     }
-    return dst;
-}
 
-char * cgc_b2hex(uint8_t b, char *h) {
-    if (b>>4 < 10)
-        h[0] = (b>>4)+0x30;
-    else
-        h[0] = (b>>4)+0x41-10;
+    cur = s;
 
-    if ((b&0xf) < 10)
-        h[1] = (b&0xf)+0x30;
-    else
-        h[1] = (b&0xf)+0x41-10;
-    h[2] = '\0';
-    return h;
-}
+    while (*cur != '\0' && *cur++ != sep);
 
-char * cgc_strchr(char *str, char c) {
-    char *tmp = str;
-    while(*tmp){
-        if(*tmp == c)
-            return tmp;
-        tmp++;
+    if (*cur == '\0') {
+        last_strtok_str = NULL;
+        return s;
     }
-    return 0;
+
+    *--cur = '\0';
+    last_strtok_str = cur+1;
+    return s;
 }
 
-//modulus
-int cgc___umoddi3(int a, int b) {
-    return a-(a/b*b);
-}
 
-void cgc_sleep(int s) {
-    struct cgc_timeval tv;
-    tv.tv_sec = s;
-    tv.tv_usec = 0;
-    cgc_fdwait(0, NULL, NULL, &tv, NULL);
-}
+int cgc_memeq(void *b1, void *b2, cgc_size_t len) {
+    int i;
 
-int cgc_memcmp(void *a, void *b, cgc_size_t n) {
-    cgc_size_t i;
-    for (i=0; i < n; i++)
-        if( *(uint8_t*)(a+i) != *(uint8_t*)(b+i))
-            return -1;
-    return 0;
+    for (i=0; i < len; i++) {
+        if (*(char *)b1 != *(char *)b2)
+            return 0;
+    }
+
+    return 1;
 }

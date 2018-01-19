@@ -1,263 +1,141 @@
 /*
-
-Author: Jason Williams <jdw@cromulence.com>
-
-Copyright (c) 2014 Cromulence LLC
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-*/
-#include "libcgc.h"
-#include "cgc_stdarg.h"
+ * Author: Andrew Wesie <andrew.wesie@kapricasecurity.com>
+ *
+ * Copyright (c) 2014 Kaprica Security, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ */
 #include "cgc_stdlib.h"
-#include "cgc_stdint.h"
-#include "cgc_mymath.h"
+#include "cgc_stdarg.h"
+#include "cgc_string.h"
 
-// 5 digits of precision
-#define F32_PRECISION       0.00001
+#define OUTPUT_BYTE(x) do { \
+    cgc_size_t bytes; \
+    char _c = x; \
+    cgc_transmit(STDOUT, &_c, sizeof(_c), &bytes); \
+} while (0);
 
-int cgc_putc( int c )
+#define NUM_TO_LOWER(x) (((x) < 10 ? (x)+'0' : (x)-10+'a'))
+#define NUM_TO_UPPER(x) (((x) < 10 ? (x)+'0' : (x)-10+'A'))
+
+#define FLAG_PAD_ZERO 0x1
+#define FLAG_UPPERCASE 0x2
+int cgc_output_number(unsigned int x, int base, int min, unsigned int flags)
 {
-    cgc_size_t tx_count;
-
-    if ( cgc_transmit( STDOUT, &c, 1, &tx_count ) != 0 )
-        cgc__terminate(2);
-
-    return c;
-}
-
-void cgc_int_to_str( int val, char *buf )
-{
-    char temp_buf[32];
-    char *c = temp_buf;
-    int count = 0;
-
-    if ( buf == NULL )
-        return;
-
-    if ( val < 0 )
+    int n = 0;
+    if (x >= base)
     {
-        *buf = '-';
-        buf++;
-
-        val *= -1;
+        n = cgc_output_number(x / base, base, min-1, flags);
+        x %= base;
+    }
+    if (n == 0 && min > 0)
+    {
+        while (--min)
+            if (flags & FLAG_PAD_ZERO)
+                OUTPUT_BYTE('0')
+            else
+                OUTPUT_BYTE(' ')
     }
 
-    do
-    {
-        *c = (val % 10) + '0';
-        val /= 10;
-
-        c++;
-        count++;
-    } while ( val != 0 );
-
-    while ( count-- > 0 )
-    {
-        c--;
-        *buf = *c;
-        buf++;
-    }
-
-    *buf = '\0';
-}
-
-void cgc_float_to_str( double val, char *buf )
-{
-    if ( buf == NULL )
-        return;
-
-    if ( cgc_isnan( val ) )
-    {
-        cgc_strcpy( buf, "nan" );
-    }
-    else if ( cgc_isinf( val ) )
-    {
-        cgc_strcpy( buf, "inf" );
-    }
-    else if ( val == 0.0 )
-    {
-        cgc_strcpy( buf, "0.00000" );
-    }
+    if (flags & FLAG_UPPERCASE)
+        OUTPUT_BYTE(NUM_TO_UPPER(x))
     else
-    {
-        int digit;
-        int m;
-        int m1;
-        int fraction_digit;
-        int in_fraction;
-        int neg = 0;
-        char *c = buf;
-
-        if ( val > 0.0 )
-            val = val + (F32_PRECISION * 0.5);
-        else
-            val = val - (F32_PRECISION * 0.5);
-
-        // Negative numbers
-        if ( val < 0.0 )
-        {
-            neg = 1;
-            *(c++) = '-';
-            val = -val;
-        }
-
-        // Calculate magnitude
-        m = cgc_log10( val );
-
-        if ( m < 1.0 )
-            m = 0;
-
-        fraction_digit = 0;
-        in_fraction = 0;
-        while ( val > F32_PRECISION || m >= 0 )
-        {
-            double weight = cgc_pow( 10.0, m );
-            if ( weight > 0 && !cgc_isinf(weight) )
-            {
-                digit = cgc_floor( val / weight );
-                val -= (digit * weight);
-
-                *(c++) = '0' + digit;
-
-                if ( in_fraction )
-                    fraction_digit++;
-            }
-
-            if ( m == 0 && val > 0.0 )
-            {
-                *(c++) = '.';
-                in_fraction = 1;
-                fraction_digit = 0;
-            }
-
-            m--;
-        }
-
-        while ( in_fraction && fraction_digit < 5 )
-        {
-            *(c++) = '0';
-            fraction_digit++;
-        }
-
-        *c = '\0';
-    }
+        OUTPUT_BYTE(NUM_TO_LOWER(x))
+    return n + 1;
 }
 
-int cgc_vprintf( const char *fmt, va_list arg )
+int cgc_printf(const char *fmt, ...)
 {
-    int character_count = 0;
-    char temp_buf[64];
+    char *astring;
+    int aint, i, n = 0, flags = 0, min = 0;
+    unsigned int auint;
+    va_list ap;
+    va_start(ap, fmt);
 
-    if ( fmt == NULL )
-        return -1;
-
-    while ( *fmt )
+    while (*fmt != '\0')
     {
-        if ( *fmt == '@' )
+        char c = *fmt++;
+        if (c == '%')
         {
-            fmt++;
-
-            // We don't handle any special formatting
-            switch ( *fmt )
+            while (1)
             {
-            case '@':
-                cgc_putc( '@' );
-                break;
-
-            case 'd':
-                // Integer
+                c = *fmt++;
+                switch (c)
                 {
-                    int int_arg = va_arg( arg, int );
-                    char *c;
-
-                    cgc_int_to_str( int_arg, temp_buf );
-
-                    c = temp_buf;
-                    while ( *c )
-                    {
-                        cgc_putc( *c );
-                        character_count++;
-                        c++;
-                    }
+                case '0':
+                    flags |= FLAG_PAD_ZERO;
+                    continue;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    min = cgc_strtol(fmt-1, (char**)&fmt, 10);
+                    continue;
                 }
                 break;
-
-            case 'f':
-                // Float
-                {
-                    double float_arg = va_arg( arg, double );
-                    char *c;
-
-                    cgc_float_to_str( float_arg, temp_buf );
-
-                    c = temp_buf;
-                    while ( *c )
-                    {
-                        cgc_putc( *c );
-                        character_count++;
-                        c++;
-                    }
-                }
+            }
+            switch (c)
+            {
+            case '%':
+                OUTPUT_BYTE('%')
                 break;
             case 's':
-               // string
-               {
-                    char *string_arg = va_arg( arg, char *);
-                    while (*string_arg)
-                    {
-                        cgc_putc( *string_arg );
-                        character_count++;
-                        string_arg++;
-                    }
-              }
-              break;
-            case '\0':
-                return -1;
-
+                astring = va_arg(ap, char *);
+                for (i = 0; i < cgc_strlen(astring); i++)
+                    OUTPUT_BYTE(astring[i]);
+                break;
+            case 'd':
+                aint = va_arg(ap, int);
+                if (aint < 0)
+                {
+                    OUTPUT_BYTE('-')
+                    aint = -aint;
+                }
+                cgc_output_number(aint, 10, min, flags);
+                break;
+            case 'X':
+                flags |= FLAG_UPPERCASE;
+            case 'x':
+                auint = va_arg(ap, unsigned int);
+                cgc_output_number(auint, 16, min, flags);
+                break;
             default:
-                // Unknown
-                return -1;
+                OUTPUT_BYTE(c)
+                break;
             }
-
-            fmt++;
+            min = 0;
+            flags = 0;
         }
         else
         {
-            cgc_putc( *fmt );
-            fmt++;
-
-            character_count++;
+            OUTPUT_BYTE(c)
         }
     }
 
-    return (character_count);
+    va_end(ap);
+    return n;
 }
 
-int cgc_printf( const char *fmt, ... )
-{
-    va_list arg;
-    int done;
-
-    va_start( arg, fmt );
-    done = cgc_vprintf( fmt, arg );
-    va_end( arg );
-
-    return done;
-}
+#undef OUTPUT_BYTE

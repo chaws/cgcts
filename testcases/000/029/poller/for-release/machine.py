@@ -1,175 +1,553 @@
 #!/usr/bin/env python
-from generator.actions import Actions, Variable
-import random
-import string
+
+from generator.actions import Actions,Variable
+from random import *
 import struct
+import ctypes as ct
+import sys
 
-def random_string(length):
-    s = ''
-    for x in xrange(length):
-        s += random.choice(string.ascii_uppercase)
-    return s
-
-def r_uint32():
-    return random.randint(0, 0xffffffff)
-
-def r_vendor():
-    vid = r_uint32()
-    vtype = random.randint(0, 6)
-    loc = random_string(200)
-    return vid, vtype, loc
-
-class MultiPass(Actions):
-    INIT = 0
-    AUTH = 1
-    OPS = 2
-    FIN = 3
-
-    PURCHASE = 0
-    RECHARGE = 1
-    BALANCE = 2
-    HISTORY = 3
-    ISSUE = 4
-    REFUND = 5
-
-    OK = 0
-
+class MyClass(Actions):
+    
     def start(self):
-        self.state['counter'] = 0
-        self.state['cards'] = {}
-        self.state['purchases'] = []
-        self.state['transactions'] = []
+        # init some vars
+	#self.delay(100)
+	self.CSI = "\x1b\x5b"
+        self.User = 'crs'
+        self.Group = 'crs'
+        self.CommandCount = 0
 
-    def packet(self, card_id, auth_code, pkt_type, op_code, status, transaction_id):
-        if isinstance(card_id, Variable):
-            self.write(card_id)
+        # setup ctypes for prng functions
+        self.dll = ct.CDLL('build/patched/so/CROMU_00051.so')
+        self.seed_prng = self.dll.seed_prng
+        self.seed_prng.argtypes = [ ct.c_uint ]
+        self.seed_prng.restype = None
+        self.random_in_range = self.dll.random_in_range
+        self.random_in_range.argtypes = [ ct.c_uint, ct.c_uint ]
+        self.random_in_range.restype = ct.c_uint
+
+        # seed the prng from the secret page data
+	self.seed_prng(ct.c_uint(struct.unpack('<L', self.magic_page[0:4])[0]))
+
+	# generate the root password that the cb will use
+        self.root_passwd = ''.join(chr(self.random_in_range(65,122)) for _ in range(10))
+
+	# the default crs password
+	self.crs_password = 'crs'
+
+	# initial file count
+	self.FileCount = 2
+
+        # user name len
+        self.UserNameLen = 5
+
+        # file name len
+        self.FileNameLen = 2
+
+	# read the intial prompt
+	self.ReadPrompt()
+
+    def RunTests(self):
+        while self.CommandCount < 11:
+            test = randint(0,15)
+            if test is 0:
+                self.TestId()
+            elif test is 1:
+                self.TestPrint()
+            elif test is 2:
+                self.TestPrintToFile()
+            elif test is 3:
+                self.TestInvalidUserChuser()
+            elif test is 4:
+                self.TestIncorrectPwChuser()
+            elif test is 5:
+                self.TestChpwCrs()
+            elif test is 6:
+                self.TestChuserRoot()
+                self.TestChpwRoot()
+            elif test is 7:
+                self.TestInvalidCommand()
+            elif test is 8:
+                self.TestCtrlU()
+            elif test is 9:
+                self.TestCtrlC()
+            elif test is 10:
+                self.TestCmdHistory()
+            elif test is 11:
+                self.TestCmdEdit()
+            elif test is 12:
+                self.TestList()
+            elif test is 13:
+                self.TestNewUser()
+            elif test is 14:
+                self.TestDelUser()
+            elif test is 15:
+                self.TestNewExistingUser()
+
+        if randint(0,1) is 0:
+            self.TestCtrlD()
         else:
-            self.write(struct.pack('<I', card_id))
-        if isinstance(auth_code, Variable):
-            self.write(auth_code)
-        else:
-            self.write(struct.pack('<I', auth_code))
-        self.write(struct.pack('<BBB', pkt_type, op_code, status))
-        if isinstance(transaction_id, Variable):
-            self.write(transaction_id)
-        else:
-            self.write(struct.pack('<I', transaction_id))
+            self.TestExit()
 
-    def rpacket(self, pkt_type, op_code, status):
-        self.read(length=8) # we can't easily check these
-        tid = Variable('trans' + str(self.state['counter']))
-        tid.set_slice(0)
+    def TestNewExistingUser(self):
+        # if we're not the root user, su to root
+	if self.User is not "root":
+            self.TestChuserRoot()
 
-        self.state['counter'] += 1
-        self.read(length=3, expect=struct.pack('<BBB', pkt_type, op_code, status))
-        self.read(length=4, assign=tid)
-        return tid
+        # attempt to create a user that already exists
+        self.write("newuser root root\n\r")
+        self.BackspaceNL(2)
+        buf = "User 'root' already exists\n\r"
+	self.read(length=len(buf), expect=buf)
+        self.CommandCount += 1
+	self.ReadPrompt()
 
-    def loop(self):
-        pass
-
-    def exit(self):
-        self.packet(0, 0, self.AUTH, self.ISSUE, 0, 0)
-        self.rpacket(self.AUTH, self.ISSUE, 13)
-
-    def issue(self):
-        value = r_uint32()
-        self.packet(0, 0, self.INIT, self.ISSUE, 0, 0)
-        self.write(struct.pack('<I', value))
-
-        card_id = Variable('card' + str(self.state['counter']))
-        card_id.set_slice(0)
-        self.state['counter'] += 1
-        auth_code = Variable('auth' + str(self.state['counter']))
-        auth_code.set_slice(0)
-        self.state['counter'] += 1
-        tid = Variable('trans' + str(self.state['counter']))
-        tid.set_slice(0)
-        self.state['counter'] += 1
-
-        self.read(length=4, assign=card_id)
-        self.read(length=4, assign=auth_code)
-        self.read(length=3, expect=struct.pack('<BBB', self.INIT, self.ISSUE, self.OK))
-        self.read(length=4, assign=tid)
-
-        self.packet(card_id, auth_code, self.FIN, self.ISSUE, self.OK, tid)
-        self.rpacket(self.FIN, self.ISSUE, self.OK)
-
-        self.state['cards'][(card_id, auth_code)] = value
-
-    def purchase(self):
-        (card_id, auth_code), value = random.choice(self.state['cards'].items())
-        cost = random.randint(0, value)
-        pid = r_uint32()
-        vendor = r_vendor()
-
-        self.packet(card_id, auth_code, self.AUTH, self.PURCHASE, 0, 0)
-        tid = self.rpacket(self.AUTH, self.PURCHASE, self.OK)
-
-        self.packet(card_id, auth_code, self.OPS, self.PURCHASE, 0, tid)
-        self.write(struct.pack('<IIIBp', pid, cost, vendor[0], vendor[1],
-            vendor[2]))
-        self.rpacket(self.OPS, self.PURCHASE, self.OK)
-
-        self.packet(card_id, auth_code, self.FIN, self.PURCHASE, 0, tid)
-        self.rpacket(self.FIN, self.PURCHASE, self.OK)
-
-        self.state['cards'][(card_id, auth_code)] -= cost
-        self.state['purchases'].append((card_id, auth_code, tid, pid, cost))
-
-    def balance(self):
-        (card_id, auth_code), value = random.choice(self.state['cards'].items())
-        self.packet(card_id, auth_code, self.AUTH, self.BALANCE, 0, 0)
-        tid = self.rpacket(self.AUTH, self.BALANCE, self.OK)
-
-        self.packet(card_id, auth_code, self.OPS, self.BALANCE, 0, tid)
-        self.rpacket(self.OPS, self.BALANCE, self.OK)
-
-        self.read(expect=struct.pack('<I', value), length=4)
-
-        self.packet(card_id, auth_code, self.FIN, self.BALANCE, 0, tid)
-        self.rpacket(self.FIN, self.BALANCE, self.OK)
-
-    def history(self):
-        pass
-
-    def refund(self):
-        if len(self.state['purchases']) == 0:
-            return
+    def TestNewUser(self):
+        # if we're not the root user, su to root
+	if self.User is not "root":
+            self.TestChuserRoot()
         
-        p = random.choice(self.state['purchases'])
-        (card_id, auth_code, ptid, pid, pvalue) = p
-        value = self.state['cards'][(card_id, auth_code)]
-        if pvalue >= 0xffffffff - value:
+        # create a new user
+	new_user = self.random_string(self.UserNameLen,self.UserNameLen)
+        self.UserNameLen += 1
+        self.write("newuser "+new_user+" "+new_user+"\n\r")
+        self.BackspaceNL(2)
+        buf = "New user password: "
+	self.read(length=len(buf), expect=buf)
+	passwd = self.random_string(1,5)
+        self.write(passwd+"\n\r")
+        self.BackspaceNL(2)
+        buf = "User '"+new_user+"' added\n\r"
+	self.read(length=len(buf), expect=buf)
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+        # su to the new user to make sure it works
+        self.TestChuser(new_user, passwd)
+
+        return(new_user)
+
+    def TestDelUser(self):
+        # if we're not the root user, su to root
+	if self.User is not "root":
+            self.TestChuserRoot()
+
+        # first create a user
+        new_user = self.TestNewUser()
+
+        # change back to the root user since TestNewUser ends as the new user
+        self.TestChuserRoot()
+
+        # delete a user
+        self.write("deluser "+new_user+"\n\r")
+        self.BackspaceNL(2)
+        buf = "User '"+new_user+"' deleted\n\r"
+	self.read(length=len(buf), expect=buf)
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+    def TestList(self):
+        # send id command
+	self.write("list\n\r");
+        self.BackspaceNL(2)
+
+        # verify response
+	# first line should be Directory listing
+        buf = "Directory listing\n\r"
+	self.read(length=len(buf), expect=buf)
+        # next is the file list including the column headers
+        self.read(delim="\r", expect_format="pcre", expect=".*\s+.*\s+.*\s+.*")
+	for _ in range(self.FileCount):
+            self.read(delim="\r", expect_format="pcre", expect=".*\s+.*\s+.*\s+\d+")
+
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+    def TestCmdEdit(self):
+        # send a partial command with extra chars
+        self.write("id")
+	rnd_str = self.random_string(2,2)
+        self.write(rnd_str);
+
+        # backspace over those extra chars
+        self.write("\x7f")
+        self.Backspace(3)
+        self.write("\x7f")
+        self.Backspace(3)
+
+        # run and verify the command output
+        self.write("\n\r")
+        self.BackspaceNL(2)
+        buf = "uid="+self.User+" gid="+self.Group+"\n\r"
+	self.read(length=len(buf), expect=buf)
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+        # send a partial command with extra chars
+        self.write("id")
+	rnd_str = self.random_string(2,2)
+        self.write(rnd_str);
+
+        # arrow back over those extra chars
+        # first char
+        self.write("\x1b\x5b\x44")
+	self.EraseLine(0)
+	self.ReadPrompt()
+        buf = "id"+rnd_str
+	self.read(length=len(buf), expect=buf)
+        buf = "\x1b\x5b1D"
+	self.read(length=len(buf), expect=buf)
+        # second char
+        self.write("\x1b\x5b\x44")
+	self.EraseLine(0)
+	self.ReadPrompt()
+        buf = "id"+rnd_str
+	self.read(length=len(buf), expect=buf)
+        buf = "\x1b\x5b2D"
+	self.read(length=len(buf), expect=buf)
+
+        # run and verify the command output
+        self.write("\n\r")
+        self.BackspaceNL(2)
+        buf = "uid="+self.User+" gid="+self.Group+"\n\r"
+	self.read(length=len(buf), expect=buf)
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+    def TestCmdHistory(self):
+        # send a test command
+        self.TestId()
+
+        # send another command (print)
+	rnd_str = self.random_string(1,10)
+	self.write("print "+rnd_str+"\n\r");
+        self.BackspaceNL(2)
+        buf = rnd_str+"\n\r"
+	self.read(length=len(buf), expect=buf)
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+        # up arrow once to get back to the previous command
+        self.write("\x1b\x5b\x41")
+        self.EraseLine(0)
+	self.ReadPrompt()
+        buf = "print "+rnd_str
+        self.read(length=len(buf), expect=buf)
+        
+        # up arrow again to get back to the first command
+        self.write("\x1b\x5b\x41")
+        self.EraseLine(0)
+	self.ReadPrompt()
+        buf = "id"
+	self.read(length=len(buf), expect=buf)
+
+	# execute the first command again
+        self.write("\n\r")
+        self.BackspaceNL(2)
+        buf = "uid="+self.User+" gid="+self.Group+"\n\r"
+	self.read(length=len(buf), expect=buf)
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+        # up arrow, then down arrow to make sure that returns us to 
+        # an empty prompt
+        # up
+        self.write("\x1b\x5b\x41")
+        self.EraseLine(0)
+	self.ReadPrompt()
+        buf = "id"
+	self.read(length=len(buf), expect=buf)
+        # down
+        self.write("\x1b\x5b\x42")
+        self.EraseLine(0)
+	self.ReadPrompt()
+        self.write("\n\r")
+        self.BackspaceNL(2)
+	self.ReadPrompt()
+
+    def TestCtrlU(self):
+        # write a random string
+	rnd_str = self.random_string(1,10)
+	self.write(rnd_str);
+
+        # Send ctrl-u
+        self.write('\x15')
+
+        # make sure the prompt clear and re-prints as expected
+        self.EraseLine(0)
+	self.ReadPrompt()
+
+        # test a command to make sure it works
+        self.TestId()
+
+    def TestCtrlD(self):
+        # first test with a partially entered command
+        # start a command
+	self.write("id");
+
+        # Send ctrl-d
+        self.write('\x04')
+
+        # make sure the prompt doesn't change
+        buf = '\x08\x08  \x08\x08'
+	self.read(length=len(buf), expect=buf)
+
+        # send <enter> and make sure the command runs as expected
+        self.write("\n\r")
+        self.BackspaceNL(2)
+        buf = "uid="+self.User+" gid="+self.Group+"\n\r"
+	self.read(length=len(buf), expect=buf)
+	self.CommandCount += 1
+	self.ReadPrompt()
+
+        # next, send ctrl-d on a blank line and make sure it logs us out
+        self.write('\x04')
+
+        # verify the response
+        buf = '\x08\x08  \x08\x08'
+	self.read(length=len(buf), expect=buf)
+	self.read(length=6, expect="exit  ")
+        self.BackspaceNL(2)
+	self.read(length=8, expect="logout\n\r")
+
+    def TestCtrlC(self):
+        # write a random string
+	self.write("id");
+
+        # Send ctrl-c
+        self.write('\x03')
+
+        # make sure it returns to the prompt without executing
+        self.BackspaceNL(2)
+	self.ReadPrompt()
+
+    def TestExit(self):
+	self.write("exit\n\r");
+        self.BackspaceNL(2)
+	self.read(length=8, expect="logout\n\r")
+
+    def TestId(self):
+        # send id command
+	self.write("id\n\r");
+        self.BackspaceNL(2)
+
+        # verify response
+        buf = "uid="+self.User+" gid="+self.Group+"\n\r"
+	self.read(length=len(buf), expect=buf)
+
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+    def TestPrint(self):
+	rnd_str = self.random_string(1,5)
+
+        # send print command
+	self.write("print "+rnd_str+"\n\r");
+        self.BackspaceNL(2)
+
+        # verify response
+        buf = rnd_str+"\n\r"
+	self.read(length=len(buf), expect=buf)
+
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+    def TestPrintToFile(self):
+	rnd_str = self.random_string(1,5)
+	rnd_file = self.random_string(self.FileNameLen,self.FileNameLen)
+        self.FileNameLen += 1
+
+        # send print command
+	self.write("print "+rnd_str+" > "+rnd_file+"\n\r");
+        self.BackspaceNL(2)
+
+        # verify response
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+	# check that the contents of the newly created file match
+	self.write("dump "+rnd_file+"\n\r");
+        self.BackspaceNL(2)
+        buf = rnd_str+"\n\r"
+	self.read(length=len(buf), expect=buf)
+
+        self.CommandCount += 1
+        self.FileCount += 1
+	self.ReadPrompt()
+
+    def TestChuserRoot(self):
+        self.TestChuser('root',self.root_passwd)
+
+    def TestChuser(self, user, password):
+        # send chuser command
+        self.write("chuser "+user+"\n\r");
+        self.BackspaceNL(2)
+
+        if self.User is not 'root':
+            # read password prompt
+            buf = "Password: "
+            self.read(length=len(buf), expect=buf)
+
+            # send the password
+            self.write(password+"\n\r");
+            self.BackspaceNL(2)
+
+	# read the success message
+        buf = "Authentication success for user '"+user+"'\n\r"
+	self.read(length=len(buf), expect=buf)
+
+        self.User = user
+        self.Group = user
+
+        # prompt will have the new user name
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+    def TestInvalidUserChuser(self):
+	invalid_user = self.random_string(5,10)
+
+        # send chuser command
+	self.write("chuser "+invalid_user+"\n\r");
+        self.BackspaceNL(2)
+
+        # read invalid user prompt
+        buf = "No passwd entry for user '"+invalid_user+"'\n\r"
+	self.read(length=len(buf), expect=buf)
+
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+    def TestIncorrectPwChuser(self):
+        if self.User is 'root':
+            return
+	invalid_pw = self.random_string(5,10)
+
+        # send chuser command
+	self.write("chuser crs\n\r");
+        self.BackspaceNL(2)
+
+        # read password prompt
+        buf = "Password: "
+	self.read(length=len(buf), expect=buf)
+
+        # send the password
+	self.write(invalid_pw+"\n\r");
+        self.BackspaceNL(2)
+
+        # read auth failure
+        buf = "Authentication failure\n\r"
+	self.read(length=len(buf), expect=buf)
+
+        self.CommandCount += 1
+	self.ReadPrompt()
+
+    def TestInvalidCommand(self):
+        invalid_command = "dump"+self.random_string(1,5)
+
+        # send command
+	self.write(invalid_command+"\n\r")
+        self.BackspaceNL(2)
+
+        # verify error msg
+        buf = "Invalid command: "+invalid_command+"\n\r"
+        self.read(length=len(buf), expect=buf)
+
+        self.CommandCount += 1
+        self.ReadPrompt()
+
+    def TestChpwRoot(self):
+        self.TestChpw('root','asdf')
+
+    def TestChpwCrs(self):
+        self.TestChpw('crs','asdf')
+
+    def TestChpw(self, user, new_password):
+        if self.User is "root":
+            # send command
+            self.write("chpw "+user+"\n\r")
+            self.BackspaceNL(2)
+        elif self.User is "crs":
+            # send command
+            self.write("chpw\n\r")
+            self.BackspaceNL(2)
+        else:
             return
 
-        self.state['purchases'].remove(p)
-        self.state['cards'][(card_id, auth_code)] += pvalue
-        
-        self.packet(card_id, auth_code, self.AUTH, self.REFUND, 0, 0)
-        tid = self.rpacket(self.AUTH, self.REFUND, self.OK)
+        # enter the new password
+        buf = "New password: "
+        self.read(length=len(buf), expect=buf)
+        self.write(new_password+"\n\r")
+        self.BackspaceNL(2)
 
-        self.packet(card_id, auth_code, self.OPS, self.REFUND, 0, tid)
-        self.write(struct.pack('<I', pid))
-        self.write(ptid)
-        self.rpacket(self.OPS, self.REFUND, self.OK)
+        if self.User is "root":
+            if user is "root":
+                self.root_passwd = new_password
+            if user is "crs":
+                self.crs_passwd = new_password
+        else:
+            if user is "crs":
+                self.crs_passwd = new_password
 
-        self.packet(card_id, auth_code, self.FIN, self.REFUND, 0, tid)
-        self.rpacket(self.FIN, self.REFUND, self.OK)
+        self.CommandCount += 1
+        self.ReadPrompt()
 
-    def recharge(self):
-        (card_id, auth_code), value = random.choice(self.state['cards'].items())
-        amount = random.randint(0, 0xffffffff - value)
-        vendor = r_vendor()
+        # test the new password
+        self.TestChuser(user, new_password)
 
-        self.packet(card_id, auth_code, self.AUTH, self.RECHARGE, 0, 0)
-        tid = self.rpacket(self.AUTH, self.RECHARGE, self.OK)
+    def Backspace(self, count):
+        buf = "\x08"*count + " "*count + "\x08"*count
+        self.read(length=len(buf), expect=buf)
 
-        self.packet(card_id, auth_code, self.OPS, self.RECHARGE, 0, tid)
-        self.write(struct.pack('<IIBp', amount, vendor[0], vendor[1], vendor[2]))
-        self.rpacket(self.OPS, self.RECHARGE, self.OK)
+    def BackspaceNL(self, count):
+        buf = "\x08"*count + " "*count + "\x08"*count + "\n\r"
+        self.read(length=len(buf), expect=buf)
 
-        self.packet(card_id, auth_code, self.FIN, self.RECHARGE, 0, tid)
-        self.rpacket(self.FIN, self.RECHARGE, self.OK)
+    def ReadPrompt(self):
+        buf= self.User+"@CB> "
+        self.read(length=len(buf), expect=buf)
 
-        self.state['cards'][(card_id, auth_code)] += amount
+    def EraseToEOL(self):
+        buf= self.CSI+"K"
+        self.read(length=len(buf), expect=buf)
+
+    def EraseLine(self, StartingX):
+        buf = self.CSI+str(StartingX)+"G"
+        self.read(length=len(buf), expect=buf)
+        self.EraseToEOL()
+
+    def MoveCursor(self, x, y):
+        buf = self.CSI+str(x)+";"+str(y)+"H"
+	self.read(length=len(buf), expect=buf)
+
+    def CursorRight(self, NumSpaces):
+        buf = self.CSI+str(NumSpaces)+"C"
+	self.read(length=len(buf), expect=buf)
+
+    def CursorLeft(self, NumSpaces):
+        buf = self.CSI+str(NumSpaces)+"D"
+	self.read(length=len(buf), expect=buf)
+
+    def UpArrow(self):
+        buf = self.CSI+"A"
+	self.read(length=len(buf), expect=buf)
+
+    def DownArrow(self):
+        buf = self.CSI+"B"
+	self.read(length=len(buf), expect=buf)
+
+    def RightArrow(self):
+        buf = self.CSI+"C"
+	self.read(length=len(buf), expect=buf)
+
+    def LeftArrow(self):
+        buf = self.CSI+"D"
+	self.read(length=len(buf), expect=buf)
+
+    def end(self):
+	pass
+
+    def random_string(self, min_length, max_length):
+        chars = map(chr, range(48,57)+range(65,90)+range(97,122))
+        str = ''
+        while len(str) < min_length:
+            str = ''.join(choice(chars) for _ in range(randint(min_length, max_length))).rstrip()
+        return str

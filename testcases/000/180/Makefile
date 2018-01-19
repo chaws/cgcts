@@ -1,4 +1,4 @@
-CHAL=Sample_Shipgame
+CHAL=Griswold
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,23 +20,35 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mylibc.c.o -c lib/mylibc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/sample_shipgame.c.o -c src/sample_shipgame.c
-	$(CC) $(FLAGS) -o Sample_Shipgame_patched lib/mylibc.c.o src/sample_shipgame.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/assemble.c.o -c src/assemble.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/components.c.o -c src/components.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/examine.c.o -c src/examine.c
+	$(CXX) $(FLAGS) -o Griswold_patched lib/libc.c.o src/assemble.c.o src/operation.c.o src/service.c.o src/components.c.o src/examine.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mylibc.c.o -c lib/mylibc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/sample_shipgame.c.o -c src/sample_shipgame.c
-	$(CC) $(FLAGS) -o Sample_Shipgame lib/mylibc.c.o src/sample_shipgame.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/assemble.c.o -c src/assemble.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/components.c.o -c src/components.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/examine.c.o -c src/examine.c
+	$(CXX) $(FLAGS) -o Griswold lib/libc.c.o src/assemble.c.o src/operation.c.o src/service.c.o src/components.c.o src/examine.c.o $(LCGC) 
 
 pov: $(LIBPOV)
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Sample_Shipgame_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Sample_Shipgame_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Griswold_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Griswold_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Griswold_pov_3 pov_3/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Griswold_pov_4 pov_4/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/mylibc.c.o src/sample_shipgame.c.o lib/mylibc.c.o src/sample_shipgame.c.o Sample_Shipgame_pov_2 Sample_Shipgame_pov_1 Sample_Shipgame_patched Sample_Shipgame
+	rm -f pov_4/pov.c.o pov_3/pov.c.o pov_2/pov.c.o pov_1/pov.c.o lib/libc.c.o src/assemble.c.o src/operation.c.o src/service.c.o src/components.c.o src/examine.c.o lib/libc.c.o src/assemble.c.o src/operation.c.o src/service.c.o src/components.c.o src/examine.c.o Griswold_pov_4 Griswold_pov_3 Griswold_pov_2 Griswold_pov_1 Griswold_patched Griswold

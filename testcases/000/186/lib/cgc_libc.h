@@ -19,170 +19,348 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+#ifndef LIBC_H
+#define LIBC_H
+
+#include "libcgc.h"
+#include "cgc_stdint.h"
+
+#define MAGICWORD "You didn't say the magic word."
+#define MEMERR "Clever girl."
+#define RNDERR "The essence of chaos."
+#define COOKIEFAIL "Friend is someone to share the last cookie with."
+
 /**
- * @file libc.h
+ * Sends a buffer and terminates on failure.
  *
- * Reusable standard C functions.
+ * @param s Size of the buffer
+ * @param b Buffer
+ * @return Number of bytes sent
  */
-
-#ifndef LIBC_H_
-#define LIBC_H_
+#define SSEND(s,b) if(cgc_sendall(STDOUT,b,s)<0)  cgc__terminate(3);
 
 /**
- * Return the greater of the two parameters.
+ * Sends a buffer+newline and terminates on failure.
  *
- * @param a The first value
- * @param b The second value
- * @return The greater of a and b
+ * @param s Size of the buffer
+ * @param b Buffer
+ * @return Number of bytes sent
  */
-#define MAX(a, b) ((a) > (b) ? (a) : (b));
+#define SSENDL(s,b) if(cgc_sendline(STDOUT,b,s)<0) cgc__terminate(6);
 
 /**
- * Return the lesser of the two parameters.
+ * Sends a buffer+newline and terminates on failure.
  *
- * @param a The first value
- * @param b The second value
- * @return The lesserof a and b
+ * @param b Buffer
+ * @return Number of bytes sent
  */
-#define MIN(a, b) ((a) < (b) ? (a) : (b));
+#define LOG(b) SSENDL(sizeof(b)-1,b);
 
 /**
- * Read exactly n bytes from fd to a buffer.
+ * Sends an error message and terminates.
  *
- * @param fd A file descriptor
- * @param buf The destination buffer
- * @param n The number of bytes to cgc_read
- * @return The number of bytes cgc_read, or negative on failure
+ * @param b Buffer
+ * @param c Error code
  */
-cgc_ssize_t cgc_read_all(int fd, void *buf, cgc_size_t n);
+#define TERM(b,c)  LOG(b); cgc__terminate(c);
 
 /**
- * Write exactly n bytes to an fd from a buffer.
+ * Receives a newline terminated string into buffer, and replaces newline with NULL
+ * Terminates on error
  *
- * @param fd A file descriptor
- * @param buf The source buffer
- * @param n The number of bytes to cgc_write
- * @return The number of bytes written, or negative on failure
+ * @param s Size of the buffer
+ * @param b Buffer
+ * @return Data in buffer
  */
-cgc_ssize_t cgc_write_all(int fd, void *buf, cgc_size_t n);
+#define SRECV(s,b) if(cgc_recvline(STDIN,b,s)<0){SSENDL(sizeof(MAGICWORD)-1,MAGICWORD); cgc__terminate(2);}
 
 /**
- * Set the first n bytes of a block of memory to a value.
+ * Receives bytes into buffer
+ * Terminates on error
  *
- * @param ptr A pointer to a block of memory
- * @param val The value to set each byte to, interpretted as an unsigned char
- * @param n The number of bytes to set
- * @return ptr
+ * @param s Number of bytes to cgc_read into the buffer
+ * @param b Buffer
+ * @return Data in buffer
  */
-void *cgc_memset(void *ptr, int val, cgc_size_t n);
+#define RECV(s,b) if(recv(STDIN,b,s)<0){SSENDL(sizeof(MAGICWORD)-1,MAGICWORD); cgc__terminate(4);}
 
 /**
- * Copy a null-terminated string from src to dst.
+ * Thin wrapper to allocate
+ * Terminates on error
  *
- * @param dst The destination buffer
- * @param src The source buffer
+ * @param x Is executable
+ * @param a Location to store address 
+ * @param s Size of allocation
+ * @return Address in a
+ */
+#define ALLOC(x,a,s) if(cgc_allocate(s,x,a)!=0){ SSENDL(sizeof(MEMERR)-1,MEMERR); cgc__terminate(9);}
+
+/**
+ * Thin wrapper to deallocate
+ * Terminates on error
+ *
+ * @param a Address to deallocate
+ * @param s Size of allocation
+ */
+#define DEALLOC(a,s) if(deallocate(a,s)!=0){ SSENDL(sizeof(MEMERR)-1,MEMERR); cgc__terminate(18);}
+
+/**
+ * Thin wrapper to random
+ * Terminates on error
+ *
+ * @param b Buffer to store random data
+ * @param s Count of random bytes to cgc_read
+ * @param r Location to store number of bytes cgc_read
+ * @return Random data in b
+ */
+#define RAND(b,s,r) if (cgc_random(b,s,r)){ SSENDL(sizeof(RNDERR)-1,RNDERR); cgc__terminate(19);}
+
+#define STACKPROTECTINIT extern uint32_t cgc___cookie;
+#define STACKPROTECTADD  uint32_t __wat = cgc___cookie;
+#define STACKPROTECTCHK  if ( (__wat = __wat ^ cgc___cookie) != 0 ) __stack_cookie_fail();
+
+#define PAGE_SIZE 4096
+typedef struct heap_chunk heap_chunk_t;
+
+struct heap_chunk {
+  heap_chunk_t *prev;
+  heap_chunk_t *next;
+  uint32_t size;
+};
+
+
+/**
+ * Simple prompt handler
+ *
+ * @param buf Buffer to store response
+ * @param s Size of response buffer
+ * @param prompt Prompt to send 
+ * @return Response data in buf
+ */
+void cgc_promptc(char *buf, uint16_t  size, char *prompt);
+
+/**
+ * Convert unsigned integer to string
+ *
+ * @param str_buf Destination buffere
+ * @param buf_size Destination buffer size
+ * @param i Integer to convert
+ * @return Ascii-representation of i in str_buf
+ */
+int cgc_uint2str(char* str_buf, int buf_size, uint32_t i);
+
+/**
+ * Convert signed integer to string
+ *
+ * @param str_buf Destination buffere
+ * @param buf_size Destination buffer size
+ * @param i Integer to convert
+ * @return Ascii-representation of i in str_buf
+ */
+int cgc_int2str(char* str_buf, int buf_size, int i);
+
+/**
+ * Convert string to signed integer
+ *
+ * @param str_buf Source buffer
+ * @return integer
+ */
+uint32_t cgc_str2uint(const char* str_buf);
+
+/**
+ * Send bytes from buffer to file descriptor
+ *
+ * @param fd File descriptor to send on
+ * @param buf Source buffer
+ * @param size Number of bytes to send
+ * @return Number of bytes sent, -1 on error
+ */
+int cgc_sendall(int fd, const char *buf, cgc_size_t size);
+
+/**
+ * Send bytes from buffer to file descriptor with newline
+ *
+ * @param fd File descriptor to send on
+ * @param buf Source buffer
+ * @param size Number of bytes to send
+ * @return Number of bytes sent, -1 on error
+ */
+int cgc_sendline(int fd, const char *buf, cgc_size_t size);
+
+/**
+ * Receive line from file descriptor
+ *
+ * @param fd File descriptor to receive on
+ * @param buf Destination buffer
+ * @param size Size of destination buffer
+ * @return Number of bytes received, -1 on error
+ */
+int cgc_recvline(int fd, char *buf, cgc_size_t size);
+
+/**
+ * Receive bytes from file descriptor
+ *
+ * @param fd File descriptor to receive on
+ * @param buf Destination buffer
+ * @param size Number of bytes to receive
+ * @return Number of bytes received, -1 on error
+ */
+int cgc_recv(int fd, char *buf, cgc_size_t size); 
+
+/**
+ * Copy a string
+ *
+ * @param s1 Destination buffer
+ * @param s2 Source buffer
+ * @return Number of bytes copied
+ */
+cgc_size_t cgc_strcpy(char *s1, char *s2);
+
+/**
+ * Copy a string with bounds checking
+ *
+ * @param s1 Destination buffer
+ * @param s2 Source buffer
+ * @param n Size of destination buffer
+ * @return Number of bytes copied
+ */
+cgc_size_t cgc_strncpy(char *s1, char *s2, cgc_size_t n);
+
+/**
+ * Concatenate two strings
+ *
+ * @param s1 Main string
+ * @param s2 String to be concatenated
+ * @return s1
+ */
+char * cgc_strcat(char *s1, char *s2);
+
+/**
+ * Find length of string
+ *
+ * @param s String
+ * @return length of s
+ */
+cgc_size_t cgc_strlen(char *s);
+
+/**
+ * Check if two strings are identical
+ *
+ * @param s1 String 1
+ * @param s2 String 2
+ * @return 1 if identical, 0 if different
+ */
+int cgc_streq(char *s1, char *s2);
+
+/**
+ * Check if a string starts with another string
+ *
+ * @param s1 String to check
+ * @param s2 String that s1 might start with
+ * @return 1 if s1 starts with s2, 0 if not
+ */
+int cgc_startswith(char *s1, char *s2);
+
+/**
+ * Set a buffer to provided character
+ *
+ * @param dst Destination buffer
+ * @param c Character to repeat
+ * @param n Number of times to copy character
  * @return dst
  */
-char *cgc_strcpy(char *dst, const char *src);
+void * cgc_memset(void *dst, char c, cgc_size_t n); 
 
 /**
- * Copy at most the first n characters of a null-terminated string from src to
- * dst.
+ * Copy bytes from one buffer to another
  *
- * @param dst The destination buffer
- * @param src The source buffer
- * @param n The maximum number of bytes to copy
+ * @param dst Destination buffer
+ * @param src Source buffer
+ * @param n Number of bytes to copy
  * @return dst
  */
-char *cgc_strncpy(char *dst, const char *src, cgc_size_t n);
+void * cgc_memcpy(void *dst, void *src, cgc_size_t n); 
 
 /**
- * Append the bytes of a null-terminated string to another.
+ * Convert byte to hex character string
  *
- * @param dst The destination buffer
- * @param src The source buffer
- * @return dst
+ * @param b Byte to convert
+ * @param h Destination hex string
+ * @return h
  */
-char *cgc_strcat(char *dst, const char *src);
+char * cgc_b2hex(uint8_t b, char *h);
 
 /**
- * Append at most the first n bytes of a null-terminated string to another.
+ * Locate character in string
  *
- * @param dst The destination buffer
- * @param src The source buffer
- * @param n The maximum number of bytes to copy
- * @return dst
+ * @param str String to search
+ * @param h Character to find
+ * @return Pointer to character in string, or NULL
  */
-char *cgc_strncat(char *dst, const char *src, cgc_size_t n);
+char * cgc_strchr(char *str, char c); 
 
 /**
- * Return the length of a null-terminated string.
- * 
- * @param s The string
- * @return The length of s
+ * Sleep process
+ *
+ * @param s Amount of time to sleep
  */
-cgc_size_t cgc_strlen(const char *s);
+void cgc_sleep(int s);
 
 /**
- * Return the length of a null-terminated string, checking at most n bytes.
+ * Compare two buffers
  *
- * @param s The string
- * @param n Maximum number of bytes to check
- * @return The lesser of the length of s or n
+ * @param a First buffer
+ * @param b Second buffer
+ * @param n Number of bytes to compare
+ * @return -1 if not equal, 0 if equal
  */
-cgc_size_t cgc_strnlen(const char *s, cgc_size_t n);
+int cgc_memcmp(void *a, void *b, cgc_size_t n); 
 
 /**
- * Compare the first n bytes of two null-terminated strings
+ * Allocate a buffer on heap
  *
- * @param a The first string
- * @param b The second string
- * @return negative if a < b, 0 if a == b, positive if a > b
+ * @param size Size of buffer to allocate
+ * @return Pointer to newly allocated buffer 
  */
-int cgc_strncmp(const char *a, const char *b, cgc_size_t n);
+void *cgc_malloc(cgc_size_t size);
 
 /**
- * Convert an integer value to its decimal string representation.
+ * Allocate a zeroed buffer on heap
  *
- * This functionality differs from itoa, primarily in only dealing with decimal
- * representations.
- *
- * @param val The value to convert
- * @param s The buffer to place the converted value, must be large enough to
- *      hold all digits
- * @return s
+ * @param size Size of buffer to allocate
+ * @return Pointer to newly allocated buffer 
  */
-char *cgc_itoa(int val, char *s);
-
-#ifdef DEBUG
-/* The following is verbatim from EAGLE_00004, but isn't included in the 
- * released binary (DEBUG is not defined), so this reuse shouldn't be a concern.
- */
-
-#define _FILE_STATE_OPEN  1
-#define _FILE_STATE_ERROR 2
-#define _FILE_STATE_EOF   4
-#define _FILE_HAVE_LAST   8
-
-typedef struct _FILE {
-   int fd;
-   int state;
-   int last;
-} FILE;
-
-extern FILE *cgc_stdin;
-extern FILE *cgc_stdout;
-extern FILE *cgc_stderr;
+void *cgc_calloc(cgc_size_t size); 
 
 /**
- * Formatted output to a stream.
+ * Free an allocated buffer
  *
- * @param stream The stream to cgc_write to
- * @param format The format specifier
- * @return number of bytes written
+ * @param p Pointer to buffer
  */
-int fprintf(FILE * stream, const char *format, ...);
+void cgc_free(void *p);
 
-#endif /* DEBUG */
+/**
+ * Perform heap sanity checking
+ *
+ */
+void cgc_checkheap();
 
-#endif /* LIBC_H_ */
+/**
+ * Initialize stack cookie
+ *
+ */
+void cgc___stack_cookie_init(); 
+
+/**
+ * Check stack cookie
+ *
+ */
+void cgc___stack_cookie_fail(); 
+
+int cgc_transmit_all(int fd, const char *buf, const cgc_size_t size); // NRFIN_00002
+cgc_size_t cgc_strnlen(const char *string, cgc_size_t max_len); // NRFIN_00009 - modified
+int cgc_strcmp(const char* string1, const char* string2);  // Jukebox
+int cgc_strncmp(const char *s1, const char *s2, cgc_size_t n); // PCU
+
+#endif
+

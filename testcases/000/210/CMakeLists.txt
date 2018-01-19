@@ -1,5 +1,5 @@
-set( SERVICE_ID "00065" )
-set( AUTHOR_ID "CROMU" )
-add_compile_options( -O0 -g -DENABLE_BUFFERED_PRINTF )
+set( SERVICE_ID "00087" )
+set( AUTHOR_ID "KPRCA" )
+add_compile_options( -O3 -g )
 set( VULN_COUNT "1" )
 buildCB()

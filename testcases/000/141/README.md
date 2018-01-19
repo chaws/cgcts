@@ -1,66 +1,43 @@
-# KPRCA-00028
+# vFilter
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
-## Description:
+## Description
 
-This service implements a command line evaluation engine for a programming
-language referred to as SLUR. The service takes in a SLUR expression and
-evaluates it, returning the evaluated expression back to the user. The SLUR
-language is based off of lists. Each expression is itself a list, expressions
-are written usually to modify or build lists in some interesting way. The SLUR
-evaluation engine we provide supports of series of primitive functions which
-the user can use to build their programs. In addition to functions and lists,
-SLUR also has the concept of atoms which are strings of characters and numbers
-that aren't the names of functions. Formally, a list is a parenthesis pair,
-enclosing zero or more atoms or lists.
+A constant-time VM interpreter and validator written in C for fast data filtering. The user provides a filter program and a set of data, which is processed and the results returned.
 
 ### Feature List
 
-The built in functions are as follow:
-	* (quote e) returns e
-	* (cons e1 e2) returns the list formed by prepending e1 onto e2
-	* (car e) returns the first element of the list e
-	* (cdr e) returns all the elements of the list e minus the first one
-	* (atom e) returns `t` if e is an atom else returns `nil`
-	* (cond (p1 e1) ... (pn en)) returns the first e whose p is `t`
-	* (equal e1 e2) returns `t` if e1 = e2 else returns `nil`
-	* ((lambda (v1 ... vn) e) e1 ... en) returns e evaluated in the
-	  environment where v1 -> e1, ... vn -> en.
- 
-Our SLUR machine also implements CAKE reduction functionality in the lambda
-function. If the result of our evaluated lambda is a list consisting of the
-atom "CAKE" repeated 4 times it appends the atom "That's a lot of CAKE!" to the
-list.
+Separate validation and execution stages increases the performance of the interpreter as the amount of data increases. There is a one-time cost to make sure the program is correct, and then the interpreter can make assumptions that increase performance.
+
+Support for many instructions: 13 arthimetic instructions, 4 conditional jumps, byte/half-word/word loads and stores, and read/write system calls. Loops are forbidden to guarantee that the execution is time-bound. During execution, the filter has access to a 1KB stack and the input data. Loads and stores are bounds-checked to prevent undefined behavior.
 
 ## Vulnerability
+### Vuln 1
 
-The first vulnerability is trigged in the CAKE reduction functionality. The reduction
-functionality has a flaw (eval.c:328) where it incorrectly appends to the internal
-list structure representing a SLUR list. It is possible for an attacker to trigger
-a null pointer dereference in cases where the CAKE reduction is being performed at
-the end of the list, i.e. where the tail of the list is NULL.
+The VM interpreter keeps track of the value stored in each VM register and what memory space the VM register references. Normally, a VM register that holds a number will have a NULL memory space pointer. The interpreter takes advantage of this and ORs the memory space pointers together when performing an ADD or SUB instruction. This works because the validator enforces that the operands are either NUMBER-NUMBER, POINTER-NUMBER, or NUMBER-POINTER. So, the result of the OR is either NULL or a valid memory space pointer.
 
-The second vulnerability is triggered the lambda functionality. When
-substituting symbols in the enclosing lambda, the substitution code does
-correctly validate that the object it is attempting to compare to the symbol it
-is substituting for which can result in a NULL pointer dereference due to
-assumptions the code makes about the state of values in the struct representing
-the object.
+The interpreter fails to set the memory space pointer to NULL in some cases, which causes the aforementioned assumptions to break. This allows an attacker to construct a payload that results in the two memory space pointers being OR'd together, resulting in a memory space pointer that references attacker supplied memory, namely the VM registers. The attacker can set the length of this fake memory space structure to a large value and use a load instruction to read from any memory address or a store instruction to write to any address.
 
-### Generic class of vulnerability
-Null Pointer Dereference
-Type Confusion
+#### Generic class of vulnerability
 
-### CWE classification
-CWE-476: Null Pointer Dereference
-CWE-843: Access of Resource Using Incompatible Type ('Type Confusion')
+Logic error
 
-## Challenges
+#### CWE classification
 
-In order to trigger the vulnerability, the attacker must be able to successful
-build a program that triggers the CAKE reduction functionality. This requires
-the attacker to understand how the internal structure of the SLUR lists are
-used, how the lambda function evaluates its arguments, and that 4 CAKE atoms
-must be present for the vulnerability to the triggered.
+CWE-123: Write-what-where Condition
+CWE-125: Out-of-bounds Read
+CWE-465: Pointer Issues
+
+#### Challenges
+
+- The bug is in a virtual machine interpreter, which makes symbolic execution difficult
+- The bug is dependent on the arrangement of heap allocations
+- Patching is difficult because the bug is specific to this program and the memory access is inside of a loop that will affect performance if it is naively instrumented
+
+#### Difficulty
+
+ - **Discovery**: hard
+ - **Proving**: medium
+ - **Patching**: hard

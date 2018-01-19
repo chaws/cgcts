@@ -1,4 +1,5 @@
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Copyright (C) 2.34 Narf Industries <info@narfindustries.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -21,43 +22,91 @@
 ---
 nodes:
 - name: start
-- name: finish
-- name: cmd
-  continue: 0.7
-- name: list_stocks
-- name: list_orders
-- name: list_orders_valid
-- name: list_orders_invalid
-- name: add_order
-- name: add_order_existing
-- name: add_order_new
-- name: check_order
-- name: cancel_order
+- name: command_no_user_failure
+- name: auth_failure_new_user
+- name: auth_failure_current_user
+- name: auth_success_with_auth_val
+- name: request_no_resource_failure
+- name: request_resource_wrong_token_failure
+- name: request_success
+- name: revoke_resource_success
+- name: revoke_resource_failure
+- name: logout
+- name: quit
 
 edges:
-- start: cmd
+- start: command_no_user_failure
+- command_no_user_failure: command_no_user_failure
+- command_no_user_failure: auth_failure_new_user
+- auth_failure_new_user: command_no_user_failure
+- auth_failure_new_user: auth_failure_current_user
+- auth_failure_new_user: auth_success_with_auth_val
+- auth_failure_new_user: request_no_resource_failure
+- request_no_resource_failure: command_no_user_failure
+- request_no_resource_failure: auth_failure_new_user
+- request_no_resource_failure: auth_failure_current_user
+- request_no_resource_failure: auth_success_with_auth_val
+- request_no_resource_failure: request_no_resource_failure
+- auth_failure_current_user: command_no_user_failure
+- auth_failure_current_user: auth_failure_new_user
+- auth_failure_current_user: auth_failure_current_user
+- auth_failure_current_user: auth_success_with_auth_val
+- auth_failure_current_user: request_no_resource_failure
+- auth_success_with_auth_val: command_no_user_failure
+- auth_success_with_auth_val: auth_failure_new_user
+- auth_success_with_auth_val: auth_failure_current_user
+- auth_success_with_auth_val: auth_success_with_auth_val
+- auth_success_with_auth_val: request_no_resource_failure
+- auth_success_with_auth_val: request_resource_wrong_token_failure
+- auth_success_with_auth_val: request_success
+- auth_success_with_auth_val: revoke_resource_success
+- auth_success_with_auth_val: revoke_resource_failure
+- request_resource_wrong_token_failure: command_no_user_failure
+- request_resource_wrong_token_failure: auth_failure_new_user
+- request_resource_wrong_token_failure: auth_failure_current_user
+- request_resource_wrong_token_failure: auth_success_with_auth_val
+- request_resource_wrong_token_failure: request_no_resource_failure
+- request_resource_wrong_token_failure: request_resource_wrong_token_failure
+- request_resource_wrong_token_failure: request_success
+- request_resource_wrong_token_failure: revoke_resource_success
+- request_resource_wrong_token_failure: revoke_resource_failure
+- request_resource_wrong_token_failure: logout
+  weight: .3
+- request_success: command_no_user_failure
+- request_success: auth_failure_new_user
+- request_success: auth_failure_current_user
+- request_success: auth_success_with_auth_val
+- request_success: request_no_resource_failure
+- request_success: request_resource_wrong_token_failure
+- request_success: request_success
+- request_success: revoke_resource_success
+- request_success: revoke_resource_failure
+- request_success: logout
+  weight: .3
+- revoke_resource_success: command_no_user_failure
+- revoke_resource_success: auth_failure_new_user
+- revoke_resource_success: auth_failure_current_user
+- revoke_resource_success: auth_success_with_auth_val
+- revoke_resource_success: request_no_resource_failure
+- revoke_resource_success: request_resource_wrong_token_failure
+- revoke_resource_success: request_success
+- revoke_resource_success: revoke_resource_success
+- revoke_resource_success: revoke_resource_failure
+- revoke_resource_success: logout
+  weight: .3
+- revoke_resource_failure: command_no_user_failure
+- revoke_resource_failure: auth_failure_new_user
+- revoke_resource_failure: auth_failure_current_user
+- revoke_resource_failure: auth_success_with_auth_val
+- revoke_resource_failure: request_no_resource_failure
+- revoke_resource_failure: request_resource_wrong_token_failure
+- revoke_resource_failure: request_success
+- revoke_resource_failure: revoke_resource_success
+- revoke_resource_failure: revoke_resource_failure
+- revoke_resource_failure: logout
+  weight: .3
+- logout: logout
+- logout: quit
+  weight: .3
 
-- cmd: list_stocks
-- cmd: list_orders
-- cmd: add_order
-- cmd: check_order
-- cmd: cancel_order
-
-- list_orders: list_orders_valid
-  weight: 0.8
-- list_orders: list_orders_invalid
-  weight: 0.2
-
-- add_order: add_order_existing
-  weight: 0.8
-- add_order: add_order_new
-  weight: 0.2
-
-- list_stocks: cmd
-- list_orders_valid: cmd
-- list_orders_invalid: cmd
-- add_order_existing: cmd
-- add_order_new: cmd
-- check_order: cmd
-- cancel_order: cmd
 

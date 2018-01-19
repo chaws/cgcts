@@ -1,4 +1,4 @@
-# Modern Family Tree
+# CGC Challenge Binary Template
 
 ## Author Information
 
@@ -8,85 +8,72 @@
 
 Narf Industries (NRFIN)
 
-## Description:
+## Description
 
-In our society, family structures have changed such that traditional Family Tree software cannot properly model all current family structures. In response to this diverse environment, Family Relations Inc. brings to you our latest app, Modern Family Tree. It is the premier family tree building software for today's society.
+SOLFEDGE is state of the art software used by ARRRRGH, the Academy of Really, Really, Really, Really, Great Harmony, to translate their music between notes and syllables (Solmization).
 
-## Feature List:
+ARRRRGH teaches their classes in French, so SOFEDGE is designed to use the French 'fixed do' method of solfedge and only recognizes the C major scale.
 
-- Add Person: Add a new person to the family tree
-- Biological Child: Define the biological child relation between a child and 1 or 2 parents
-- Union: Mark Define Union relationship between 2 people.
-- Separation: Remove the Union relationship between 2 people.
-- Adopted Child: Define the adopted child relation between a child and 1 or 2 parents.
-- Deceased: Mark a person a being deceased.
-- Is related: Determine if 2 people are related.
-- Degrees of separation: Determine if 2 people are related and if so, how many degrees of separation there are between them.
+### Feature List
 
-## Vulnerability 1
+This service is a translation engine, so it has 2 primary functions:
 
-This vulnerability is a classic mistake where the author started indexing the buffer from 1 instead of 0. In service.c:separate\_two\_persons() the former partner buffer holds 2 values. The mistake here is that the buffer uses indexes 1 and 2 instead of 0 and 1. So, when the second value is written to the buffer, the data is written beyond the end of the buffer. Due to the alignment of the data in the struct, writing a Relation after the end of the former partners buffer will overwrite the shift function pointer and the next Person pointer. The shift function pointer will be the person\_id from the relation, while the next Person pointer will be the Person pointer from the relation.
+* It accepts large strings of notes and converts them to syllables.
+* It accepts large strings of syllables and converts them to notes.
 
-To trigger this vulnerability, a sequence of operations needs to happen that achieves the following. First, person1 and person2 have to enter a union relationship. Next person1 and person2 have to adopt a child. And then person1 and person2 have to separate. Then person1 and person3 have to enter a union and then separate. At this point, the Relation for person3 will have overwritten the shift pointer and the next pointer in person1. Then person1 needs to re-adopt the same child. This will trigger the call to unset\_adopted\_child, the overwritten shift function pointer, resulting in TYPE 1 POV.
+Valid notes are:
+* C
+* D
+* E
+* F
+* G
+* A
+* B
 
-person3's ID will be the function pointer (IP\_VAL) and person1's ID will be the value in the registry (REG\_VAL)
+And valid syllables are:
+* Ut
+* Re
+* Mi
+* Fa
+* Sol
+* La
+* Si
 
-### Generic Class of Vulnerability
+A single harmony can contain up to 2048 syllables or notes.
 
-Heap buffer overflow
-Indexing beyond end of buffer
-Off-by-one error
+## Vulnerability
 
-### CWE Classification
+The buffer that stores syllables is 4096 bytes long. Assuming syllables are 2 bytes, that allows 2048 syllables. The syllable 'sol' is 3 bytes long, while the rest are 2 chars long. So, if the user provides a harmony that contains 2048 notes and one or more of those notes corresponds to the syllable 'sol', then writing those notes as syllables will go beyond the syllables buffer (page) and cause a segfault.
 
-CWE-122 Heap-based Buffer Overflow
-CWE-129 Improper Validation of Array Index
-CWE-193 Off-by-one Error
-CWE-788 Access of Memory Location After End of Buffer
+More specifically, in operation.c:process\_notes, the while loop will cause write\_syllable\_to\_buf to write into the syllables\_buf until one of 3 conditions happens. 1) an error is returned, 2) all of the input bytes have been processed, and 3) the total chars written to the syllable buf has reached the MAX\_SYLLABLES\_BYTES. The comparison (total\_bytes\_written < MAX\_SYLLABLES\_BYTES) is a form of an off-by-one error, because each iteration of the loop can write 2 or 3 bytes. So, if total\_bytes\_written is 1 or 2 less than MAX\_SYLLABLES\_BYTES, the loop will run one more iteration. If it is 1 less, that iteration will cause a segfault with both a 2-btye and 3-byte syllable. If it is 2 less, that iteration will cause segfault with a 3-byte syllable.
 
-### Challenges
+The segfault will occur in operations.c:write\_syllable\_to\_buf at either line 224 or 227.
 
-* A static analysis tool should be able to easily detect the write beyond the end of the static former partners buffer.
-* A fuzzer will have a harder time finding the POV, because it's not the content of any values that matter as much as the specific sequence of operations between a set of 3 people.
-* It will be challenging for the automated system to determine the correct sequence of operations to trigger the POV. Additionally, the sequence of operations has to be applied to the same person and child to trigger the vulnerable path.
 
-### Difficulty
+There are multiple ways to patch this vuln. The provided PATCHED version uses a more optimal patch that covers both failure conditions. It is also possible to put a much more restrictive bound on total\_bytes\_written (i.e. 100 or 2000), that will prevent the overflow, but will also greatly shorten the possible harmony length.
 
-* Discovering is easy
-* Proving is hard
-* Fixing is easy
+A more extensive patch, that is unlikely for automated patching is to pass the total\_bytes\_written value into write\_syllable\_to\_buf, and perform a check that can calculate how many more bytes will fit into the buffer before it writes any bytes. It could then return an error value if there are not enough bytes remaining to complete the write.
 
-## Vulnerability 2
 
-This vulnerability is caused by the same problem as Vulnerability 1, except it is triggered in a different block of code.
+### Generic class of vulnerability
 
-This vulnerability is a classic mistake where the author started indexing the buffer from 1 instead of 0. In service.c:separate\_two\_persons() the former partner buffer holds 2 values. The mistake here is that the buffer uses indexes 1 and 2 instead of 0 and 1. So, when the second value is written to the buffer, the data is written beyond the end of the buffer. Due to the alignment of the data in the struct, writing a Relation after the end of the former partners buffer will overwrite the shift function pointer and the next Person pointer. The shift function pointer will be the person\_id from the relation, while the next Person pointer will be the Person pointer from the relation.
+Improper Input Validation
+Improper Validation of Array Index
+Off-by-one Error
 
-To trigger this vulnerability, a sequence of operations needs to happen that achieves the following. First, person1 and person2 have to enter a union relationship. Next person1 and person2 have to adopt a child. And then person1 and person2 have to separate. Thus far, it's the same as Vulnerability 1. However, this time, person2 and person3 have to enter a union and then separate. At this point, the Relation for person3 will have overwritten the shift pointer and the next pointer in person2. Then person2 needs to re-adopt the same child AND person2 must be the second person in the list of parent IDs passed to the function, so the get idx == 2 when calling set\_adopting\_parent(). This will trigger the call to unset\_adopted\_child on parent2 and thus the overwritten shift function pointer, resulting in TYPE 1 POV.
+### CWE classification
 
-person3's ID will be the function pointer (IP\_VAL) and person2's ID will be the value in the registry (REG\_VAL)
+Improper Input Validation
+CWE-20
 
-### Generic Class of Vulnerability
+Improper Validation of Array Index
+CWE-129
 
-Heap buffer overflow
-Indexing beyond end of buffer
-Off-by-one error
+Off-by-one Error
+CWE-193
 
-### CWE Classification
 
-CWE-122 Heap-based Buffer Overflow
-CWE-129 Improper Validation of Array Index
-CWE-193 Off-by-one Error
-CWE-788 Access of Memory Location After End of Buffer
-
-### Challenges
-* The additional challenge beyond Vulnerability 1 is that the parent2 ID must be the second ID in the list of parent IDs during the second call to set\_adopted\_child(), such that their shift function is triggered in the unset\_adopted\_child() function.
-* A static analysis tool should be able to easily detect the write beyond the end of the static former partners buffer.
-* A fuzzer will have a harder time finding the POV, because it's not the content of values that matter as much as the specific sequence of operations involving a set of 3 people.
-* It will be challenging for the automated system to determine the correct sequence of operations to trigger the POV. Additionally, the sequence of operations has to be applied to the same person and child to trigger the vulnerable path.
-
-### Difficulty
-
-* Discovering is easy
-* Proving is hard
-* Fixing is easy
+## Challenges
+* This CB is intentionally on the easier side. A SAT solver should be able to reason about the difference between the syllables' buffer size and the amount of data that can be written to it.
+* The way in which a team patches the vuln should indicate if they can reason that both failure points are due to a common cause. If they simply try to patch both failure points separately, they may not have been able to correlate the 2 failure points.
+* 

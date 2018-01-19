@@ -1,285 +1,180 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2014 Dustin Fraze <df@cromulence.co>
+# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from generator.actions import Actions
-import random
+from generator.actions import Actions, Variable
+from random import choice, randint
+from os.path import dirname, abspath, join
+import sys
 
-class Contact():
-	first = ""
+sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
+import support as sp
+from common import DEBUG, CONFIG
+from dealer import Dealer
 
-	def genderToStr(self):
-		return {"M":"Male","F":"Female","T":"Trans-Gender"}.setdefault(self.gender, "Other")
+class TemplatePoller(Actions):
 
-
-	def __init__(self, first=None, last=None, phone=None, office=None, gender=None, hacker=None):
-		if first != None:
-			self.first = first
-			self.last = last
-			self.phone = phone
-			self.office = office
-			self.gender = gender
-			self.hacker = hacker
-			return
-
-		men = 'Tom Chris Charles Bryce Dustin Joe Jim James Steve John Dan Tyler Jordan Jason Mitch Thomas Eric Mitt Jeff Rick Richard Frank Franklin Will William Steven Jeb Bill Charlie Jeffrey Terry Albert Bernard Randall Troy Ricky Eddie Jesus Bradley Kyle Alfred Ralph Douglas Henry Andrew Juan Jack Keith Nicholas Victor Phillip Todd Alan Shawn Sean'.split()
-		women = 'Lilly Molly Tegan Deb Alex Samantha Stephanie Aria Ashley Amanda Tara Faye Lina Kathline Kim Jane Suzie Brianne Valerie Cindy Lacey Mary Jill Chelsea Mable Ernestine Muriel Marcella Elena Krystal Angelina Nadine Kari Estelle Dianna Paulette Lora Mona Doreen Rosemarie Angel Desiree Antonia Hope Ginger Janis Betsy Sophia Jessica Shirley Cynthia Angela Melissa Brenda Amy Anna Rebecca Virginia Carolyn Ann Alice Heather Rose Martha'.split()
-		last = 'Clinton Bush Obama Smith Johnson Jones Brown Davis Miller Wilson Moore Taylor Anderson Ford McAvoy Gates Jobs Moss Snowden Flores Washington Butler Simmons Foster Gonzales Bryant Alexander Russell Griffen Diaz Hayes Myers Hamilton Perry Cook Peterson Gray Ramirez Price Morris Rogers Reed Morgan Bell Murphy Bailey Rivera Cooper Richardson Cox Howard Ward Torres Peterson Barnett Jennings Miles Lucas Gergory Sutton Castro Obrien Frazier Welch Larson Romero Lynch Dean Gilbert Burke Hanson Day Cowman Medina Fowler Brewer Hoffman Carlson Silva Underwood Phelps Luna Wilkins Roberson Barton Tran Casey Boone Bowers Morton'.split()
-
-		self.gender = random.choice(["M", "F", "T", "?"])
-		if self.gender == 'M':
-			self.first = random.choice(men)
-		elif self.gender == 'F':
-			self.first = random.choice(women)
-		else:
-			self.first = random.choice(random.choice([men, women]))
-		self.last = random.choice(last)
-		self.phone = "(%0.3d)%0.3d-%0.4d" % (random.randrange(0, 999), random.randrange(0, 999), random.randrange(0, 9999))
-		self.office = random.randrange(0,9999)
-		self.hacker = random.choice("yn")
-
-class Yolodex(Actions):
-	addState = 0
-
-	def genInitialContacts(self):
-		self.contacts = []
-		self.contacts.append(Contact(first="Robert", last="Morris", phone="(617)253-5982", office=32972, gender='M', hacker='y'))
-		self.contacts.append(Contact("Chareth", "Cutestory", "(123)456-7890", 4242, 'M', 'n'))
-		self.contacts.append(Contact("Tim", "Berners-Lee", "(638)844-2074", 404, 'M','y'))
-		self.contacts.append(Contact("Pwnies", "McPwn", "(222)223-1337", 31337, 'F','y'))
-		self.contacts.append(Contact("Jenny", "Fakename", "(555)867-5309", 31337, 'F','n'))
+    def start(self):
+        #self.delay(100)
+        if DEBUG:
+            print "------- start -----------"
+        self.state['e'] = Dealer(self.magic_page)
+        self.state['e'].add_players(CONFIG['PLAYER_COUNT'])
+        self.state['e'].gen_ok()
 
 
-	def start(self):
-		self.read(delim='\n', expect='Welcome to the yolodex.')
-		self.genInitialContacts()
+    def new_deck(self, deck=[], allow_bad=True):
+        '''
+        Give the dealer a new deck.
+        '''
+        if DEBUG:
+            print "cmd: new deck -----------"
 
-	def add(self):
-		self.write("@\n")
+        # cmd
+        byte_str = self.state['e'].make_trigger_buf('DECK')
 
-	def addBadHacker(self):
-		self.newContact = Contact()
-		self.read(delim=": ", expect="First")
-		self.write(self.newContact.first + "\n")
-		self.read(delim=": ", expect="Last")
-		self.write(self.newContact.last + "\n")
-		self.read(delim=": ", expect="Phone Number")
-		self.write(self.newContact.phone + "\n")
-		self.read(delim=": ", expect="Office Number")
-		self.write(str(self.newContact.office) + "\n")
-		self.read(delim=": ", expect="Gender")
-		self.write(self.newContact.gender + "\n")
-		self.read(delim=": ", expect="Hacker")
-		hacker = random.choice("abcdefghijklmopqrstuvwxz01234567890-!@#$%^&*()")
-		self.write(hacker + "\n")
-		self.read(delim="\n", expect="Please enter y or n for hacker.")
-		self.read(delim=": ", expect="Hacker")
-		self.write(self.newContact.hacker + "\n")
+        bad_cards = False
+        if True == allow_bad and self.chance(0.001):
+            if DEBUG:
+                print "deck includes bad cards"
+            bad_cards = True
 
-	def addBadName(self):
-		self.newContact = Contact()
-		bad = random.choice(["first", "last"])
-		self.read(delim=": ", expect="First: ")
-		self.write((self.newContact.first if bad == "last" else self.newContact.first.lower()) + "\n")
-		self.read(delim=": ", expect="Last: ")
-		self.write((self.newContact.last.lower() if bad == "last" else self.newContact.last) + "\n")
-		self.addState = 3
-		self.finishAdd()
-		self.read(delim="\n", expect="Invalid %s name.  Must begin with a capital letter." % bad)
-		self.addState = 1
-		self.finishAdd()
+        if [] == deck:
+            deck = self.state['e'].make_new_random_deck(randint(500,3500), bad_cards)
 
-	def addBadPhone(self):
-		self.newContact = Contact()
-		self.read(delim=": ", expect="First")
-		self.write(self.newContact.first + "\n")
-		self.read(delim=": ", expect="Last")
-		self.write(self.newContact.last + "\n")
-		self.read(delim=": ", expect="Phone Number")
-		self.write(''.join(random.choice('abcdefghiklmnopqrstuvwxyz0123456789-)') for _ in range(12)))
-		self.write("\n")
-		self.addState = 4
-		self.finishAdd()
+        # number of cards (uint32)
+        byte_str += sp.pack_single_uint32(len(deck))
+        # cards (array of uint8)
+        byte_str += sp.pack_single_string(''.join(deck))
+        self.write(byte_str)
 
-	def mainmenu(self):
-		pass
+        # self.state['e'].ok
+        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
 
-	def showinvalid(self):
-		self.write(random.choice('abcdfghijklmorstuvwxyz0123456789-)') + "\n")
-		self.showGoodUser()
+        if False == bad_cards:
+            self.state['e'].deck = deck
+            return 0
+        else:
+            return -1
 
+    def deal_one_round(self):
+        '''
+        Instruct dealer to deal one round to players
+        '''
+        if DEBUG:
+            print "cmd: deal one round -----------"
 
-	def finishAdd(self):
-		if self.addState <= 1:
-			self.read(delim=": ", expect="First")
-			self.write(self.newContact.first + "\n")
-		if self.addState <= 2:
-			self.read(delim=": ", expect="Last")
-			self.write(self.newContact.last + "\n")
-		if self.addState <= 3:
-			self.read(delim=": ", expect="Phone Number")
-			self.write(self.newContact.phone + "\n")			
-		if self.addState <= 4:
-			self.read(delim=": ", expect="Office Number")
-			self.write(str(self.newContact.office) + "\n")
-		if self.addState <= 5:
-			self.read(delim=": ", expect="Gender")
-			self.write(self.newContact.gender + "\n")
-		if self.addState <= 6:
-			self.read(delim=": ", expect="Hacker")
-			self.write(self.newContact.hacker + "\n")
+        self.write(self.state['e'].make_trigger_buf('DEAL'))
 
+        enough_cards = self.state['e'].enough_cards_for_round()
 
-	def addGood(self):
-		self.newContact = Contact()
-		self.addState = 1
-		self.finishAdd()
-		self.contacts.append(self.newContact)
+        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
+        if False == enough_cards:
+            if DEBUG:
+                print "not enough cards for a round"
+            return -1
+        else:
+            if DEBUG:
+                print "enough cards for a round"
+            self.state['e'].play_one_round()
+            if DEBUG:
+                mpiu = self.state['e'].total_magic_page_indices_used()
+                print "## fp indices testing ##"
+                self.state['e'].check_magic_bytes_usage()
 
-	def userLookup(self, first, last):
-		self.read(delim=": ", expect="First")
-		self.write(first + "\n")
-		self.read(delim=": ", expect="Last")
-		self.write(last + "\n")
+            return 0
 
+    def get_round_data(self):
+        '''
+        Ask dealer for round data
+        '''
+        if DEBUG:
+            print "cmd: get round data -----------"
 
-	def delete(self):
-		try:
-			picked = random.choice(self.contacts)
-		except IndexError:
-			return
-		self.write("A\n")
-		self.userLookup(picked.first, picked.last)
-		self.read(delim="\n", expect="Contact removed.")
-		self.contacts.remove(picked)
+        self.write(self.state['e'].make_trigger_buf('DATA'))
 
-	def edit(self):
-		try:
-			picked = random.choice(self.contacts)
-		except IndexError:
-			return
-		new = Contact()
-		self.write("B\n")
-		self.userLookup(picked.first, picked.last)
-		self.read(delim="\n", expect="Updating fields.  Send just a newline to keep old data.")
-		self.read(delim=": ", expect="New first name")
-		self.write(new.first + "\n")
-		self.read(delim=": ", expect="New last name")
-		self.write(new.last + "\n")
-		self.read(delim=": ", expect="New phone number")
-		self.write(new.phone + "\n")
-		self.read(delim=": ", expect="New office number")
-		self.write(str(new.office) + "\n")
-		self.read(delim=": ", expect="New gender")
-		self.write(new.gender + "\n")
-		self.read(delim="? ", expect="Is the user a hacker")
-		self.write(new.hacker + "\n")
-		self.contacts[self.contacts.index(picked)] = new
+        pw = self.state['e'].get_packed_wagers()
+        pr = self.state['e'].get_packed_results()
 
-	def badcommand(self):
-		self.write(random.choice("qwertyuiopasdfghjklzxcvbnm,.[];'/1234567890!#$%^&*()-=_+") + "\n")
-		self.read(delim="\n", expect="Unrecognized Command.")
+        self.read(length=len(pw)+len(pr))
 
-	def showmenu(self):
-		try:
-			self.picked = random.choice(self.contacts)
-		except IndexError:
-			self.picked = None
-			return
-		self.write("C\n")
+        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
 
-	def showprev(self):
-		if not getattr(self, "picked", None):
-			return
-		self.write("p\n")
-		if self.contacts.index(self.picked) == 0:
-			self.read(delim="\n", expect="No previous contact.")
-		else:
-			self.picked = self.contacts[self.contacts.index(self.picked)-1]
-			self.showGoodUser()
+    def get_balance(self):
+        '''
+        Ask dealer for house balance per player
+        '''
+        if DEBUG:
+            print "cmd: get balances -----------"
 
-	def shownext(self):
-		if not getattr(self, "picked", None):
-			return
-		self.write("n\n")
-		if self.contacts.index(self.picked) == len(self.contacts)-1:
-			self.read(delim="\n", expect="No next contact.")
-		else:
-			self.picked = self.contacts[self.contacts.index(self.picked)+1]
-			self.showGoodUser()
+        self.write(self.state['e'].make_trigger_buf('BALANCE'))
 
-	def showexit(self):
-		if len(self.contacts) == 0:
-			return
-		self.write("q\n")
+        balances = self.state['e'].get_packed_balances()
 
-	def showBadUser(self):
-		baduser = Contact()
-		self.userLookup(baduser.first, baduser.last)
-		self.read(delim="\n", expect="No such contact.")
+        self.read(length=len(balances))
 
-	def showGoodUser(self):
-		if not getattr(self, "picked", None):
-			return
-		picked = self.picked
-		self.picked = None
-		self.userLookup(picked.first, picked.last)
-		self.read(delim="\n", expect="*"*40)
-		self.read(delim="\t", expect="First name:")
-		self.read(delim="\n", expect=picked.first)
-		self.read(delim="\t", expect="Last name:")
-		self.read(delim="\n", expect=picked.last)
-		self.read(delim="\t", expect="Phone num:")
-		self.read(delim="\n", expect=picked.phone)
-		self.read(delim="\t", expect="Office Number:")
-		self.read(delim="\n", expect=str(picked.office))
-		self.read(delim="\t\t", expect="Gender:")
-		self.read(delim="\n", expect=picked.genderToStr())
-		if picked.hacker == 'y':
-			self.read(delim="\n", expect="[\x1b[31m!\x1b[0m]This user known to be a hacker[\x1b[31m!\x1b[0m]")
-		self.read(delim="\n", expect="*"*40)
+        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
 
-	def showdelete(self):
-		if not getattr(self, "picked", None):
-			return
+    def get_player_count(self):
+        '''
+        Ask dealer for the number of players
+        '''
+        if DEBUG:
+            print "cmd: get player count -----------"
 
-		index = self.contacts.index(self.picked)
+        self.write(self.state['e'].make_trigger_buf('COUNT'))
 
-		if index == 0 and len(self.contacts) == 0:
-			self.picked = None
-			return
+        self.read(length=4, expect=sp.pack_single_uint32(CONFIG['PLAYER_COUNT']))
 
-		self.write("d\n")
+        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
 
-		if index == len(self.contacts)-1:
-			self.picked = self.contacts[index-2]
-		else:
-			self.picked = self.contacts[index]
-		self.showGoodUser()
+    def quit(self):
+        '''
+        Quit cleanly
+        '''
+        if DEBUG:
+            print "cmd: quit -----------"
 
+        self.write(self.state['e'].make_trigger_buf('QUIT'))
 
-	def showlist(self):
-		self.write("D\n")
-		for c in self.contacts:
-			self.read(delim="\n", expect="="*40)
-			self.read(delim="\t", expect="First Name:")
-			self.read(delim="\n", expect=c.first)
-			self.read(delim="\t", expect="Last Name:")
-			self.read(delim="\n", expect=c.last)
-			self.read(delim="\t", expect="Phone Number:")
-			self.read(delim="\n", expect=c.phone)
-		if len(self.contacts) == 0:
-			self.read(delim="\n", expect="Empty yolodex.")
-		self.read(delim="\n", expect="="*40)
+        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
 
-	def sortContacts(self, a, b):
-		return cmp(a.last, b.last)
+        return -1
 
-	def sort(self):
-		self.contacts = sorted(self.contacts, self.sortContacts)
-		self.write("E\n")
+    def bogus(self):
+        '''
+        Send a bogus command
+        '''
+        if DEBUG:
+            print "cmd: bogus -----------"
 
-	def exit(self):
-		self.write("F\n")
-		self.read(delim="\n", expect="Thank you for using the yolodex.")
+        self.write(self.state['e'].make_trigger_buf('BOGUS'))
+
+        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
+
+        return -1
+
+    def broker(self):
+        '''
+        Branching node for all nodes
+        '''
+        return 0

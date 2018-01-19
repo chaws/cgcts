@@ -26,144 +26,113 @@ import string
 import sys
 import os
 
-from xml.sax.saxutils import escape
 from generator.actions import Actions
-from random import randint, choice
+from random import choice, randint
 from struct import *
 
-from hashlib import md5 as MD5
-from struct import *
-from zlib import crc32
+instrs = {"trans": 0, "coupon": 1, "stats": 2, "log": 3, "finish": 4, }
 
-def chunks(l, n):
-    for i in xrange(0, len(l), n):
-        yield l[i:i+n]
+resps = {"init": 0, "log": 1, "stats": 2, "done": 3, }
 
-mask64 = 0xffffffffffffffff
-class VPacket(object):
-    def __init__(self,code, data,**kwargs):
-        self.__dict__.update(kwargs)
-        self.data = data[:128].ljust(128,"\x00")
-        self.code = pack("<I",code)
-
-    def __getattr__(self,x):
-        return None
-
-    def calc_md5(self):
-        self.md5 = MD5(self.data).digest()
-
-    def calc_crc(self):
-        self.crc = pack("<i",crc32(self.data,0x50C0FFEE))
-
-    def calc_additive(self):
-        csum = 0xDEADBEEFC0FFEE
-        csum += sum(unpack("<Q",x)[0] for x in chunks(self.data,8))
-        self.additive = pack("<Q",csum&mask64)
-
-    def calc_addxoradd(self):
-        csum = 0x31337157C0FFEE
-        for x in chunks(self.data,8):
-            y = unpack("<Q",x)[0]
-            csum += y
-            csum &= mask64
-            csum ^= y
-            csum += y
-            csum &= mask64
-        self.addxoradd = pack("<Q",csum)
-
-    def calc_fp(self):
-        csum = 3.141592
-        for x in chunks(self.data,8):
-            csum += unpack("<d",x)[0]
-        self.fp = pack("<d",csum)
-    
-    def __str__(self):
-        if not self.md5:
-            self.calc_md5()
-        if not self.crc:
-            self.calc_crc()
-        if not self.additive:
-            self.calc_additive()
-        if not self.addxoradd:
-            self.calc_addxoradd()
-        if not self.fp:
-            self.calc_fp()
-
-        return self.code+self.data+self.additive+self.addxoradd+\
-                self.fp+self.crc+self.md5
-
-        
+cmds = {"pay": 0, "ticket": 1, "rmticket": 2, "coupon": 3, }
 
 
 def random_alpha(a, b):
     return ''.join(choice(string.letters) for _ in range(randint(a, b)))
 
 
-def random_string(a, b):
-    chars = string.letters + string.digits
-    return ''.join(choice(chars) for _ in range(randint(a, b)))
-
-def random_data(a,b):
-    chars = ''.join(map(chr, range(256)))
-    return ''.join(choice(chars) for _ in range(randint(a, b)))
-#   return ''.join(choice
-#   return devrand.read(randint(a,b))
-#   devrand = open("/dev/urandom","rb")
-
-class SOMECHECKS(Actions):
-    SUCCESS = "Valve successfully modified."
-    INVALIDCSUM = "Invalid checksum."
-    REDACTED = "This is not the function you're looking for."
-    WATMAN = "NaNaNaNaNaNaNaNaNaNaNaNaNaN watman!"
-    pkttypes = {"GETV":0,"SETV":1,"GETT":2,"NOTHERE":3}
-    MAX_DATA_LEN = 128
+class OverflowParking(Actions):
     def start(self):
-        pass
-    def gett(self):
-        pkt = VPacket(self.pkttypes['GETT'],"\x00"*128)
-        self.write(str(pkt))
-        self.read(delim="\n",expect="\d+",expect_format='pcre')
-    def getv(self):
-        pkt = VPacket(self.pkttypes['GETV'],random_data(1,128))
-        self.write(str(pkt))
-        self.read(delim="\n",expect="\d+",expect_format='pcre')
-    def setv(self):
-        pkt = VPacket(self.pkttypes['SETV'],random_data(1,128))
-        self.write(str(pkt))
-        self.read(delim="\n",expect=self.SUCCESS)
-    def redacted(self):
-        pkt = VPacket(self.pkttypes['NOTHERE'],
-                pack("<I",randint(0,4))+random_data(1,124))
-        self.write(str(pkt))
-        self.read(delim="\n",expect=self.REDACTED)
-    def badadd(self):
-        pkt = VPacket(randint(4,255),random_data(1,128),
-                additive=random_data(8,8)) 
-        self.write(str(pkt))
-        self.read(delim="\n",expect=self.INVALIDCSUM)
-    def badaddxor(self):
-        pkt = VPacket(randint(4,255),random_data(1,128),
-                addxoradd=random_data(8, 8))
-        self.write(str(pkt))
-        self.read(delim="\n",expect=self.INVALIDCSUM)
-    def badcrc(self):
-        pkt = VPacket(randint(4,255),random_data(1,128),
-                crc=random_data(4, 4))
-        self.write(str(pkt))
-        self.read(delim="\n",expect=self.INVALIDCSUM)
-    def badfp(self):
-        #no randomized bad fp because of how nasty this gets in python
-        #we just want to make sure here that the branch gets exercised
-        pkt = VPacket(randint(4,255),random_data(1,128),
-                fp="AAAAAAAA")
-        self.write(str(pkt))
-        self.read(delim="\n",expect=self.INVALIDCSUM)
-    def badmd5(self):
-        pkt = VPacket(randint(4,255),random_data(1,128),
-                additive=random_data(8, 8))
-        self.write(str(pkt))
-        self.read(delim="\n",expect=self.INVALIDCSUM)
-    def badcmd(self):
-        pkt = VPacket(randint(4,255),random_data(1,128))
-        self.write(str(pkt))
-        self.read(delim="\n",expect=self.WATMAN)
+        self.delay(50)
+        self.coupons = []
+        self.log = []
+        self.read(length=260,
+                  expect=self._build_resp(resps['init'], "INITSTART"))
+
+    def _build_instr(self, instr, cmd, size, cmdbuf):
+        return pack("<III", instr, cmd, size) + cmdbuf + "$"
+
+    def _build_cmd(self, cmd, size, cmdbuf, value):
+        self.log.append((cmd, size, value))
+        return self._build_instr(instrs['trans'], cmd, size, cmdbuf)
+
+    def _build_resp(self, rtype, text):
+        return pack("<I255s", rtype, text)
+
+    def _build_stats_resp(self):
+
+        payments = len([i for i in self.log if i[0] == cmds['pay']])
+        tickets = len([i for i in self.log if i[0] == cmds['ticket']])
+        coupons = len([i for i in self.log if i[0] == cmds['coupon']])
+        gross = sum([i[2] for i in self.log if i[0] != cmds['ticket']])
+        expenses = 0
+        for i in self.log:
+            if i[0] == cmds["pay"]: expenses += i[2] / 2
+            if i[0] == cmds["ticket"]: expenses += 1
+            if i[0] == cmds["coupon"]:
+                coupon = [j for j in self.coupons if j[0] == i[3]]
+                if len(coupon) > 0:
+                    expenses += coupon[0][1]
+        net = gross - expenses
+        fmt = "\nPayments made: %08X\nTickets given: %08X\nCoupons used: %08X\nGross revenue: %08X\nOperating costs: %08X\nNet revenue: %08X\n\n"
+        #masks make sure we enforce overflow/underflow behavior
+        r = fmt % (payments & 0xffffffff, tickets & 0xffffffff, coupons
+                   & 0xffffffff, gross & 0xffffffff, expenses & 0xffffffff, net
+                   & 0xffffffff)
+        return self._build_resp(resps['stats'], r)
+
+    def _build_log_resp(self):
+        for i in self.log:
+            cmd, length = i[:2]
+            msg = "LogMessage - Type:%08x, Size:%08x" % (cmd, length)
+            self.read(length=260, expect=self._build_resp(resps['log'], msg))
+
+    def add_valid_payment(self):
+        #mask is to avoid "$"
+        value = randint(5, 50) & 0xfb
+        cmdbuf = pack("<II", randint(0, 0xffffff) & 0xfbfbfbfb, value)
+        self.write(self._build_cmd(cmds['pay'], len(cmdbuf) + 1, cmdbuf,
+                                   value))
+
+    def add_valid_ticket(self):
+        value = randint(5, 255) & 0xfb
+        cmdbuf = pack("<II", randint(0, 0xffffff) & 0xfbfbfbfb, value)
+        self.write(self._build_cmd(cmds['ticket'], len(cmdbuf) + 1, cmdbuf,
+                                   value))
+
+    def add_valid_ticket_payment(self):
+        value = randint(5, 255) & 0xfb
+        cmdbuf = pack("<II", randint(0, 0xffffff) & 0xfbfbfbfb, value)
+        self.write(self._build_cmd(cmds['rmticket'], len(cmdbuf) + 1, cmdbuf,
+                                   value))
+
+    def add_valid_coupon_payment(self):
+        if randint(0, 1) or len(self.coupons) == 0:
+            cid = random_alpha(6, 10)
+        else:
+            cid = choice(self.coupons)[0]
+        value = randint(0, 20)
+        cmdbuf = pack("<I127s", value, cid)
+        self.write(self._build_cmd(cmds['coupon'], len(cmdbuf) + 1, cmdbuf,
+                                   value))
+        self.log[-1] = (self.log[-1][0], self.log[-1][1], self.log[-1][2], cid)
+
+    def add_valid_coupon(self):
+        cid, value = random_alpha(6, 10), randint(0, 20)
+        self.coupons.append((cid, value))
+        self.write(self._build_instr(instrs['coupon'], 0, 132, pack(
+            "<I127s", value, cid)))
+
+    def get_stats(self):
+        self.write(self._build_instr(instrs['stats'], 0, 1, ""))
+        self.read(length=260, expect=self._build_stats_resp())
+
+    def get_log(self):
+        self.write(self._build_instr(instrs['log'], 0, 1, ""))
+        self._build_log_resp()
+
+    def finish(self):
+        self.write(self._build_instr(instrs['finish'], 0, 1, ""))
+        self.read(length=260, expect=self._build_stats_resp())
+        self.read(length=260, expect=self._build_resp(resps['done'], "done."))
+        return -1

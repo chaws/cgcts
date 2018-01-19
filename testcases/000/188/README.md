@@ -1,44 +1,41 @@
-# Space_Attackers
+# KPRCA-00038
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
-## Description
+## Description:
 
-This service creates an interface in which someone can play an awesome game where the player avoids lasers coming downwards, 
-while shooting lasers themself back up at the enemy. Sending a newline steps the game forward. If no key has been pressed when
-the newline is sent, the ship will fire. Otherwise, w = move up, d = move right, a = move left, s = move down. 
+This service implements a scripting language that is designed for processing text files. The script is executed on every record, where every line in the text file is processed as an independent record. Every record is then parsed into fields automatically according to the current script state.
 
 ### Feature List
 
-When the game starts, the user inputs their name and is greeted into the game as the General they will become. The game then proceeds
-until either the enemies reach the bottom (lose), the player is hit by an enemy laser (lose) or all the enemies are eliminated (win). 
-If the player wins, they are then entered into a "Dance Mode" for celebration.  
+The only input to the script is the current record. Parsing of the record can be controlled via field seperator and record seperator variables. Output can be either a print statement or a printf with a script provided format string.
+
+The expressions support variable assignment, arithmetic and logical operators, and regular expression matching. The regular expression support is implemented using a variation of the Thompson NFA algorithm, so its run-time is O(nm) as opposed to competing algorithms that have an exponential run-time.
 
 ## Vulnerability
 
-### Vulnerability 1
+The first vulnerability, **eprintf.c:81**, is a classic printf vulnerability where an attacker can control a format string. The arguments to printf are script variables and there is inadequate verification of the type of the script variables. This allows an attacker to control a *char* pointer resulting in a memory leak or crash by providing the **#c** format with a number argument. Additionally, an attacker could leak a pointer by providing the **#x** format with a string argument.
 
-If the player inputs their name as "magic", then a special cheat mode is enabled which forces the enemies to move in a simple
-pattern and to not fire. This allows the player to easily win the game and enter "Dance Mode". 
+The secord vulnerability is stack overflow via uncontrolled recursion in **regexp_parse**. By constructing a large expression with many unterminated open parentheses, the attacker can cause a crash via stack overflow with a small input.
 
-Once in "Dance Mode", the player can send "w\n" to increment a counter and "s\n" to save the counter as a byte in a buffer. When
-the buffer is in the desired state, the player can send "d\n" to strcpy the buffer being created into a 256 byte buffer residing 
-on the stack (service.c:708). 
+The third vulnerability is a NULL pointer dereference in do\_print when get\_field returns NULL. This situation can occur when the length of field0 would be greater than 4096 bytes when appending the fields together.
 
-#### Generic class of vulnerability
-Stack-based buffer overflow
+The fourth vulnerability is a NULL pointer dereference in simplify when the input node is NULL. This can occur when the input string to regexp\_init is empty.
 
-#### CWE classification
-CWE-121: Stack-based Buffer Overflow
+The fifth vulnerability is a NULL pointer dereference in eval_expression when the input expression is NULL. This can occur if an operator is missing an argument or a for loop is missing a post-condition expression.
 
-#### Challenges
+The sixth vulnerability is a NULL pointer dereference in parse_statements when the program contains an empty code scope with a statement before and after it. This causes a NULL pointer to be inserted into the linked list of statements.
 
- - Discovery via fuzzing is difficult because it is hard to win the game without using the cheat mode. Symbolic execution or static analysis may work better to find the vulnerable code.
- - Proving requires using the cheat mode and also generating the correct input which is difficult because there is not data flow from the input to the vulnerable buffer.
+### Generic class of vulnerability
+Arbitrary format string
+Stack overflow
 
-#### Difficulty
+### CWE classification
+CWE-134: Uncontrolled Format Sting
+CWE-476: NULL Pointer Dereference
+CWE-674: Uncontrolled Recursion
 
- - **Discovery**: Medium
- - **Proving**: Medium
- - **Patching**: Easy
+## Challenges
+
+This challenge set implements a non-trivial scripting language; which is comparable to modern programs which usually include scripting languages. The scripting language is not as complex as JavaScript, but it is expected that the techniques to fuzz JavaScript interpreters would also be effective for this challenge set. Automatic patching of the vulnerabilities will be a significant challenge.

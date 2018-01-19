@@ -1,24 +1,9 @@
 <?xml version="1.0" standalone="no" ?>
 <!DOCTYPE pov SYSTEM "/usr/share/cgc-docs/replay.dtd">
 <pov>
-<cbid>CROMU_00009</cbid>
+<cbid>service</cbid>
 <replay>
-    <read><delim>\x0a</delim><match><data>Welcome to the cgcfs shell!\x0a</data></match></read>
-    <read><delim>\x25 </delim><match><data>Type help for a list of available commands.\x0a</data></match></read>
-
-    <write><data>show\x0a</data></write>
-    <read><delim>\x25 </delim><match><data>Directory listing of /\x0a</data></match></read>
-
-    <write><data>mkfolder testfolder\x0a</data></write>
-    <read><delim>\x25 </delim><match><data>directory created\x0a</data></match></read>
-
-    <write><data>show\x0a</data></write>
-    <read><delim>\x25 </delim><match><data>Directory listing of /\x0ad testfolder                                         0\x0a</data></match></read>
-
-    <write><data>echo "aaaa" > /testfolder/testfile\x0a</data></write>
-    <read><delim>\x25 </delim><match><data>file created\x0a</data></match></read>
-
-    <write><data>show /testfolder\x0a</data></write>
-    <read><delim>\x25 </delim><match><data>Directory listing of /testfolder\x0a  testfile                                           4</data></match></read>
+    <write><data>\x25\x00</data></write>
+    <write><data>\x09\x093x\x01\x00\xd3\x00\x05\x00\xe0\x02\xcd\x01\x00\x04\x00\x02\x00\x02\x00\x08\x00d\x00\x00\x00\x03\xe0q\xfbP\x8d\x9f\x85\x26\xa7</data></write>
 </replay>
 </pov>

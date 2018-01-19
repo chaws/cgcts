@@ -1,41 +1,89 @@
-# CROMU-00022: Dive Logger
+# COLLIDEOSCOPE
 
 ## Author Information
-
-“James Connor” <jymbo@cromulence.co>
+"Maxwell Koo" <info@narfindustries.com>
 
 ### DARPA performer group
-Cromulence (CROMU)
+Narf Industries (NRFIN)
 
 ## Description
-This service records dive events and accepts a list of data points for a given dive event.
+COLLIDEOSCOPE brings convenient four-function signed 32-bit integer math to your
+fingertips! Now supporting pointer types and variables. Enter in arbitrary
+algebraic expressions and let us do the hard math for you!
 
 ### Feature List
-It validates date and time values, performs epoch to ascii time and date conversion,
-and calculates metrics for a given dive as well as all dives.   
+- Parses algebraic expressions containing integer values and common arithmatic
+  functions
+- Create variables consisting of up to 4 lowercase characters for storing past
+  results
+- Convenient workbook functionality by storing past results in a special
+  variable
+- Reference variables by taking and dereferencing pointers
+- Operator precedence and parenthesis supported
+- Supports addition, subtraction, multiplication, division and negation
 
-
-## Vulnerability
-1.
-More than MAXDIVES can be entered via the DownloadDives function.
-This failure to limit the dive count enables the vulnerability, which is and an out-of-bounds write in SelectDive.
-If the dive list contains greater then MAXDIVES, calling SelectDive will smash count. 
-This invalidates the bounds check on which dive is selected, allowing an arbitrary read (using print dive) or write (using edit dive) 
-This could be mitigated by preventing downloaddives from exceeding MAXDIVES, by properly bounds checking selectDive or by increasing the
-size of the buffer to accomodate 1 additional dive.
-2.
-There is a vulnerability in the sanity check on time values.  String times are converted to signed int, which are only checked for upperbound
-(assumed unsigned).  This vulnerability can be exercised by entering in negative values which exceed the bounds of the string buffer used to 
-store the sanitized time value. This could be mitigated using a bounded snprintf, a sufficiently large tempString buffer, or a proper lower bounds check.
+## Vulnerability 1
+This program differentiates between pointer variables and integer variables
+who's values are stored in a hash table. Upon assigning the incorrect typed
+value to an existing variable, a new variable with that name will be created
+with the new type, and the old variable will have its type field clobbered while
+persisting its old value. As lookups will prefer the first created variable,
+this can be used to gain arbitrary read and write access to the processes'
+memory space.
 
 ### Generic class of vulnerability
-1.
-Improper restriction of operations within the bounds of a memory buffer
-Out-of-bounds write
-2.
-Numeric range comparison without minimum check
-out-of-bounds write
+Type confusion
+
 ### CWE classification
-CWE-787 
-CWE-839
-## Challenges
+CWE-119 Improper restriction of operations within the bounds of a memory buffer
+CWE-703 Improper check or handling of exceptional conditions
+CWE-704 Incorrect type conversion or cast
+CWE-843 Access of resource using incompatible type
+
+### Challenges
+- The tool requires well-formed algebraic expressions in order to provide
+  meaningful results, requiring passing a tokenization stage and parsing stage
+  prior to reaching the vulnerability in the evaluation stage, increasing the
+  difficulty of random fuzzing.
+- Successfully exercising the vulnerability requires manipulation of the
+  calculator's variable space over several successful operations with a
+  particular structure.
+- Bounds checks inserted around the variable dereferencing logic may be
+  effective in fixing this vulnerability, once the proper patching location is
+  identified by overcoming the above challenges.
+
+### Difficulty
+- Discovering is hard
+- Proving is medium 
+- Fixing is easy
+
+## Vulnerability 2
+The negation operator of this program does not correctly update the type of its
+destination argument field, allowing an attacker to negate an integer and assign
+the resulting value to a pointer variable, allowing arbitrary read and write
+access to the processes memory space.
+
+### Generic class of vulnerability
+Type confusion
+
+### CWE classification
+CWE-119 Improper restriction of operations within the bounds of a memory buffer
+CWE-703 Improper check or handling of exceptional conditions
+CWE-704 Incorrect type conversion or cast
+CWE-843 Access of resource using incompatible type
+
+### Challenges
+- All of the challenges for vulnerability 1 also apply to this vulnerability
+- Control over the pointer value is limited by the range of signed integer
+  types, would need to nest negations in order to dereference a pointer in the
+  flag page for instance
+- A very specific set of operations is needed to exercise this vulnerability,
+  namely negating a value at the top level then dereferencing the result
+  variable before its type field is clobbered.
+- Bounds checks in the proper locations could also address this vulnerability.
+
+### Difficulty
+- Discovering is hard
+- Proving is medium
+- Fixing is easy
+

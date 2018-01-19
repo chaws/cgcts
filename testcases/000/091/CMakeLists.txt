@@ -1,5 +1,5 @@
-set( SERVICE_ID "00094" )
-set( AUTHOR_ID "CROMU" )
+set( SERVICE_ID "00055" )
+set( AUTHOR_ID "KPRCA" )
 add_compile_options( -O0 -g )
 set( VULN_COUNT "1" )
 buildCB()

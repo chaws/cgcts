@@ -1,4 +1,4 @@
-CHAL=expression_database
+CHAL=Sample_Shipgame
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,37 +20,23 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/command_handler.c.o -c src/command_handler.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/expression_parser.c.o -c src/expression_parser.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/mem_global.c.o -c src/mem_global.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/exception_handler.c.o -c src/exception_handler.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/date.c.o -c src/date.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/database.c.o -c src/database.c
-	$(CC) $(FLAGS) -o expression_database_patched lib/printf.c.o lib/stdlib.c.o src/command_handler.c.o src/expression_parser.c.o src/io.c.o src/mem_global.c.o src/service.c.o src/exception_handler.c.o src/date.c.o src/database.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mylibc.c.o -c lib/mylibc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/sample_shipgame.c.o -c src/sample_shipgame.c
+	$(CXX) $(FLAGS) -o Sample_Shipgame_patched lib/mylibc.c.o src/sample_shipgame.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/command_handler.c.o -c src/command_handler.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/expression_parser.c.o -c src/expression_parser.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/mem_global.c.o -c src/mem_global.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/exception_handler.c.o -c src/exception_handler.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/date.c.o -c src/date.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/database.c.o -c src/database.c
-	$(CC) $(FLAGS) -o expression_database lib/printf.c.o lib/stdlib.c.o src/command_handler.c.o src/expression_parser.c.o src/io.c.o src/mem_global.c.o src/service.c.o src/exception_handler.c.o src/date.c.o src/database.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mylibc.c.o -c lib/mylibc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/sample_shipgame.c.o -c src/sample_shipgame.c
+	$(CXX) $(FLAGS) -o Sample_Shipgame lib/mylibc.c.o src/sample_shipgame.c.o $(LCGC) 
 
 pov: $(LIBPOV)
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o expression_database_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Sample_Shipgame_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Sample_Shipgame_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/printf.c.o lib/stdlib.c.o src/command_handler.c.o src/expression_parser.c.o src/io.c.o src/mem_global.c.o src/service.c.o src/exception_handler.c.o src/date.c.o src/database.c.o lib/printf.c.o lib/stdlib.c.o src/command_handler.c.o src/expression_parser.c.o src/io.c.o src/mem_global.c.o src/service.c.o src/exception_handler.c.o src/date.c.o src/database.c.o expression_database_pov_1 expression_database_patched expression_database
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/mylibc.c.o src/sample_shipgame.c.o lib/mylibc.c.o src/sample_shipgame.c.o Sample_Shipgame_pov_2 Sample_Shipgame_pov_1 Sample_Shipgame_patched Sample_Shipgame

@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
+ * Author: Andrew Wesie <andrew.wesie@kapricasecurity.com>
+ *
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,297 +22,229 @@
  * THE SOFTWARE.
  *
  */
-#include "cgc_stdint.h"
 #include "cgc_stdlib.h"
+#include "cgc_stdarg.h"
 #include "cgc_string.h"
-#include "cgc_stdio_private.h"
 
-/*
- * This library can be customized using preprocessor defines:
- *  PRINTF_CHAR specifies the character to use instead of %
- *  PRINTF_N_CHAR specifies the character to use for %n, otherwise disabled
- */
+#define OUTPUT_BYTE(x) do { \
+    cgc_size_t bytes; \
+    char _c = x; \
+    cgc_transmit(fd, &_c, sizeof(_c), &bytes); \
+} while (0);
 
-#ifndef PRINTF_CHAR
-#define PRINTF_CHAR '%'
-#endif
+#define NUM_TO_LOWER(x) (((x) < 10 ? (x)+'0' : (x)-10+'a'))
+#define NUM_TO_UPPER(x) (((x) < 10 ? (x)+'0' : (x)-10+'A'))
 
-static void cgc__convert_unsigned(char *buf, unsigned x, int base, int upper)
+#define FLAG_PAD_ZERO 0x1
+#define FLAG_UPPERCASE 0x2
+int cgc_output_number_printf(int fd, unsigned int x, int base, int min, unsigned int flags)
 {
-    const char *numbers;
-    char *tmp = buf + 20;
+    int n = 0;
+    if (x >= base)
+    {
+        n = cgc_output_number_printf(fd, x / base, base, min-1, flags);
+        x %= base;
+    }
+    if (n == 0 && min > 0)
+    {
+        while (--min)
+            if (flags & FLAG_PAD_ZERO)
+                OUTPUT_BYTE('0')
+            else
+                OUTPUT_BYTE(' ')
+    }
 
-    if (upper)
-        numbers = "0123456789ABCDEF";
+    if (flags & FLAG_UPPERCASE)
+        OUTPUT_BYTE(NUM_TO_UPPER(x))
     else
-        numbers = "0123456789abcdef";
+        OUTPUT_BYTE(NUM_TO_LOWER(x))
+    return n + 1;
+}
 
-    /* NUL terminate */
-    *(--tmp) = 0;
+int cgc_fdprintf(int fd, const char *fmt, ...)
+{
+    char *astring;
+    int aint, i, n = 0, flags = 0, min = 0;
+    unsigned int auint;
+    va_list ap;
+    va_start(ap, fmt);
 
-    if (x == 0)
-        *(--tmp) = numbers[0];
+    while (*fmt != '\0')
+    {
+        char c = *fmt++;
+        if (c == '%')
+        {
+            while (1)
+            {
+                c = *fmt++;
+                switch (c)
+                {
+                case '0':
+                    flags |= FLAG_PAD_ZERO;
+                    continue;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    min = cgc_strtol(fmt-1, (char**)&fmt, 10);
+                    continue;
+                }
+                break;
+            }
+            switch (c)
+            {
+            case '%':
+                OUTPUT_BYTE('%')
+                break;
+            case 's':
+                astring = va_arg(ap, char *);
+                for (i = 0; i < cgc_strlen(astring); i++)
+                    OUTPUT_BYTE(astring[i]);
+                break;
+            case 'd':
+                aint = va_arg(ap, int);
+                if (aint < 0)
+                {
+                    OUTPUT_BYTE('-')
+                    aint = -aint;
+                }
+                cgc_output_number_printf(fd, aint, 10, min, flags);
+                break;
+            case 'X':
+                flags |= FLAG_UPPERCASE;
+            case 'x':
+                auint = va_arg(ap, unsigned int);
+                cgc_output_number_printf(fd, auint, 16, min, flags);
+                break;
+            default:
+                OUTPUT_BYTE(c)
+                break;
+            }
+            min = 0;
+            flags = 0;
+        }
+        else
+        {
+            OUTPUT_BYTE(c)
+        }
+    }
+
+    va_end(ap);
+    return n;
+}
+
+#undef OUTPUT_BYTE
+
+#define OUTPUT_BYTE(n, s, x) do { \
+    cgc_size_t bytes; \
+    char _c = x; \
+    *(*(s)) = _c; \
+    (*(s))++; \
+    (*(n))++; \
+} while (0);
+
+void cgc_output_number_sprintf(int *n, char **s, unsigned int x, int base, int min, unsigned int flags)
+{
+    if (x >= base)
+    {
+        cgc_output_number_sprintf(n, s, x / base, base, min-1, flags);
+        x %= base;
+    }
+    if (x < base && min > 0)
+    {
+        while (--min)
+            if (flags & FLAG_PAD_ZERO)
+                OUTPUT_BYTE(n, s, '0')
+            else
+                OUTPUT_BYTE(n, s, ' ')
+    }
+
+    if (flags & FLAG_UPPERCASE)
+        OUTPUT_BYTE(n, s, NUM_TO_UPPER(x))
     else
-    {
-        while (x)
-        {
-            *(--tmp) = numbers[x % base];
-            x = x / base;
-        }
-    }
-
-    /* move to beginning of buf */
-    cgc_memmove(buf, tmp, 20 - (buf - tmp));
-}
-
-static void cgc__convert_signed(char *buf, int x, int base, int upper)
-{
-    if (x < 0)
-    {
-        *buf++ = '-';
-        x = -x;
-    }
-
-    cgc__convert_unsigned(buf, x, base, upper);
-}
-
-static int cgc__vsfprintf(const char *fmt, va_list ap, FILE *stream, char *buf, cgc_size_t buf_size)
-{
-    char ch;
-    unsigned int num_size, field_size;
-    cgc_size_t count = 0;
-    char numbuf[64];
-    cgc_size_t numbuflen;
-
-#define OUTPUT_CHAR(_ch) \
-    do { \
-        if (count >= buf_size) { \
-            if (count++ == SIZE_MAX) cgc__terminate(1); \
-            break; \
-        } \
-        char __ch = _ch; \
-        if (stream) cgc_fwrite(&__ch, 1, stream); \
-        if (buf) buf[count] = __ch; \
-        count++; \
-    } while (0)
-
-#define OUTPUT_STRING(str, _sz) \
-    do { \
-        cgc_size_t sz = _sz; \
-        if (count >= buf_size) { \
-            if ((cgc_size_t)(count + sz) < (count)) cgc__terminate(1); \
-            count += sz; break; \
-        } \
-        cgc_size_t cnt = buf_size - count; \
-        if (cnt > sz) cnt = sz; \
-        if (stream) cgc_fwrite(str, cnt, stream); \
-        if (buf) cgc_memcpy(buf + count, str, cnt); \
-        if ((cgc_size_t)(count + sz) < (count)) cgc__terminate(1); \
-        count += sz; \
-    } while (0)
-
-    while ((ch = *fmt++))
-    {
-        char pad_char = ' ';
-        const char *tmp, *strarg;
-        unsigned int uintarg;
-        int intarg;
-
-        /* output non-format characters */
-        while (ch != PRINTF_CHAR)
-        {
-            OUTPUT_CHAR(ch);
-            if (!(ch = *fmt++))
-                goto done;
-        }
-
-        tmp = fmt;
-        num_size = 4;
-        field_size = 0;
-
-        /* field flags */
-        switch ((ch = *fmt++))
-        {
-        case 0: /* NUL */
-            goto done;
-        case ' ':
-            pad_char = ' ';
-            break;
-        case '0':
-            pad_char = '0';
-            break;
-        default:
-            fmt--;
-            break;
-        }
-
-        /* field width */
-        if (*fmt >= '0' && *fmt <= '9')
-            field_size = cgc_strtoul(fmt, (char **)&fmt, 10);
-
-        /* modifiers */
-        switch ((ch = *fmt++))
-        {
-        case 0: /* NUL */
-            goto done;
-        case 'h':
-            if (*fmt == 'h')
-            {
-                fmt++;
-                num_size = 1;
-            }
-            else
-            {
-                num_size = 2;
-            }
-            break;
-        case 'l':
-            if (*fmt == 'l')
-            {
-                fmt++;
-                num_size = 8;
-                /* BUG: long long NOT supported */
-            }
-            else
-            {
-                num_size = 4;
-            }
-            break;
-        default:
-            fmt--;
-            break;
-        }
-
-        /* conversion */
-        switch ((ch = *fmt++))
-        {
-        case 0: /* NUL */
-            OUTPUT_STRING(tmp, fmt - tmp);
-            goto done;
-        default: /* unrecognized format character */
-            OUTPUT_STRING(tmp, fmt - tmp);
-            break;
-        case 'd':
-        case 'u':
-        case 'x':
-        case 'X':
-            if (ch == 'd')
-            {
-                if (num_size <= 4)
-                    intarg = va_arg(ap, int);
-                else goto done;
-
-                cgc__convert_signed(numbuf, intarg, 10, 0);
-            }
-            else
-            {
-                if (num_size <= 4)
-                    uintarg = va_arg(ap, unsigned int);
-                else goto done;
-
-                cgc__convert_unsigned(numbuf, uintarg, ch == 'u' ? 10 : 16, ch == 'X');
-            }
-
-            numbuflen = cgc_strlen(numbuf);
-            if (numbuflen < field_size)
-            {
-                field_size -= numbuflen;
-                do {
-                    OUTPUT_CHAR(pad_char);
-                    field_size--;
-                } while (field_size > 0);
-            }
-            OUTPUT_STRING(numbuf, numbuflen);
-            break;
-        case 'c':
-            ch = va_arg(ap, int);
-            OUTPUT_CHAR(ch);
-            break;
-        case 's':
-            strarg = va_arg(ap, const char *);
-            OUTPUT_STRING(strarg, cgc_strlen(strarg));
-            break;
-#ifdef PRINTF_N_CHAR
-        case PRINTF_N_CHAR:
-            if (num_size == 1)
-                *va_arg(ap, unsigned char *) = count;
-            else if (num_size == 2)
-                *va_arg(ap, unsigned short *) = count;
-            else if (num_size == 4)
-                *va_arg(ap, unsigned int *) = count;
-            else goto done;
-#endif
-        }
-    }
-
-done:
-    /* append NUL byte to buf, but not to the stream */
-    stream = NULL;
-    OUTPUT_CHAR('\0');
-
-    return (int)count - 1; // - 1 since we don't count NULL
-}
-
-int cgc_printf(const char *fmt, ...)
-{
-    int ret;
-    va_list ap;
-
-    va_start(ap, fmt);
-    ret = cgc_vprintf(fmt, ap);
-    va_end(ap);
-
-    return ret;
-}
-
-int cgc_fprintf(FILE *stream, const char *fmt, ...)
-{
-    int ret;
-    va_list ap;
-
-    va_start(ap, fmt);
-    ret = cgc_vfprintf(stream, fmt, ap);
-    va_end(ap);
-
-    return ret;
+        OUTPUT_BYTE(n, s, NUM_TO_LOWER(x))
 }
 
 int cgc_sprintf(char *str, const char *fmt, ...)
 {
-    int ret;
+    char *astring;
+    int aint, i, n = 0, flags = 0, min = 0;
+    unsigned int auint;
     va_list ap;
-
     va_start(ap, fmt);
-    ret = cgc_vsprintf(str, fmt, ap);
+
+    while (*fmt != '\0')
+    {
+        char c = *fmt++;
+        if (c == '%')
+        {
+            while (1)
+            {
+                c = *fmt++;
+                switch (c)
+                {
+                case '0':
+                    flags |= FLAG_PAD_ZERO;
+                    continue;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    min = cgc_strtol(fmt-1, (char**)&fmt, 10);
+                    continue;
+                }
+                break;
+            }
+            switch (c)
+            {
+            case '%':
+                OUTPUT_BYTE(&n, &str, '%')
+                break;
+            case 's':
+                astring = va_arg(ap, char *);
+                for (i = 0; i < cgc_strlen(astring); i++)
+                    OUTPUT_BYTE(&n, &str, astring[i]);
+                break;
+            case 'd':
+                aint = va_arg(ap, int);
+                if (aint < 0)
+                {
+                    OUTPUT_BYTE(&n, &str, '-')
+                    aint = -aint;
+                }
+                cgc_output_number_sprintf(&n, &str, aint, 10, min, flags);
+                break;
+            case 'X':
+                flags |= FLAG_UPPERCASE;
+            case 'x':
+                auint = va_arg(ap, unsigned int);
+                cgc_output_number_sprintf(&n, &str, auint, 16, min, flags);
+                break;
+            default:
+                OUTPUT_BYTE(&n, &str, c)
+                break;
+            }
+            min = 0;
+            flags = 0;
+        }
+        else
+        {
+            OUTPUT_BYTE(&n, &str, c)
+        }
+    }
+    *str++ = 0;
+
     va_end(ap);
-
-    return ret;
+    return n;
 }
 
-int cgc_vprintf(const char *fmt, va_list ap)
-{
-    return cgc_vfprintf(cgc_stdout, fmt, ap);
-}
-
-int cgc_vfprintf(FILE *stream, const char *fmt, va_list ap)
-{
-    int retval, buffered = 1;
-    // switch to buffered mode temporarily
-    if (stream->idx == -1)
-    {
-        buffered = 0;
-        stream->idx = 0;
-    }
-    retval = cgc__vsfprintf(fmt, ap, stream, NULL, INT_MAX);
-    if (!buffered)
-    {
-        cgc_fflush(stream);
-        stream->idx = -1;
-    }
-    return retval;
-}
-
-int cgc_vsprintf(char *str, const char *fmt, va_list ap)
-{
-    return cgc__vsfprintf(fmt, ap, NULL, str, INT_MAX);
-}

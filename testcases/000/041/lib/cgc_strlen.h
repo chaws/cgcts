@@ -22,13 +22,13 @@
 
 #ifndef STRLEN_H
 #define STRLEN_H 1
-#include "cgc_libc.h"
+
 /**
  * Count number of chars preceeding the NULL char.
  *
  * @param str Buffer
  * @returns Number of bytes preceeding the NULL char.
  */
-cgc_size_t cgc_strlen(const char *str);
+unsigned int cgc_strlen(const char *str);
 
 #endif

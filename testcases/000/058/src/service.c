@@ -19,39 +19,56 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
 #include "libcgc.h"
 #include "cgc_libc.h"
-#include "cgc_operation.h"
-#include "cgc_math_fun.h"
-#include "cgc_service.h"
+#include "cgc_products.h"
+
+static char STATUS_OK[2] 	= {0};
+static char STATUS_ERR[2] 	= {0};
+static char STATUS_QUIT[2]	= {0};
+
+/**
+ * Compute the status codes based on the values of the flag page
+ */
+void cgc_gen_status_codes(void) {
+    const char *fp = (char *)FLAG_PAGE;
+    for (unsigned int idx = 0; idx < 4094; idx += 3) {
+        STATUS_OK[idx % 2]          ^= fp[idx];
+        STATUS_ERR[(idx + 1) % 2]   ^= fp[idx + 1];
+        STATUS_QUIT[(idx + 2) % 2]  ^= fp[idx + 2];
+    }
+}
+
+/**
+ * Send resulting status of command processing to client
+ *
+ * @param status_code  The 2 status code bytes to send.
+ */
+ void cgc_send_status(char *status_code) {
+    SEND(STDOUT, status_code, 2);
+}
 
 int main(int cgc_argc, char *cgc_argv[]) {
 
-    uint8_t command[1];
-    int ret = 0;
+    short ret = 0;
 
-    while (1) {
-        if ((ret = cgc_do_nonce()) == 0) {
-            
-            RECV(command, sizeof(uint8_t));
+    cgc_gen_status_codes();
 
-            switch (command[0]) {
-                case 0: // create
-                    ret = cgc_do_create();
-                    break;
-                case 1: // eval
-                    ret = cgc_do_eval();
-                    break;
-                default:
-                    // bad command input
-                    ret = -150;
-            }
-        } 
+    cgc_setup();
 
-        if (ret < 0) {
-            SENDSI(ret);
-            return ret;
+    while (TRUE) {
+        ret = cgc_process_cmd();
+
+        if (0 == ret) {
+        	cgc_send_status((char *)STATUS_OK);
+        } else if (-1 == ret) {
+        	cgc_send_status((char *)STATUS_ERR);
+        } else {
+	        cgc_send_status((char *)STATUS_QUIT);
+	        break;
         }
     }
-    return ret;
+
+    return 0;
 }

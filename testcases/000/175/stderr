@@ -1,2 +1,0 @@
-gcc: error: unrecognized command line option ‘-mstack-alignment=3’
-make: *** [patched] Error 1

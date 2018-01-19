@@ -1,42 +1,55 @@
-# Sensr (KPRCA_00059)
+# Pattern_Finder
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
 ## Description
 
-A simple service that receives sensor readings, verifies them, and reports back the latest aggregated reading. 
+Pattern Finder is a service that user to quickly detect the presence of a set
+of known patterns within a blob of data.
+
+The service first reads in a series of pattern definitions from the user. It
+then compiles a pattern search machine that will be used to detect patterns in
+subsequently data entered by the user. The user is provided with a list of
+detected patterns once the search machine has finished running.
 
 ### Feature List
 
-Three types of sensor inputs:
-
- * Location (3-dimensions)
- * RPM (revolutions per minute)
- * Speed
-
-Customizable absolute bounds on the inputs to filter out bad inputs. Additionally, change in location is checked against the limits on speed.
-
-Every packet is timestamped. Timestamps are used for ordering and calculating speed from location. If a packet arrives out-of-order, either it will be dropped or the preceding packet will be dropped.
-
-A sensor can send a reset packet if the system is out-of-sync and the state needs to be cleared.
+ * Supports up to 4096 patterns
+ * Supports patterns up 4096 bytes in size
+ * Supports detecting patterns in up to 64 kilobytes of input
+ * Super fast!
 
 ## Vulnerability
-### Vuln 1
-In queue.h:76, there is an intended bug that causes stateq_pop_tail to return uninitialized heap memory. This can be triggered by the attacker when a packet is sent that causes the previous packet to be dropped. The error packet sent back to the attacker may now contain 4 bytes of uninitialized memory. Because the secret page was copied to the heap at the beginning of the program, and then freed, this uninitialized memory will actually contain some obfuscated bytes of the secret page. Exploitable as a type 2 POV.
+
+### Vulnerability 1
+
+In the ReportMatches function, the stack buffer where the report contents are
+gathered before being sent to the user is a fixed 512 bytes in size. Therefore,
+a stack buffer overflow is achievable given a large enough set of patterns and
+a data blob which contains enough of these patterns to generate a sufficiently
+large report.
 
 #### Generic class of vulnerability
-Read of uninitialized memory
+
+Stack buffer overflow
 
 #### CWE classification
-CWE-125: Out-of-bounds Read
 
-CWE-226: Sensitive Information Uncleared Before Release
+CWE-121 Stack-based Buffer Overflow
+CWE-787 Out-of-bounds Write
 
 #### Challenges
-Involves reuse of memory without initialization, so some understanding of heap allocation is helpful. One possible avenue for discovery is fuzzing combined with taint analysis. The sensitive memory is XORd with a deterministic value and a POV must XOR the memory it reads to get the real type 2 value.
+
+The complexity behind this challenge lies within the underlying algorithm which
+is used to do pattern detection. The algorithm used is Aho-Corasick which is
+a string matching algorithm that allows for the simultaneous matching of
+patterns through the use of a finite state machine. The author imagines that
+sufficiently complex algorithms will test the strength of many code analysis 
+engines.
 
 #### Difficulty
- - **Discovery**: easy
- - **Proving**: medium
- - **Fixing**: medium
+
+ - **Discovery**: Easy
+ - **Proving**: Hard
+ - **Patching**: Medium

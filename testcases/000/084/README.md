@@ -1,91 +1,56 @@
-# CGC Challenge Binary Template
+# REMATCH_6--Secure_Server--Heartbleed
 
 ## Author Information
 
-"Maxwell Koo" <info@narfindustries.com>
+debbie@cromulence.com
 
 ### DARPA performer group
-Narf Industries (NRFIN)
+Cromulence LLC (CROMU)
 
 ## Description
+CVE-2014-0160, commonly known as Heartbleed, was one of the first uber-famous vulnerabilities to receive its own name, dedicated website, and even a logo. Although it was a straightforward memory disclosure in OpenSSL, its effect was complex and far reaching. Its discovery in 2014 called into question the security and privacy of over 60% of encrypted Internet traffic over the past few years. Recovery from Heartbleed not only required patching the software like any other typical vulnerability but also required revocation of compromised keys, reissuing of keys and certificates, and changing of all user passwords. It is interesting to note that the Heartbleed vulnerability was originally detected by an automated testing system, Defensics by Codenomicon. 
 
-This is a service for greeting customers. It stores a user's credentials
-client-side, tracking their identity and a reference to their profile which is
-stored server side. Client-side tokens are signed to prevent tampering by the
-user. It responds to the following commands:
-
- - login <name>, returns a token
- - greet <token>, returns a welcome message
- - quit, quits the program without returning a status
-
-Login and greet both return 0 on success and -1 on failure, represented as a
-32-bit hexadecimal 2's complement number printed on its own line.
+This service recreates an openssl style server utilizing a made up transport layer called (Some Layer Security) (SLS) inspired by Transport Layer Security (TLS).  On top of that, the server implements a Message-based SLS protocol (MSLS). Since the heartbleed vulnerability was in the heartbeat message of a TLS session, this server implements a heartbeat style message as part of the MSLS protocol. 
 
 ### Feature List
+This service accepts messages of several types:
+  Handshake, Error, Changespec, Application, Heartbeat, and Shutdown. 
+The handshake protocol is similar to a TLS handshake and contains the following exchange:
+  Client Hello -> 
+  <- Hello Verify
+  Client Hello (w/cookie) ->
+  <- Server Hello
+  <- Server Key Exchange
+  <- Hello Done
+  Client Key Exchange ->
+  Hello Done ->
+  <- Finished
+  Finished ->
 
-- Multiple verification methods using different cryptographic algorithms
-- Per-user profiles tracking unique visits
-- 16-byte usernames
+Once a handshake is complete a connection is established and future data is sent within that protected connection. All 'encryption' is a simple xor based algorithm using the exchanged keys. 
+
+Once a secure connection is established, this service provides access to a message board. Application messages can be sent within the encrypted connection of the following types: 
+  APPLICATION_LIST_BOARD - List the number of messages
+  APPLICATION_POST_MESSAGE - Post a new message
+  APPLICATION_DELETE_MESSAGE - Delete a message
+  APPLICATION_CLEAR_BOARD - Clear the entire board
+  APPLICATION_READ_MESSAGE - Read a particular message
 
 ## Vulnerability
+The vulnerability exists in the heartbeat message of this protocol and is very similar to the real world heartbleed vulnerability. To leverage it, a heartbeat message can be sent with a payload length longer than what exists in the heartbeat message. When the server processes it and responds, it will read past the end of the request message and return additional data from the memory space of the server. If the right conditions are in place, this additional data could contain sensitive information. 
 
-There are multiple issues with the cryptographic schemes used by the service
-which may allow a malicious user to modify the returned token and still validate
-it.
+In order to prove this vulnerability, the unauthorized memory access needs to contain sensitive information (ie magic page data). Some of this data is moved to the heap during a SLS handshake. The handshake does not need to be fully complete, but the first set of messages (CLIENT_HELLO, HELLO_VERIFY, CLIENT_HELLO w/cookie) need to be successfully navigated before the sensitive information will be available on the heap. Once it is there, its just a matter of lining up the heap in a way that allows an incoming heartbeat message to be placed in memory before the desired sensitive information and with a payload length incorrectly long enough that the sensitive information will be returned in the response. 
 
-The first method uses a trivial xor with a secret key to "sign" the token,
-effectively revealing the key by performing the inverse operation. New tokens
-can be forged by extracting the key and signing arbitrary data.
-
-The second method uses a checksum method instead of a cryptographic hash
-function, weak against collision attacks and hash extension attacks. A user can
-append data to a token and recalculate the hash without knowledge of the secret
-value.
-
-The third method uses an MD5 hash, stronger than the checksum used in the second
-method, but uses a weakened padding scheme which allows extending a message
-without changing its hash value. This allows a user to pass an overlong string
-to a fixed-sized stack buffer, overflowing it. This scheme also prepends the
-secret value to the token prior to hashing, opening it up to hash length
-extension attacks as well.
-
-The patched version of the binary fixes these issues by using a HMAC scheme to
-sign the tokens, still using MD5 but hardened against length-extension attacks.
 
 ### Generic class of vulnerability
-
-Stack buffer overflow
-Untrusted pointer dereference
-Information disclosure
-Weak cryptographic algorithms
-Hash length extension
+Improperly sanitizing program input allows reading past the end of the intended buffer leading to information disclosure.
 
 ### CWE classification
-
-CWE-121 Stack-based Buffer Overflow
-CWE-822 Untrusted Pointer Dereference
-CWE-471 Modification if Assumed-Immutable Data
-CWE-201 Information Exposure Through Sent Data
-CWE-326 Inadequate Encryption Strength
-CWE-327 Use of a Broken or Risky Cryptographic Function
-CWE-328 Reversible One-Way Hash
+CWE-788 - Access of Memory Location After End of Buffer
 
 ## Challenges
-
-This CB deals with common issues which arise when designing cryptographic
-protocols, inspired by real-world schemes such as JWT for storing
-presumed-immutable data client-side. The multiple schemes are designed to
-provide increasing difficulty for a CRS to analyze. The xor-scheme is only
-minimally obfuscated, and should demonstrate the ability of a CRS to identify
-the information disclosure. The checksum scheme is harder to analyze, but the
-checksum algorithm itself is simple and it should be within the realm of
-possibility to discover the ability to extend a token through analysis of the
-algorithm's behavior and data flow. The md5 scheme is definitely the hardest,
-but the padding issue sticks out due to its lack of incorporation of the length
-value into the padded message. Analysis of this should lead to identification of
-the many possible collisions per message this introduces. The hash length
-extension attack on md5 is by far the most challenging to identify, however the
-algorithm should be identifiable as md5, and the pattern of prepending a secret
-to a token should be discernable, which should be suficient to discover this
-vulnerability.
+Identifying and patching this vulnerability should be straightforward. To leverage the vulnerability to actually prove the type 2 pov will require a bit more effort. A partial handshake needs to be completed to move the magic page data into the correct location on the heap so a successful proof of the vulnerability will access the magic page data necessary to score. 
+Finding: Easy
+Proving: Medium
+Patching: Easy
 

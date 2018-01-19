@@ -1,0 +1,2 @@
+cb_1/src/main.c:159 # node points to a null-terminated linked list
+cb_1/src/main.c:161:CWE476 # msg_id may be negative, never satisfying the expression, thus forcing node to go to the end of the list. Since there's no null check for node, it'll crash on `null->msg'

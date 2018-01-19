@@ -1,26 +1,44 @@
 ---
 nodes:
 - name: start
-- name: sendmail
-- name: sendmail_loop
-- name: sendmail_ADDRESSBOOK
-- name: sendmail_LIST
-- name: sendmail_LISTALL
-- name: sendmail_POST
-- name: sendmail_READ
-- name: sendmail_quit
+- name: main_menu
+- name: input_order
+#- name: update
+- name: view_one_order
+- name: view_all_orders
+- name: order_option_menu
+- name: add_topping
+- name: remove_topping
+- name: add_sauce
+- name: remove_sauce
+- name: finished_adding_pizza
+- name: add_another_pizza
+- name: quit_to_main_menu
+- name: logout
+- name: quit
 
 edges:
-- start: sendmail
-- sendmail: sendmail_loop
-- sendmail_loop: sendmail_ADDRESSBOOK
-- sendmail_loop: sendmail_LIST
-- sendmail_loop: sendmail_LISTALL
-- sendmail_loop: sendmail_POST
-- sendmail_loop: sendmail_READ
-- sendmail_loop: sendmail_quit
-- sendmail_ADDRESSBOOK: sendmail_loop
-- sendmail_LIST: sendmail_loop
-- sendmail_LISTALL: sendmail_loop
-- sendmail_POST: sendmail_loop
-- sendmail_READ: sendmail_loop
+- start: main_menu
+- main_menu: input_order
+#- main_menu: update_order
+- main_menu: view_one_order
+- main_menu: view_all_orders
+- main_menu: logout
+- input_order: order_option_menu
+- order_option_menu: add_topping
+- order_option_menu: remove_topping
+- order_option_menu: add_sauce
+- order_option_menu: remove_sauce
+- order_option_menu: finished_adding_pizza
+- add_topping: order_option_menu
+- remove_topping: order_option_menu
+- add_sauce: order_option_menu
+- remove_sauce: order_option_menu
+- finished_adding_pizza: add_another_pizza
+- finished_adding_pizza: quit_to_main_menu
+- add_another_pizza: order_option_menu
+- quit_to_main_menu: main_menu
+- view_one_order: main_menu
+- view_all_orders: main_menu
+- logout: quit
+

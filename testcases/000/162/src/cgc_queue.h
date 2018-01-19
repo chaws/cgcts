@@ -20,75 +20,21 @@
  * THE SOFTWARE.
  *
  */
-#ifndef QUEUE_H_
-#define QUEUE_H_
+#ifndef __QUEUE_H__
+#define __QUEUE_H__
+typedef struct queue queue;
+struct queue
+{
+  cgc_size_t Capacity;
+  cgc_size_t Size;
+  cgc_ssize_t KnownHead;
+  void** Elements;
+};
 
-#define DEFINE_QUEUE(type, name) \
-typedef struct { \
-    unsigned int head; \
-    unsigned int tail; \
-    unsigned int size; \
-    type contents[]; \
-} name##_t; \
-static int name##_init(name##_t **q, unsigned int size) { \
-    name##_t *queue = cgc_malloc(sizeof(*queue) + sizeof(type) * size); \
-    if (queue == NULL) return 0; \
-    queue->head = queue->tail = 0; \
-    queue->size = size; \
-    *q = queue; \
-    return 1; \
-} \
-static void name##_destroy(name##_t **q) { \
-    cgc_free(*q); \
-    *q = NULL; \
-} \
-static void name##_clear(name##_t *q) { \
-    q->head = q->tail = 0; \
-} \
-static int name##_empty(name##_t *q) { \
-    return q->head == q->tail; \
-} \
-static int name##_full(name##_t *q) { \
-    return ((q->tail + 1) % q->size) == q->head; \
-} \
-static int name##_length(name##_t *q) { \
-    return (q->tail - q->head) % q->size; \
-} \
-static type * name##_tail(name##_t *q) { \
-    return name##_empty(q) ? NULL : &q->contents[(q->tail - 1) % q->size]; \
-} \
-static type * name##_get(name##_t *q, unsigned int i) { \
-    if (i >= name##_length(q)) return NULL; \
-    return &q->contents[(q->head + i) % q->size]; \
-} \
-static type * name##_head(name##_t *q) { \
-    return name##_get(q, 0); \
-} \
-static int name##_pop(name##_t * q, type * out) { \
-    if (name##_empty(q)) return 0; \
-    if (out) \
-        *out = q->contents[q->head]; \
-    q->head = (q->head + 1) % q->size; \
-    return 1; \
-} \
-static int name##_pop_tail(name##_t * q, type * out) { \
-    if (name##_empty(q)) return 0; \
-    if (out) /* BUG: this if-stmt should be after next assign */ \
-        *out = q->contents[q->tail]; \
-    q->tail = (q->tail - 1) % q->size; \
-    return 1; \
-} \
-static int name##_push(name##_t * q, const type * el) { \
-    if (name##_full(q)) return 0; \
-    q->contents[q->tail] = *el; \
-    q->tail = (q->tail + 1) % q->size; \
-    return 1; \
-} \
-static int name##_push_head(name##_t * q, const type * el) { \
-    if (name##_full(q)) return 0; \
-    q->head = (q->head - 1) % q->size; \
-    q->contents[q->head] = *el; \
-    return 1; \
-}
+void cgc_InitializeQueue(queue* Queue);
+void cgc_FreeQueue(queue* Queue);
+void cgc_Enqueue(queue* Queue, void* Element);
+void* cgc_Dequeue(queue* Queue);
+void* cgc_Peek(queue* Queue);
 
-#endif
+#endif /* __QUEUE_H__ */

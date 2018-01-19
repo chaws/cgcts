@@ -23,7 +23,7 @@
 #include "cgc_string.h"
 #include "cgc_stdio_private.h"
 
-static int _refill(FILE *stream)
+static int cgc__refill(FILE *stream)
 {
     cgc_size_t rx;
 
@@ -37,7 +37,7 @@ static int _refill(FILE *stream)
     }
 
     stream->length = rx;
-    xlat(stream->xlat_map_inv, stream->buffer, stream->length);
+    cgc_xlat(stream->xlat_map_inv, stream->buffer, stream->length);
 
     return rx;
 }
@@ -48,7 +48,7 @@ cgc_ssize_t cgc_fread(void *ptr, cgc_size_t size, FILE *stream)
     cgc_size_t idx = 0, rx;
 
     if (stream->idx == stream->length)
-        _refill(stream);
+        cgc__refill(stream);
 
     /* copy from the buffered input first */
     if (stream->idx != INVALID_IDX)
@@ -70,7 +70,7 @@ cgc_ssize_t cgc_fread(void *ptr, cgc_size_t size, FILE *stream)
     {
         if (cgc_receive(stream->fd, buf + idx, size - idx, &rx) != 0 || rx == 0)
             return -1;
-        xlat(stream->xlat_map_inv, buf + idx, rx);
+        cgc_xlat(stream->xlat_map_inv, buf + idx, rx);
     }
 
     return idx;
@@ -86,7 +86,7 @@ static int cgc__getc(FILE *stream)
         /* unbuffered cgc_read */
         if (cgc_receive(stream->fd, &ch, 1, &rx) != 0 || rx == 0)
             return -1;
-        xlat(stream->xlat_map_inv, &ch, 1);
+        cgc_xlat(stream->xlat_map_inv, &ch, 1);
         return (int)(unsigned char)ch;
     }
     else
@@ -94,7 +94,7 @@ static int cgc__getc(FILE *stream)
         /* buffered cgc_read */
         if (stream->idx == stream->length)
         {
-            if (_refill(stream) < 0)
+            if (cgc__refill(stream) < 0)
                 return -1;
         }
 

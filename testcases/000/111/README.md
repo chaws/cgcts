@@ -1,54 +1,65 @@
-# CGC Challenge Binary Template
+# CGC Challenge Binary (KPRCA\_00012): PKK Steganography
 
 ## Author Information
 
-"Jason L. Wright" <jason@thought.net>
+"Brian Pak" <brian.pak@kapricasecurity.com>
 
 ### DARPA performer group
-
-Thought Networks (TNETS)
+Kaprica Security (KPRCA)
 
 ## Description
-Virtual pet ownership.
+
+This service performs Least Significant Bit (LSB) steganography on a PKK file. It supports two modes: embed and extract. The user can provide a PKK image and the secret text to be hidden in the image with a specific format, or provide a PKK image that has hidden message inside to extract the message. The program expects a specific format (encapsulation) for an input.
 
 ### Feature List
 
-This services allows the user to create virtual pets and have them
-perform a few rudimentary tricks.  When a pet becomes too annoying,
-it can be deleted.
+This service supports the following features:
+
+  1. **Embed a secret message**
+  2. **Extract the hidden message**
+
+The service accepts an input of the following format:
+
+  - STEG_TAG (4 byte)
+  - Total size (4 byte) [includes STEG_TAG]
+  - PKK file size (4 byte) == N
+  - PKK file data (N byte)
+  - MODE_TAG (4 byte)
+  - mode (2 byte)
+  - TEXT_TAG (4 byte)
+  - text data size (2 byte) == M
+  - text data (M byte)
+  - END_TAG (4 byte)
+
+In case the input is for the *extract* mode, the text data size should be 0 and text data should be an empty string.
+
+When the secret message is embedded into the image, it is first encapsulated into a special format:
+
+  - SECRET_TAG (4 byte)
+  - original (extracted) text data size (2 byte) == M
+  - text data (M byte)
+  - SECRET_END_TAG (4 byte)
 
 ## Vulnerability
 
-Normally a pet is given a name right after it is created and never
-renamed. However, there's a bug in this program: when you rename a pet
-it appends to the current name.  An annoyance to be sure, but worse, it
-allows for spilling into an adjacent C++ vtable.
+There is a maximum length limit for the secret text to be embedded, which is set to 1000 bytes. However, when extracting the hidden text, the service blindly trusts the size field without validation.
 
-To make life easier for the programmer (not the user), a "debug" trick
-can be performed which displays the address of each of the pet's "this"
-pointer.
+Then, with a carefully crafted input (PKK with a hidden text data size set to a value larger than 1000 along with long enough data), it is possible to overflow the stack-based buffer that is used to reconstruct the embedded message to cause a crash.
+
+Also, there's an integer overflow with large widht or height.
 
 ### Generic class of vulnerability
 
-Heap-based Buffer Overflow
+Stack Buffer Overflow
+
+Integer Overflow
 
 ### CWE classification
 
-CWE-122: Heap based Buffer Overflow
+Stack-based Buffer Overflow (CWE-121)
+
+Integer Overflow or Wraparound (CWE-190)
 
 ## Challenges
 
-This CB is primarily provided to demonstrate the use of C++ as a challenge
-binary language.  Several language features are used (static constructors/
-destructors, virtual functions, overloading, etc.). Several features are
-explicitly not used: runtime type information (RTTI) and exceptions.
-
-Future versions of this CB may use RTTI (it's not that hard to implement),
-but exceptions look painful (though libcgc.a now has setjmp/longjmp...).
-
-The overflow is easy enough to create: it requires reasoning about the
-protocol and realizing that additional names for a pet are blindly
-concatenated with the existing name.  To get an exploit working, a valid
-vtable must be constructed.  The "debug" trick leaks the value of the
-"this" pointer for each pet (this cuts out reasoning about the
-"new operator"'s implementation.
+This CB tests if the competitors can reason about the data flow and bit operations performed upon the input, since the size field needs to be correctly encoded (using LSB) to be parsed by the service.

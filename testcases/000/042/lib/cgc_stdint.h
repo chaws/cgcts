@@ -2,7 +2,7 @@
 
 Author: Jason Williams <jdw@cromulence.com>
 
-Copyright (c) 2015 Cromulence LLC
+Copyright (c) 2014 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,39 +1,36 @@
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 ---
 nodes:
 - name: start
-- name: login
-- name: greet
-- name: valid_greet
-- name: invalid_greet
-- name: quit
-
+- name: main
+- name: heartbeat
+- name: handshake
+- name: changespec
+- name: application_main
+- name: application_list
+- name: application_post
+- name: application_delete
+- name: application_read
+- name: application_clear
+- name: exit
 edges:
-- start: login
-- login: login
-- login: greet
-- greet: valid_greet
-- greet: invalid_greet
-- login: quit
-- valid_greet: quit
-- invalid_greet: quit
-
+- start: main
+- main: heartbeat
+- main: handshake
+- main: changespec
+- changespec: main
+- heartbeat: main
+- handshake: application_main
+- application_main: application_list
+- application_list: application_main
+- application_main: application_post
+- application_post: application_main
+- application_main: application_delete
+- application_delete: application_main
+- application_main: application_read
+- application_read: application_main
+- application_main: application_clear
+- application_clear: application_main
+- application_main: exit
+- handshake: main
+- handshake: exit
+- heartbeat: exit

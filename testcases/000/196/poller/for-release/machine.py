@@ -1,251 +1,232 @@
 #!/usr/bin/env python
 
-from generator.actions import Actions
-import string
+from generator.actions import Actions, Variable
 import random
+import string
+import struct
+import sys
+from collections import OrderedDict
 
-def random_string(a, b):
-    chars = string.letters + string.digits
-    result = ''.join(random.choice(chars) for _ in range(random.randint(a, b))) + random.choice(string.letters)
-    return result
+def random_string_n(size=20):
+  return ''.join([random.choice(string.ascii_letters) for x in xrange(size)])
 
-class PipelineGenerator(Actions):
-    def setup_contains(self, service_id):
-        """ Setup the 'contains' function """
-        self.state['services'][service_id]['config'] = random_string(2, random.randint(4, 10))
-        self.write('%s\n' % self.state['services'][service_id]['config'])
+def random_string(size=20):
+  return ''.join([random.choice(string.ascii_letters) for x in xrange(random.randint(1,size))])
 
-    def doit_contains(self, i, service_id, data):
-        lines = data.split('\n')[:-1]
-        results = []
-        for line in lines:
-            # print "CHECKING", repr(line)
-            if len(line) and line in self.state['services'][service_id]['config']:
-                results.append(line + "\n")
+def random_digits(size=20):
+  return ''.join([random.choice(string.digits) for x in xrange(random.randint(1,size))])
 
-        # print "RESULTS", repr(results)
-        return ''.join(results)
-#            return data
-#        else:
-#            return ''
-
-    def doit_does_not_contain(self, i, service_id, data):
-        lines = data.split('\n')[:-1]
-        results = []
-        for line in lines:
-            if line not in self.state['services'][service_id]['config']:
-                results.append(line + "\n")
-        
-        return ''.join(results)
-
-    def doit_wc(self, i, service_id, data):
-        in_word = 0
-        char_count = self.state['char_count']
-        line_count = self.state['line_count'] 
-        word_count = self.state['word_count']
-        current_line_count = 0
-
-        result = ''
-
-        data = list(data)
-        # print "GOT DATA", repr(data)
-        while len(data):
-            i = data.pop(0)
-            # print "GOT", repr(i)
-            char_count += 1
-            
-            if i.isalpha():
-                if in_word == 0:
-                    in_word = 1
-            else:
-                if in_word == 1:
-                    in_word = 0
-                    word_count += 1
-
-            if i == '\n':
-                line_count += 1
-                result += ': %d %d %d' % (char_count, word_count, line_count)
-
-            result += i
-        
-        self.state['char_count'] = char_count
-        self.state['line_count'] = line_count
-        self.state['word_count'] = word_count 
-
-        # print "RESULT", repr(result)
-        return result
-
-    def doit_compress(self, i, service_id, data):
-        def write_char(char, count):
-            out = ''
-            if count > 1:
-                out = "%d" % count
-            elif char >= '0' and char <= '9':
-                out = "1"
-            return out + char
-
-        count = 1
-        current = None
-        last = None
-        seen = 0
-        result = ''
-
-        for i in data:
-            last = current
-            current = i
-            if current == '\n':
-                if seen > 0:
-                    result += write_char(last, count)
-                    count = 1  
-                result += write_char('\n', 1)
-                seen = 0
-            else:
-                if last == current:
-                    count += 1
-                else:
-                    if seen:
-                        result += write_char(last, count)
-                        count = 1
-                seen += 1
-
-        return result
-
-    def doit_decompress(self, i, service_id, data):
-        # we don't process anything if decompress is the first CB
-        if i == 0:
-            return None
-
-        data = list(data)
-    
-        out = ''
-        while len(data):
-            c = data.pop(0)
-            if c.isdigit():
-                if len(data):
-                    out += data.pop(0) * int(c)
-                else:
-                    out += '\n' * (int(c) - 1)
-            else:
-                out += c
-
-        return out
-
-    def setup_does_not_contain(self, service_id):
-        self.state['services'][service_id]['config'] = random_string(2, random.randint(4, 10))
-        self.write('%s\n' % self.state['services'][service_id]['config'])
-
-    def get_service(self, service_id):
-        for service in self.state['services']:
-            if service['id'] == service_id:
-                return service
-
-    def start(self):
-        self.state['services'] =  (
-                {'name': 'contains', 'config': None, 'setup': self.setup_contains, 'method': self.doit_contains},
-                {'name': 'word-count', 'config': None, 'method': self.doit_wc},
-                {'name': 'does-not-contain', 'config': None, 'setup': self.setup_does_not_contain, 'method': self.doit_does_not_contain},
-                {'name': 'compress', 'config': None, 'method': self.doit_compress},
-                {'name': 'decompress', 'config': None, 'method': self.doit_decompress}
-                )
-        
-        self.state['char_count'] = 0
-        self.state['line_count'] = 0
-        self.state['word_count'] = 0
-
-        i = 0
-        for service in self.state['services']:
-            service['id'] = i
-            service['fd'] = (i * 2) + 3
-            i += 1
-
-        self.state['configured'] = []
-
-        self.read(delim='\n', expect='Function pipelines made easy!\n')
-        self.read(delim='\n', expect='available functions include:\n')
-        for service in self.state['services']:
-            self.read(delim='\n', expect='%d: %s\n' % (service['id'], service['name']))
-
-    def get_service_list(self):
-        service_list = []
-        for service in self.state['services']:
-            if service['id'] not in self.state['configured']:
-                service_list.append(service['id'])
-
-        return service_list
-
-    def do_service_list(self):
-        service_list = self.get_service_list()
-        if len(service_list) > 0:
-            service_list_str = ''.join(map(str, service_list))
-            self.read(delim='\n', expect='Which function do you wish to include?  Available: [%s] (Enter an empty line to stop configuration)' % service_list_str)
-        return service_list
-
-    def setup(self):
-        while True:
-            services = self.do_service_list()
-            if len(self.get_service_list()) == 0:
-                break
-
-            if self.chance(.25):
-                self.write('\n')
-                break
-
-            service = random.choice(services)
-            if 'method' in self.get_service(service):
-                self.write('%d\n' %  service)
-                self.state['configured'].append(service)
-            else:
-                self.write('\n')
-                break
-
-        if len(self.state['configured']) == 0:
-            self.read(delim='\n', expect='no functions configured.\n')
-            return -1
-
-        for service in self.state['services']:
-            if service['id'] not in self.state['configured']:
-                self.read(delim='\n', expect='Setting %s to read from 65535 and write to 65535 (via %d)' % (service['name'], service['fd']))
-
-        if len(self.state['configured']) > 0:
-            service_names = []
-            for service_id in self.state['configured']:
-                service_names.append(self.state['services'][service_id]['name'])
-            self.read(delim='\n', expect='function pipeline: %s\n' % (' '.join(service_names)))
-
-        for service_id in self.state['configured']:
-            if 'setup' not in self.state['services'][service_id]:
-                continue
-            self.read(delim='\n', expect="How do you want to configure '%s'?\n" % self.state['services'][service_id]['name'])
-            self.state['services'][service_id]['setup'](service_id)
+def random_bytes(size=20):
+  return ''.join([chr(random.randint(0,255)) for x in xrange(size)])
 
 
-        ports = [0]
-        
-        if len(self.state['configured']) > 1:
-            port = 0
-            for i in self.state['configured']:
-                if port > 0:
-                    ports.append(self.get_service(i)['fd'])
-                    ports.append(self.get_service(i)['fd'] + 1)
-                port += 1
-        ports.append(1)
+class ACSV(Actions):
 
-        for service_id in self.state['configured']:
-            service = self.get_service(service_id)
-            self.read(delim='\n', expect='Setting %s to read from %d and write to %d (via %d)' % (service['name'], ports.pop(0), ports.pop(0), service['fd']))
-   
-    def do_it(self):
-        data = random_string(3, random.randint(4, 10)) + "\n"
-        self.write(data)
-        i = 0
-        for service_id in self.state['configured']:
-            if 'method' in self.state['services'][service_id]:
-                data = self.state['services'][service_id]['method'](i, service_id, data)
-            if data == None:
-                return -1
-            i += 1
-        if len(data) > 0:
-            self.read(length=len(data), expect=data)
+  def start(self):
+    self.state['cgcf'] = None
+    self.state['e_phoff'] = 0
+    self.state['e_shoff'] = 0
+    self.state['e_shnum'] = 0
+    self.state['e_shtrndx'] = 0
+    self.state['base_off'] = 0x700
+    self.state['num_symbols'] = random.randint(0, 200)
+    self.state['symbols'] = list()
+    self.state['sections'] = list()
+    self.state['has_symtab'] = False
+    self.state['cur_off'] = 0
 
-    def finish(self):
-        self.write('\x00\n')
+  def _gen_symbol(self):
+    symbol = dict()
+    symbol['name'] = random_string()
+    bind = random.choice([0, 1, 2, 3])
+    typ = random.choice([0, 1, 2, 3, 4, 5, 6, 7])
+    symbol['info'] = (bind << 4 | typ)
+    if typ == 1 or typ == 2:
+      symbol['size'] = random.randint(0, 0x7FF)
+    else:
+      symbol['size'] = 0
+    symbol['other'] = random.randint(0, 0xFF)
+    symbol['shndx'] = random.randint(0, 0xFFFF)
+    symbol['value'] = random.randint(0, 0xFFFFFFFF)
+    return symbol
+
+  def _gen_symbols(self):
+    for i in xrange(self.state['num_symbols']):
+      self.state['symbols'].append(self._gen_symbol())
+    symbols = ''
+    strtab = '\0'
+    for s in self.state['symbols']:
+      s['name_off'] = len(strtab)
+      strtab += s['name'] + '\0'
+      symbols += struct.pack('<IIIBBH', s['name_off'], s['value'], s['size'], s['info'], s['other'], s['shndx'])
+    self.state['cgcf'] += symbols
+    self.state['strtab'] = strtab
+
+  def _gen_section(self):
+    section = dict()
+    section['name'] = random_string()
+    section['flags'] = random.randint(0, 7)
+    section['addr'] = random.randint(0, 0xFFFFFFFF)
+    section['offset'] = self.state['cur_off']
+    section['size'] = random.randint(0x100, 0x500)
+    section['link'] = 0
+    section['info'] = random.randint(0, 0xFFFFFFFF)
+    section['addralign'] = random.choice([0, 1, 2, 4, 8, 16])
+    section['entsize'] = 0
+    section['type'] = random.choice([1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18, 19])
+    return section
+
+  def _gen_sections(self):
+    self.state['cur_off'] = self.state['base_off']
+    self.state['sections'].append({'name': '', 'type': 0, 'flags': 0, 'addr': 0, 'offset': 0, 'size': 0, 'link': 0, 'info': 0, 'addralign': 0, 'entsize': 0})
+    for i in xrange(self.state['e_shnum'] - 3):
+      if i + 1 == self.state['e_shtrndx']:
+        self.state['sections'].append({'name': random_string(), 'type': 3, 'flags': 0, 'addr': 0, 'offset': self.state['cur_off'], 'size': 21 * self.state['e_shnum'], 'link': 0, 'info': 0, 'addralign': 0, 'entsize': 0})
+        self.state['cur_off'] += 21 * self.state['e_shnum']
+      else:
+        s = self._gen_section()
+        self.state['sections'].append(s)
+        self.state['cur_off'] += s['size']
+    self.state['sections'].append({'name': random_string(), 'type': 2, 'flags': 0, 'addr': 0, 'offset': self.state['cur_off'], 'size': self.state['num_symbols'] * 16, 'link': self.state['e_shnum'] - 1, 'info': 0, 'addralign': 0, 'entsize': 0})
+    self.state['cur_off'] += self.state['num_symbols'] * 16
+    self.state['sections'].append({'name': random_string(), 'type': 3, 'flags': 0, 'addr': 0, 'offset': self.state['cur_off'], 'size': 21 * self.state['num_symbols'], 'link': 0, 'info': 0, 'addralign': 0, 'entsize': 0})
+    self.state['cur_off'] += self.state['num_symbols'] + 21
+
+    sections = ''
+    shstr = ''
+    for s in self.state['sections']:
+      s['name_off'] = len(shstr)
+      shstr += s['name'] + '\0'
+      sections += struct.pack('<IIIIIIIIII', s['name_off'], s['type'], s['flags'], s['addr'], s['offset'], s['size'], s['link'], s['info'], s['addralign'], s['entsize'])
+    self.state['cgcf'] += sections
+    self.state['shstr'] = shstr
+
+  def _gen_cgcf_header(self):
+    if random.randint(1, 100) <= 3:
+      header = random_bytes(4)
+    else:
+      header = '\x7fCGC'
+    header += '\x01\x01' + random_bytes(12 - 2)
+    header += random_bytes(2 + 2 + 4 + 4)
+    self.state['e_phoff'] = random.randint(0x34, 0x34 + 20)
+    self.state['e_shoff'] = random.randint(0x400, 0x400 + 100)
+    header += struct.pack('<II', self.state['e_phoff'], self.state['e_shoff'])
+    header += random_bytes(4)
+    header += struct.pack('<H', self.state['e_phoff'])
+    header += random_bytes(2 + 2)
+    header += struct.pack('<H', 40)
+    self.state['e_shnum'] = random.randint(5, 20)
+    header += struct.pack('<H', self.state['e_shnum'])
+    self.state['e_shtrndx'] = random.randint(1, self.state['e_shnum'] - 3)
+    header += struct.pack('<H', self.state['e_shtrndx'])
+    header += random_bytes(self.state['e_phoff'] - len(header))
+    self.state['cgcf'] = header
+
+  def gen_cgcf(self):
+    self._gen_cgcf_header()
+    self.state['cgcf'] += random_bytes(self.state['e_shoff'] - len(self.state['cgcf']))
+    if self.state['base_off'] - self.state['e_shoff'] < self.state['e_shnum'] * 40:
+      self.state['base_off'] = self.state['e_shnum'] * 40 + self.state['e_shoff']
+    self._gen_sections()
+    self.state['cgcf'] += random_bytes(self.state['base_off'] - len(self.state['cgcf']))
+
+    for i in xrange(len(self.state['sections']) - 2):
+      s = self.state['sections'][i]
+      if i == self.state['e_shtrndx']:
+        self.state['cgcf'] += self.state['shstr'].ljust(s['size'], '\0')
+      else:
+        self.state['cgcf'] += random_bytes(s['size'])
+    self._gen_symbols()
+    self.state['cgcf'] += self.state['strtab'].ljust(self.state['sections'][-1]['size'], '\0')
+    output = struct.pack('<I', len(self.state['cgcf'])) + self.state['cgcf']
+    self.write(output)
+
+  def _max_section_name_len(self):
+    return len(max(self.state['sections'], key=lambda x: len(x['name']))['name'])
+
+  def _section_type2str(self, t):
+    if t == 0: return "NULL"
+    if t == 1: return "PROGBITS"
+    if t == 2: return "SYMTAB"
+    if t == 3: return "STRTAB"
+    if t == 4: return "RELA"
+    if t == 5: return "HASH"
+    if t == 6: return "DYNAMIC"
+    if t == 7: return "NOTE"
+    if t == 8: return "NOBITS"
+    if t == 9: return "REL"
+    if t == 10: return "-reserved-"
+    if t == 11: return "DYNSYM"
+    if t == 14: return "INIT_ARRAY"
+    if t == 15: return "FINI_ARRAY"
+    if t == 16: return "PREINIT_ARRAY"
+    if t == 17: return "GROUP"
+    if t == 18: return "SYMTAB_SHNDX"
+    if t == 19: return "NUM"
+
+    return "UNKNOWN"
+
+  def _symbol_type2str(self, t):
+    if t == 0: return "NOTYPE"
+    if t == 1: return "OBJECT"
+    if t == 2: return "FUNC"
+    if t == 3: return "SECTION"
+    if t == 4: return "FILE"
+    if t == 5: return "COMMON"
+    if t == 6: return "TLS"
+    if t == 7: return "NUM"
+
+    return "UNKNOWN"
+
+  def _symbol_bind2str(self, b):
+    if b == 0: return "LOCAL"
+    if b == 1: return "GLOBAL"
+    if b == 2: return "WEAK"
+    if b == 3: return "NUM"
+
+    return "UNKNOWN"
+
+  def parse_cgcf(self):
+    if len(self.state['cgcf']) > 2 * 1024 * 1024:
+      self.read(length=len('Too big.\n'), expect='Too big.\n')
+      return
+    if self.state['cgcf'][:4] != '\x7fCGC':
+      self.read(length=len('Invalid CGC magic.\n'), expect='Invalid CGC magic.\n')
+      return
+    s = 'Valid CGC executable format found [%d bytes]\n\n' % len(self.state['cgcf'])
+    self.read(length=len(s), expect=s)
+    s = '%d section header(s):\n' % len(self.state['sections'])
+    self.read(length=len(s), expect=s)
+    max_len = self._max_section_name_len()
+    s = '  [No.] Name' + ' ' * (max_len - 4) + '  Type           Addr     Off    Size\n'
+    self.read(length=len(s), expect=s)
+    self.state['sections'] = sorted(self.state['sections'], key=lambda x: x['offset'])
+    for i in xrange(len(self.state['sections'])):
+      sec = self.state['sections'][i]
+      s = '  [%3d] %s' % (i, sec['name'])
+      s += ' ' * (max_len - len(sec['name']))
+      type_str = self._section_type2str(sec['type'])
+      s += '  %s' % type_str
+      s += ' ' * (14 - len(type_str))
+      s += ' %08x %06x %06x\n' % (sec['addr'], sec['offset'], sec['size'])
+      self.read(length=len(s), expect=s)
+    self.read(length=len('\n'), expect='\n')
+
+    s = '%d symbol(s):\n' % len(self.state['symbols'])
+    self.read(length=len(s), expect=s)
+    s = '  [No.] Value       Size Type    Bind    Name\n'
+    self.read(length=len(s), expect=s)
+    self.state['symbols'] = sorted(self.state['symbols'], key=lambda x: x['name'])
+    for i in xrange(len(self.state['symbols'])):
+      sym = self.state['symbols'][i]
+      typ = self._symbol_type2str(sym['info'] & 0xF)
+      bind = self._symbol_bind2str(sym['info'] >> 4)
+      s = '  [%3d] 0x%08x %5d %s' % (i, sym['value'], sym['size'], typ)
+      s += ' ' * (7 - len(typ))
+      s += ' %s' % (bind) + ' ' * (7 - len(bind))
+      s += ' %s\n' % sym['name']
+      self.read(length=len(s), expect=s)
+    self.read(length=len('\n'), expect='\n')
+
+    self.read(length=len('DONE\n'), expect='DONE\n')
+

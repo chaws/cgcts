@@ -6,9 +6,10 @@
 extern void *cgc_memcpy(void *dest, const void *src, cgc_size_t n);
 extern void *cgc_memmove(void *dest, const void *src, cgc_size_t n);
 extern void *cgc_memset(void *dest, int c, cgc_size_t n);
-extern int cgc_memcmp(void *s1, const void *s2, cgc_size_t n);
+extern int memcmp(void *s1, const void *s2, cgc_size_t n);
 extern void *memchr(const void *s, int c, cgc_size_t n);
 
+extern int cgc_strcmp(const char *s1, const char *s2);
 extern cgc_size_t cgc_strlen(const char *s);
 extern char *cgc_strcpy(char *dest, const char *src);
 extern char *strncpy(char *dest, const char *src, cgc_size_t n);

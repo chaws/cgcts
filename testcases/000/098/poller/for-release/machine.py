@@ -1,85 +1,117 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2014 
-#   Brian Caswell <bmc@lungetech.com>
-#   Narf Industries <info@narfindustries.com>
+# Copyright (c) 2014 Jason L. Wright (jason@thought.net)
+# All rights reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
 #
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
-import string
-import sys
-import os
 
 from generator.actions import Actions
-from random import choice,randint
-from struct import *
+import random
+import string
+import re
+import sys
 
-WELCOME="Welcome to EternalPass! Please enter your last password: "
-HOWMANY="\nHow many new passwords do you need? "
-SEED="\nWhat seed to use for pw generation (0 for system seed)? "
-PRNG="\nAddress of custom PRNG (ALPHA, unsupported, 0 for default)? "
-PLZWAIT="\nPlease wait while we build your password file. While you wait, here are your plaintext passwords:\n"
-HEREITIS="\nThanks for waiting! Here is your password file. Welcome!\n"
-SECUREMODE="\nTry experimental secure mode (1 for yes)? "
-SECUREMODESEEDS="\nEnter secure mode seeds: "
+def random_string(size):
+    chars = string.letters + string.digits
+    return ''.join(random.choice(chars) for _ in range(size))
 
-def random_alpha(a, b):
-    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
+class PetPoller(Actions):
+    pettypes = { 'cat' : { 'rollover' : 'will not roll over',
+                           'flush' : 'purrs takes a nap',
+                           'speak' : 'meows' },
+                 'dog' : { 'rollover' : 'rolls over',
+                           'speak' : 'barks',
+                           'flush' : 'goes to sleep... permanently' },
+                 'hotdog' : { 'rollover' : 'rolls over on the grill',
+                              'speak' : 'can\'t speak',
+                              'flush' : 'tastes great with ketchup and mustard'}}
 
-class EternalPass(Actions):
     def start(self):
-        self.delay(50)
-        pass
-    def enter_pass(self):
-        self.read(length=len(WELCOME),expect=WELCOME)
-        self.passwd = random_alpha(10,20)
-        self.write(self.passwd+"\n")
-    def enter_num_pass(self):
-        self.read(length=len(HOWMANY),expect=HOWMANY)
-        self.count = randint(1,20)
-        self.write(str(self.count)+"\n")
-    def enter_seed(self):
-        self.read(length=len(SEED),expect=SEED)
-        self.seed = randint(0,1)
-        self.write(str(self.seed)+"\n")
-    def enter_prng(self):
-        self.read(length=len(PRNG),expect=PRNG)
-        #default, prng, another_prng
-        self.prng = choice([0,0x08c6b0d0,0x08c6b100])
-        self.write(str(self.prng)+"\n")
-    def secure_mode(self):
-        self.read(length=len(SECUREMODE),expect=SECUREMODE)
-        #default, prng, another_prng
-        self.secure_mode = choice([0,1])
-        if self.secure_mode:
-            self.write("1\n")
-            self.read(length=len(SECUREMODESEEDS),expect=SECUREMODESEEDS)
-            self.sseeds = [randint(0,0xffffffff) for i in range(4)]
-            for s in self.sseeds:
-                self.write("%d\n"%s)
-        else:
-            self.write("0\n")
-    def get_results(self):
-        self.read(length=len(PLZWAIT),expect=PLZWAIT)
-        for i in range(self.count):
-            self.read(expect=".*",delim="\n",expect_format="pcre")
-        self.read(length=len(HEREITIS), expect=HEREITIS)
-        #TODO actually parse rc4 buffer?
+        self.pets = []
+        self.go_read(expect='ctors called...\n')
+        self.go_read(expect='list init...\n')
+        self.seq = random.randint(-sys.maxint - 1, sys.maxint)
 
-        
+    def main(self):
+        pass
+
+    def create_and_name(self):
+        d = {}
+        d['type'] = random.choice(self.pettypes.keys())
+        d['name'] = random_string(random.randint(1, 150))
+        self.go_write('%d create %s\n' % (self.seq, d['type']))
+        self.seq += 1
+        self.go_read(expect='init..\n')
+        self.go_write('%d name %d %s\n' % (self.seq, len(self.pets), d['name']))
+        self.seq += 1
+        self.pets.append(d)
+
+    def debug(self):
+        self.go_write('%d debug\n' % (self.seq))
+        self.seq += 1
+        if len(self.pets) == 0:
+            pass
+        else:
+            for p in self.pets:
+                self.read(delim='\n', expect=r'^[a-f0-9]{8} [a-f0-9]{8}\n$',
+                          expect_format='pcre')
+
+    def delete(self):
+        if len(self.pets) == 0:
+            self.go_write('%d delete %d\n' % (self.seq, 0))
+            self.seq += 1
+            self.go_read(expect="you don't have any pets\n")
+        else:
+            if len(self.pets) == 1:
+                n = 0
+            else:
+                n = random.randrange(0, len(self.pets)-1)
+
+            self.go_write('%d delete %d\n' % (self.seq, n))
+            self.seq += 1
+            p = self.pets.pop(n)
+            m = p['name'] + ' ' + self.pettypes[p['type']]['flush'] + "\n"
+            self.go_read(expect=m)
+
+    def rollover(self):
+        self.go_write('%d rollover\n' % (self.seq))
+        self.seq += 1
+        for p in self.pets:
+            m = p['name'] + ' ' + self.pettypes[p['type']]['rollover'] + "\n"
+            self.go_read(expect=m)
+
+    def speak(self):
+        self.go_write('%d speak\n' % (self.seq))
+        self.seq += 1
+        for p in self.pets:
+            m = p['name'] + ' ' + self.pettypes[p['type']]['speak'] + "\n"
+            self.go_read(expect=m)
+    
+    def done(self):
+        pass
+
+    def go_write(self, s):
+        self.write(s)
+
+    def go_read(self, expect):
+        self.read(expect=expect, length=len(expect))

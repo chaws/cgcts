@@ -1,35 +1,40 @@
-# PRU
+# Facilities_Access_Control_System
 
 ## Author Information
 
-"Cromulence" <cgc@cromulence.com>
+"Joe Rogers" <joe@cromulence.com>
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Cromulence (CROMU)
 
 ## Description
+This CB implements a basic facility security system.  It takes inputs from door contact, heat sensors, smoke alarms, motion sensors, keypads and card swipes.  Users can be added or deleted from the system, and they can be granted access to specific keypads and card swipes.  Input devices are then associated with alarm devices which read sensors throughout the facility and can be armed or disarmed using keypad or card swipe devices.
 
-This is an emulator of an instruction set inspired by the TI ARM PRU. The PRU is featured on the BeagleBone black, and was used to provide high performance I/O on a board at the DEF CON 2015 Capture The Flag.
+Once the devices and users are defined, the CRS can send inputs to the various devices to change their state (ie: motion detected/not-detected, contact open/closed).  And based on these state changes, a given alarm might be triggered.  
 
 ### Feature List
-
-This service features an ALU and pieces of a branch unit. A user can do a variety of arithmetic operations on 32 registers, and conditional branching as well.
+- 5-digit PIN numbers for keypads
+- 32-digit codes for card swipes
+- Alarms capable of monitoring door contacts, heat sensors, smoke alarms, and motion sensors
+- Binary interface suitable for integration with any user interface front-end
+- User creation and deletion
+- User access controls per keypad or card swipe
 
 ## Vulnerability
+The CB is designed to handle up to 128 users (with UserID's 0 - 127).  User information is stored in an appropriately sized array.  However, a mistake in the AddUser function allows the signed 8-bit integer used for array indexing to take on a value of -1 if an attempt is made to create 129 users.  
 
-SCAN instruction allows the user to scan bytes within the code segment of the emulator. This would allow for a constant table to be placed within the instruction stream. The SCAN instruction validates that the register+immediate offset are within the confines of the code section, but it doesn't do the same check for register+register form of the instruction.
+This out-of-bounds write allows portions of the preceding Device array to be overwritten.  The device array contains a pointer to device-specific information for the various device types supported by the CB.  For keypad and card swipe devices, this pointer references memory containing the valid pin and codes for those devices.  And, there exists a function available to the user to list all pins and codes for those types of devices.  If the overwritten device entry is properly formatted to look like a keypad or card swipe device, and if the pointer is set to the address of the magic page, a type 2 vulnerability exists.
 
 ### Generic class of vulnerability
-Insufficient bounds checking
+Integer overflow leading to an out-of-bounds array write
 
 ### CWE classification
-Insufficient bounds checking
-CWE-125: Out-of-bounds Read
+CWE-190: Integer Overflow or Wraparound
+CWE-787: Out-of-bounds Write
 
 ## Challenges
-### Discovery
-Medium - many instructions modify state. May not be obvious how much control the CRS has over the pieces which make the vulnerability occur.
-### Proving
-Medium/Hard - A CRS will have to understand the emulator and use that to feed and transform values in the register states to prove vulnerability.
-### Fixing
-Easy - a contraint needs to be applied on the register arg2 form of SCAN in much same way it is applied on the immediate form.
+The integer overflow should be relatively easy to identify.  Determining that this overflow can be used to craft a specific type of device and then use that device's pointer to access the magic page will be more difficult.
+
+Discovering - Easy
+Proving - Medium
+Fixing - Easy

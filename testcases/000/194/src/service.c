@@ -21,57 +21,54 @@
 */
 
 #include "libcgc.h"
-#include "cgc_stdint.h"
+#include "cgc_service.h"
+#include "cgc_actions.h"
 #include "cgc_libc.h"
-#include "cgc_cttp.h"
 
-/**
- * Make some backups of the flag page
- *
- * @param s Destination
- * @param np Number of times to copy it
- */
-void cgc_initialize(char *s, cgc_size_t np) {
-    cgc_size_t i;
+#define GREET "Hello and welcome to the RLEStream(TM) beta!\n\n"\
+    "Use any of the following commands to interact:\n"\
+    "list - List currently uploaded videos\n"\
+    "play <name> <key> - Play a video\n"\
+    "add <name> - Upload a video (will prompt for more data)\n"\
+    "remove <name> - Delete a video\n\n"\
+    "Thank you for choosing us for your archaic streaming needs!\n\n"
 
-    if (np > 16)
-        return;
+#define WAT "wat"
 
-    for (i = 0; i < np; i++)
-        cgc_memcpy(s+(i*PAGE_SIZE), (char *)FLAG_PAGE, PAGE_SIZE);
-}
+typedef struct action {
+    char *name;
+    void (*action)(char *req);
+} action;
 
 int main(int cgc_argc, char *cgc_argv[]) {
-    char stack[PAGE_SIZE*16];
+    int i;
+    char recv[1024] = {0};
+    vhead = NULL;
 
-    int fd;
-    cgc_fd_set readfds;
-    int numready = 0;
-    struct cgc_timeval timeout = {2, 0};
-    cgc_size_t i, res, recvd = 0;
-
-    //lets be nice and make some backup copies of the flag page :)
-    cgc_initialize(stack, 16);
-
-    //get our stack cookies ready
-    cgc___stack_cookie_init();
+    action alist[5] = {
+                            {.name = "list", .action = cgc_list},
+                            {.name = "play ", .action = cgc_play},
+                            {.name = "add ", .action = cgc_add},
+                            {.name = "remove ", .action = cgc_remove},
+                            {.name = "quit", .action = cgc_quit}
+    };
+    
+    SSENDL(sizeof(GREET)-1, GREET);
 
     while (1) {
-        FD_ZERO(&readfds);
-        FD_SET(fd, &readfds);
+        cgc_promptc(recv, sizeof(recv), "8=D ");
 
-        res = cgc_fdwait(fd+1, &readfds, NULL, &timeout, &numready);
-
-        if (!res && numready) {
-            if (!cgc_handle_request())
+        for (i = 0; i < sizeof(alist)/sizeof(action); i++) {
+            if (cgc_startswith(recv, alist[i].name)) {
+                alist[i].action(recv+cgc_strlen(alist[i].name));
                 break;
-        } else {
-            break;
+            }
         }
+
+        if (i == sizeof(alist)/sizeof(action)) {
+            SSENDL(sizeof(WAT)-1, WAT);
+        }
+
     }
-
-    //send stats!
-    cgc_print_stats();
-
     return 0;
 }

@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  *
  */
-
 #include "libcgc.h"
 
 int cgc_strcmp(const char *s1, const char *s2)

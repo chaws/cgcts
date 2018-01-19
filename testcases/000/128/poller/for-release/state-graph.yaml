@@ -1,33 +1,31 @@
 ---
 nodes:
 - name: start
-- name: top
-- name: end
-- name: register_user
-- name: set_current_user
-- name: register_sensor
-- name: send_sensor_data
-- name: request_sensors
-- name: remove_sensor
-- name: get_hw_ids
-
+- name: menu
+- name: enter_text
+- name: enter_search
+- name: line_set_partial_match
+- name: line_set_exact_match
+- name: print_text
+- name: print_search
+- name: search_text
+- name: quit
 
 edges:
-- start: register_user
-- register_user: top
-- top: set_current_user
-- top: register_sensor
-- top: send_sensor_data
-- top: request_sensors
-- top: remove_sensor
-- top: register_user
-- top: get_hw_ids
-- set_current_user: top
-- remove_sensor: top
-- register_sensor: top
-- send_sensor_data: top
-- request_sensors: top
-- get_hw_ids: top
-- top: end
-  weight: .15
-
+- start: menu
+- menu: enter_text
+- menu: enter_search
+- menu: line_set_partial_match
+- menu: line_set_exact_match
+- menu: print_text
+- menu: print_search
+- menu: search_text
+- enter_text: menu
+- enter_search: menu
+- line_set_partial_match: menu
+- line_set_exact_match: menu
+- print_text: menu
+- print_search: menu
+- search_text: menu
+- menu: quit
+  weight: 0.1

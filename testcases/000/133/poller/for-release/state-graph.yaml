@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright (C) 2014 Narf Industries <info@narfindustries.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -19,15 +17,34 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 ---
 nodes:
 - name: start
-- name: valid
-- name: invalidseg
-- name: nottrusted
+- name: command
+- name: invalid
+- name: camera
+- name: sphere
+- name: plane
+- name: render
+- name: quit
 
 edges:
-- start: valid
-- start: invalidseg
-- start: nottrusted
+- start: command
+- command: invalid
+  weight: 0.1
+- command: camera
+  weight: 0.1
+- command: sphere
+  weight: 0.3
+- command: plane
+  weight: 0.3
+- command: render
+  weight: 0.1
+- command: quit
+  weight: 0.1
+- invalid: command
+- camera: command
+- sphere: command
+- plane: command
+- render: command
+

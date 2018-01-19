@@ -1,65 +1,67 @@
-# BIRC
+# CROMU_00027 - ASCII Content Server
+
+## Author Information
+
+"Debbie Nuttall" <debbie@cromulence.co>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+Cromulence LLC (CROMU)
 
 ## Description
 
-A binary protocol inspired by an internet relay chat service service
+This is a content server patterned very loosely after an HTTP web server. It supports a custom markup and scripting language and serves all output as printable ASCII. 
 
 ### Feature List
+The ASCII Content Server responds to these commands:
+ 
+  REQUEST - retrieves a page from the server
+  QUERY - prints the page tree hierarchy on the server
+  SEND - upload a new page to the server
+  REMOVE - delete a page from the server
+  VISUALIZE - process the given page data as ASCII Markup and serve it back
+  INTERACT - retrieves a page from the server while overriding the given variables 
 
-The CB proivdes a Client/Server model with the server holding all of the program's state and the client interfacing with the user
-to make requests and receive responses.
-A client may make the following request to the sever:
-    -Register an account
-    -Verify user password
-    -Search for registered accounts
-    -Add a channel
-    -Join other channels
-    -Search for registered channels
-    -Leave a channel
-    -Delete a channel if the user is its creator
-    -Request server tokens, if the user is a remote admin
-    -Exit Client/Server
-The local client also allows a user to switch between accounts via a login/logout
+The server starts with a default set of pages that exercise the available functionality including a markup language and scripting. 
 
+ASCII Markup Language:
+  ~ is the escape character
+  ~t insert tab
+  ~n insert newline
+  ~[ insert left bracket
+  ~] insert right bracket
+  ~~ insert tilde
+  ~# insert hash
+  #variable# insert value of variable
+  [] are script tags. 
+Script actions are:
+  var - set a variable
+  box - put page data inside an ASCII text box
+  line - draw a line of given length
+
+The server supports variables within the page data. Variables can be set via a script or through the data portion of an INTERACT command. Variables can be retrieved by using the #varname# syntax within the page data. Variables set via the INTERACT command will override any variables present in the page data. The server stores all pages on the heap in a tree structure.
 
 ## Vulnerability
-### Vuln 1
+There are four vulnerabilities in this service. 
 
-The vulnerability is triggered by a buffer overflow which allows an attacker to overwrite the name of 
-the first cached user. This allows an attacker to change the client's username to {12, 34, 56, 78} 
-(which is supposed to represent some well known admin string, such as "root" or "admin"). This special value
-represents the server's internal default admin user whose password is the same as its username (think admin/admin).
-By exploiting this realitively simple 4 byte user/pass combination the client can access functionality that
-it was never supposed to have access to. This gives the attacker access to a privileged function call 
-that can access the server's secret data.
+The first is an out of bounds write on a stack array. In tree.c:WalkTree() there is an array of pointers called node_stack. The node_stack array is used to perform a depth first search of the page tree. As the function walks the tree, it adds pointers to unexplored nodes to the node_stack along with a depth value to aid in printing the tree. The tree depth is restricted by the 63 byte length restriction on a node's name field. The node_stack is sized to hold a maximum depth tree, but does not account for the indent field stored along with the node so it is thus half the size it should be for a maximum depth tree. When a tree of appropriate dimensions is given to WalkTree(), node_stack will overflow allowing an overwrite of the return pointer on the stack with the address of a TreeNode on the heap. 
 
-The patch not only fixes the buffer overflow, but changes the remote server authentication from a short
-and guessable password to a longer and harder to brute force token.
+The second is a null pointer dereference. If the VISUALIZE or INTERACT commands are sent with a zero length data field, the service attempts to read the pointer to the data field which is null.
 
-#### Generic class of vulnerability
+The third is a signed to unsigned conversion error that results in invalid memory access. 
 
-Buffer overflow
-Weak permission/authentication
+### Generic class of vulnerability
+Out of bounds write overflowing an array of pointers on the stack. 
+Null pointer dereference.
+Signed to unsigned conversion error 
 
-#### CWE classification
+### CWE classification
+CWE-787 - Out of bounds write
+CWE-476 - Null pointer dereference
+CWE-195 - Signed to unsigned conversion error
 
-CWE-121: Stack-based Buffer Overflow
-CWE-287: Improper Authentication
-CWE-521: Weak Password Requirements
+## Challenges
+The null pointer dereference and signed to unsigned conversion error should be detected through standard fuzzing. 
 
-#### Challenges
+Identifying the out of bounds write vulnerability is not as straightforward as a standard buffer overflow because the overwrite does not occur with user generated input, but it can be mitigated using the same basic techniques as a standard buffer overflow. 
 
-The challenege for this CB is understanding how both the client and the server function in order to enable the info leak.
-The CB has built a nontrivial communication protocol between the client and server in order to test the CRS's ability to
-interpret structured data. With this model the data sent from the CRS to the client does not use the same structure as
-the data protocol between the client and server. This forces the CRS to deduce the communication protocol strictly through
-binary analysis and not through pcap data.
-
-#### Difficulty
-
- - **Discovery**: easy
- - **Proving**: hard
- - **Patching**: medium
+The challenge in proving it is for the CRS to construct a tree in memory capable of overflowing the node_stack buffer. The CRS must construct a tree that is at least 33 elements deep with each element also containing a peer. This requires adding one element at a time in a hierarchical fashion that is highly unlikely to occur through fuzzing. The CRS must then initiate a QUERY command at the top level of the tree to access the vulnerable WalkTree() function. 

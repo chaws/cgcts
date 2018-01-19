@@ -1,4 +1,4 @@
-CHAL=ValveChecks
+CHAL=Overflow_Parking
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,33 +20,27 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -mno-sse -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -mno-sse -O0 -g -fcommon -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -mno-sse -O0 -g -fcommon -o src/csum.c.o -c src/csum.c
-	$(CC) $(FLAGS) -o ValveChecks_patched lib/libc.c.o src/service.c.o src/csum.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fcommon -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fcommon -o lib/list.c.o -c lib/list.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fcommon -o src/malloc.c.o -c src/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O0 -g -fcommon -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Overflow_Parking_patched lib/prng.c.o lib/libc.c.o lib/list.c.o src/malloc.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -mno-sse -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -mno-sse -O0 -g -fcommon -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -mno-sse -O0 -g -fcommon -o src/csum.c.o -c src/csum.c
-	$(CC) $(FLAGS) -o ValveChecks lib/libc.c.o src/service.c.o src/csum.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o lib/list.c.o -c lib/list.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o src/malloc.c.o -c src/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Overflow_Parking lib/prng.c.o lib/libc.c.o lib/list.c.o src/malloc.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -mno-sse -O0 -g -fcommon -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -mno-sse -O0 -g -fcommon -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -mno-sse -O0 -g -fcommon -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_6 -I include -I lib -I src -mno-sse -O0 -g -fcommon -pedantic -o pov_6/pov.c.o -c pov_6/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_5 -I include -I lib -I src -mno-sse -O0 -g -fcommon -pedantic -o pov_5/pov.c.o -c pov_5/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -mno-sse -O0 -g -fcommon -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(FLAGS) -o ValveChecks_pov_6 pov_6/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o ValveChecks_pov_5 pov_5/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o ValveChecks_pov_4 pov_4/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o ValveChecks_pov_3 pov_3/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o ValveChecks_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o ValveChecks_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o Overflow_Parking_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_4/pov.c.o pov_1/pov.c.o pov_6/pov.c.o pov_5/pov.c.o pov_3/pov.c.o lib/libc.c.o src/service.c.o src/csum.c.o lib/libc.c.o src/service.c.o src/csum.c.o ValveChecks_pov_2 ValveChecks_pov_4 ValveChecks_pov_1 ValveChecks_pov_6 ValveChecks_pov_5 ValveChecks_pov_3 ValveChecks_patched ValveChecks
+	rm -f pov_1/pov.c.o lib/prng.c.o lib/libc.c.o lib/list.c.o src/malloc.c.o src/service.c.o lib/prng.c.o lib/libc.c.o lib/list.c.o src/malloc.c.o src/service.c.o Overflow_Parking_pov_1 Overflow_Parking_patched Overflow_Parking

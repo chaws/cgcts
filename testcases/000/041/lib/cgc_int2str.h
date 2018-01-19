@@ -23,8 +23,6 @@
 #ifndef INT2STR_H
 #define INT2STR_H 1
 
-#include "cgc_libc.h"
-
 /**
  * Convert a 32bit int to an ASCII string.
  * Note: str_buf must be large enough to fit the sign, number(s), and '\0'.
@@ -34,7 +32,7 @@
  * @param i An integer
  * @return 0, -1 on error
  */
-int cgc_int2str(char *str_buf, cgc_size_t buf_size, int32_t i);
+int cgc_int2str(char *str_buf, unsigned int buf_size, int i);
 
 
 #endif

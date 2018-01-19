@@ -40,7 +40,7 @@ cgc_size_t size_class_limits[NUM_FREE_LISTS] = {
 
 struct blk_t *cgc_free_lists[NUM_FREE_LISTS] = {0};
 
-static void remove_from_blist(struct blk_t *blk)
+static void cgc_remove_from_blist(struct blk_t *blk)
 {
   if (blk->prev)
     blk->prev->next = blk->next;
@@ -103,8 +103,8 @@ void cgc_coalesce(struct blk_t *blk)
     blk->prev->size += blk->next->size;
     cgc_insert_into_flist(blk->prev);
 
-    remove_from_blist(blk->next);
-    remove_from_blist(blk);
+    cgc_remove_from_blist(blk->next);
+    cgc_remove_from_blist(blk);
   /* Just prev is free */
   } else if (blk->prev && blk->prev->free && blk->next && !blk->next->free) {
     cgc_remove_from_flist(blk->prev);
@@ -113,7 +113,7 @@ void cgc_coalesce(struct blk_t *blk)
     blk->prev->size += blk->size;
     cgc_insert_into_flist(blk->prev);
 
-    remove_from_blist(blk);
+    cgc_remove_from_blist(blk);
   /* Just next is free */
   } else if (blk->prev && !blk->prev->free && blk->next && blk->next->free) {
     cgc_remove_from_flist(blk->next);
@@ -122,6 +122,6 @@ void cgc_coalesce(struct blk_t *blk)
     blk->size += blk->next->size;
     cgc_insert_into_flist(blk);
 
-    remove_from_blist(blk->next);
+    cgc_remove_from_blist(blk->next);
   }
 }

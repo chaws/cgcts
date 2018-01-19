@@ -27,42 +27,6 @@ THE SOFTWARE.
 #include "cgc_stdlib.h"
 #include "cgc_stdint.h"
 
-int cgc_islower( int c )
-{
-	if ( c >= 'a' && c <= 'z') {
-		return 1;
-	}
-
-	return 0;
-}
-
-int cgc_isupper( int c )
-{
-	if ( c >= 'A' && c <= 'Z') {
-		return 1;
-	}
-
-	return 0;
-}
-
-int cgc_isascii( int c )
-{
-	if ( 0x20 <= c && c <= 0x7e ) {
-		return 1;
-	}
-
-	return 0;
-}
-
-int cgc_isalpha( int c )
-{
-	if ( cgc_islower(c) || cgc_isupper(c) ) {
-		return 1;
-	}
-
-	return 0;
-}
-
 int cgc_isspace( int c )
 {
     if ( c == ' ' ||
@@ -166,6 +130,80 @@ char *cgc_strncpy( char *dest, const char *src, cgc_size_t num )
 
     return (dest);
 }
+
+int cgc_flush_input( int fd )
+{
+    cgc_fd_set read_fds;
+    int err;
+    int ready_fd;
+    struct cgc_timeval tv;
+    char buffer[1024];
+    cgc_size_t rcv_cnt;
+
+    while (1)
+    {
+        cgc_memset( (void *)&read_fds, 0, sizeof(read_fds) );
+        FD_SET( fd, &read_fds );
+
+        tv.tv_sec = 0;
+        tv.tv_usec = 10;
+
+        err = cgc_fdwait( fd+1, &read_fds, NULL, &tv, &ready_fd );
+        if ( err != 0 )
+            return err;
+
+        if ( !FD_ISSET( fd, &read_fds ) )
+            break;
+        else
+            cgc_receive( fd, buffer, 1024, &rcv_cnt );
+    }
+
+    return (0);
+}
+
+cgc_size_t cgc_getline( char *buffer, cgc_size_t len )
+{
+    int count;
+
+    count = cgc_receive_until( buffer, '\n', len );
+
+    if ( count == len )
+        buffer[len-1] = '\0';
+    else
+        buffer[count] = '\0';
+
+    return (count);
+}
+
+cgc_size_t cgc_receive_until( char *dst, char delim, cgc_size_t max )
+{
+    cgc_size_t len = 0;
+    cgc_size_t rx = 0;
+    char c = 0;
+
+    while ( len < max )
+    {
+        dst[len] = 0x00;
+
+        if ( cgc_receive( STDIN, &c, 1, &rx ) != 0 )
+        {
+            len = 0;
+            goto end;
+        }
+
+        if ( c == delim )
+            goto end;
+
+        dst[len] = c;
+        len++;
+    }
+end:
+    if ( len == max )
+        cgc_flush_input( STDIN );
+
+    return (len);
+}
+
 
 void *cgc_memcpy( void *dest, void *src, cgc_size_t numbytes )
 {

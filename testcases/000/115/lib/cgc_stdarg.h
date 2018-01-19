@@ -1,8 +1,8 @@
 /*
 
-Author: Jason Williams <jdw@cromulence.com>
+Copyright (c) 2015 Cromulence LLC
 
-Copyright (c) 2014 Cromulence LLC
+Authors: Cromulence <cgc@cromulence.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,14 +29,11 @@ THE SOFTWARE.
 #ifdef WIN
 #include <stdarg.h>
 #else
-typedef __builtin_va_list __gnuc_va_list;
+typedef __builtin_va_list va_list;
 
-#define va_start(v,l)   __builtin_va_start(v,l)
-#define va_end(v)       __builtin_va_end(v)
-#define va_arg(v,l)     __builtin_va_arg(v,l)
-
-
-typedef __gnuc_va_list va_list;
+#define va_start(v, l)		__builtin_va_start(v, l)
+#define va_arg(v, l)		__builtin_va_arg(v, l)
+#define va_end(v)		__builtin_va_end(v)
 #endif
 
 #endif // __STDARG_H__

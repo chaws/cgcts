@@ -1,4 +1,4 @@
-CHAL=OUTLAW
+CHAL=H20FlowInc
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,85 +20,53 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/send_bytes.c.o -c cb_3/lib/send_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/recv_bytes.c.o -c cb_3/lib/recv_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/memcpy.c.o -c cb_3/lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/conv.c.o -c cb_3/lib/conv.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/debug.c.o -c cb_3/lib/debug.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/compress.c.o -c cb_3/lib/compress.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/string.c.o -c cb_3/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/memset.c.o -c cb_3/lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/crypto.c.o -c cb_3/lib/crypto.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/service.c.o -c cb_3/src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/send_bytes.c.o -c cb_2/lib/send_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/recv_bytes.c.o -c cb_2/lib/recv_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/memcpy.c.o -c cb_2/lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/conv.c.o -c cb_2/lib/conv.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/debug.c.o -c cb_2/lib/debug.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/compress.c.o -c cb_2/lib/compress.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/string.c.o -c cb_2/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/memset.c.o -c cb_2/lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/crypto.c.o -c cb_2/lib/crypto.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/service.c.o -c cb_2/src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/send_bytes.c.o -c cb_1/lib/send_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/recv_bytes.c.o -c cb_1/lib/recv_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/memcpy.c.o -c cb_1/lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/conv.c.o -c cb_1/lib/conv.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/debug.c.o -c cb_1/lib/debug.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/compress.c.o -c cb_1/lib/compress.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/string.c.o -c cb_1/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/memset.c.o -c cb_1/lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/crypto.c.o -c cb_1/lib/crypto.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/service.c.o -c cb_1/src/service.c
-	$(CC) $(FLAGS) -o OUTLAW_1_patched cb_1/lib/send_bytes.c.o cb_1/lib/recv_bytes.c.o cb_1/lib/memcpy.c.o cb_1/lib/conv.c.o cb_1/lib/debug.c.o cb_1/lib/compress.c.o cb_1/lib/string.c.o cb_1/lib/memset.c.o cb_1/lib/crypto.c.o cb_1/src/service.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o OUTLAW_3_patched cb_3/lib/send_bytes.c.o cb_3/lib/recv_bytes.c.o cb_3/lib/memcpy.c.o cb_3/lib/conv.c.o cb_3/lib/debug.c.o cb_3/lib/compress.c.o cb_3/lib/string.c.o cb_3/lib/memset.c.o cb_3/lib/crypto.c.o cb_3/src/service.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o OUTLAW_2_patched cb_2/lib/send_bytes.c.o cb_2/lib/recv_bytes.c.o cb_2/lib/memcpy.c.o cb_2/lib/conv.c.o cb_2/lib/debug.c.o cb_2/lib/compress.c.o cb_2/lib/string.c.o cb_2/lib/memset.c.o cb_2/lib/crypto.c.o cb_2/src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/send.c.o -c lib/send.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/pi_prng.c.o -c lib/pi_prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/xxprintf.c.o -c lib/xxprintf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/recv_all.c.o -c lib/recv_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/syslog.c.o -c lib/syslog.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/sendall.c.o -c lib/sendall.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/sleep.c.o -c lib/sleep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/int2str.c.o -c lib/int2str.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/read_all.c.o -c lib/read_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/h2o.c.o -c src/h2o.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/tank.c.o -c src/tank.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o H20FlowInc_patched lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/pi_prng.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/syslog.c.o lib/sendall.c.o lib/sleep.c.o lib/int2str.c.o lib/strncpy.c.o lib/read_all.c.o lib/memset.c.o lib/strlen.c.o src/h2o.c.o src/tank.c.o src/operation.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/send_bytes.c.o -c cb_2/lib/send_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/recv_bytes.c.o -c cb_2/lib/recv_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/memcpy.c.o -c cb_2/lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/conv.c.o -c cb_2/lib/conv.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/debug.c.o -c cb_2/lib/debug.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/compress.c.o -c cb_2/lib/compress.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/string.c.o -c cb_2/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/memset.c.o -c cb_2/lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/crypto.c.o -c cb_2/lib/crypto.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/service.c.o -c cb_2/src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/send_bytes.c.o -c cb_3/lib/send_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/recv_bytes.c.o -c cb_3/lib/recv_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/memcpy.c.o -c cb_3/lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/conv.c.o -c cb_3/lib/conv.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/debug.c.o -c cb_3/lib/debug.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/compress.c.o -c cb_3/lib/compress.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/string.c.o -c cb_3/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/memset.c.o -c cb_3/lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/crypto.c.o -c cb_3/lib/crypto.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/service.c.o -c cb_3/src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/send_bytes.c.o -c cb_1/lib/send_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/recv_bytes.c.o -c cb_1/lib/recv_bytes.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/memcpy.c.o -c cb_1/lib/memcpy.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/conv.c.o -c cb_1/lib/conv.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/debug.c.o -c cb_1/lib/debug.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/compress.c.o -c cb_1/lib/compress.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/string.c.o -c cb_1/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/memset.c.o -c cb_1/lib/memset.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/crypto.c.o -c cb_1/lib/crypto.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/service.c.o -c cb_1/src/service.c
-	$(CC) $(FLAGS) -o OUTLAW_1 cb_1/lib/send_bytes.c.o cb_1/lib/recv_bytes.c.o cb_1/lib/memcpy.c.o cb_1/lib/conv.c.o cb_1/lib/debug.c.o cb_1/lib/compress.c.o cb_1/lib/string.c.o cb_1/lib/memset.c.o cb_1/lib/crypto.c.o cb_1/src/service.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o OUTLAW_3 cb_3/lib/send_bytes.c.o cb_3/lib/recv_bytes.c.o cb_3/lib/memcpy.c.o cb_3/lib/conv.c.o cb_3/lib/debug.c.o cb_3/lib/compress.c.o cb_3/lib/string.c.o cb_3/lib/memset.c.o cb_3/lib/crypto.c.o cb_3/src/service.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o OUTLAW_2 cb_2/lib/send_bytes.c.o cb_2/lib/recv_bytes.c.o cb_2/lib/memcpy.c.o cb_2/lib/conv.c.o cb_2/lib/debug.c.o cb_2/lib/compress.c.o cb_2/lib/string.c.o cb_2/lib/memset.c.o cb_2/lib/crypto.c.o cb_2/src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/send.c.o -c lib/send.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/pi_prng.c.o -c lib/pi_prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/xxprintf.c.o -c lib/xxprintf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/recv_all.c.o -c lib/recv_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/syslog.c.o -c lib/syslog.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/sendall.c.o -c lib/sendall.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/sleep.c.o -c lib/sleep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/int2str.c.o -c lib/int2str.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/read_all.c.o -c lib/read_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/h2o.c.o -c src/h2o.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/tank.c.o -c src/tank.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o H20FlowInc lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/pi_prng.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/syslog.c.o lib/sendall.c.o lib/sleep.c.o lib/int2str.c.o lib/strncpy.c.o lib/read_all.c.o lib/memset.c.o lib/strlen.c.o src/h2o.c.o src/tank.c.o src/operation.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov_1.c.o -c pov_1/pov_1.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov_debug.c.o -c pov_1/pov_debug.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov_debug.c.o -c pov_2/pov_debug.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov_2.c.o -c pov_2/pov_2.c
-	$(CC) $(FLAGS) -o OUTLAW_pov_2 pov_2/pov_debug.c.o pov_2/pov_2.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o OUTLAW_pov_1 pov_1/pov_1.c.o pov_1/pov_debug.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o H20FlowInc_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov_1.c.o pov_1/pov_debug.c.o cb_3/lib/send_bytes.c.o cb_3/lib/recv_bytes.c.o cb_3/lib/memcpy.c.o cb_3/lib/conv.c.o cb_3/lib/debug.c.o cb_3/lib/compress.c.o cb_3/lib/string.c.o cb_3/lib/memset.c.o cb_3/lib/crypto.c.o cb_3/src/service.c.o pov_2/pov_debug.c.o pov_2/pov_2.c.o cb_2/lib/send_bytes.c.o cb_2/lib/recv_bytes.c.o cb_2/lib/memcpy.c.o cb_2/lib/conv.c.o cb_2/lib/debug.c.o cb_2/lib/compress.c.o cb_2/lib/string.c.o cb_2/lib/memset.c.o cb_2/lib/crypto.c.o cb_2/src/service.c.o cb_2/lib/send_bytes.c.o cb_2/lib/recv_bytes.c.o cb_2/lib/memcpy.c.o cb_2/lib/conv.c.o cb_2/lib/debug.c.o cb_2/lib/compress.c.o cb_2/lib/string.c.o cb_2/lib/memset.c.o cb_2/lib/crypto.c.o cb_2/src/service.c.o cb_1/lib/send_bytes.c.o cb_1/lib/recv_bytes.c.o cb_1/lib/memcpy.c.o cb_1/lib/conv.c.o cb_1/lib/debug.c.o cb_1/lib/compress.c.o cb_1/lib/string.c.o cb_1/lib/memset.c.o cb_1/lib/crypto.c.o cb_1/src/service.c.o cb_3/lib/send_bytes.c.o cb_3/lib/recv_bytes.c.o cb_3/lib/memcpy.c.o cb_3/lib/conv.c.o cb_3/lib/debug.c.o cb_3/lib/compress.c.o cb_3/lib/string.c.o cb_3/lib/memset.c.o cb_3/lib/crypto.c.o cb_3/src/service.c.o cb_1/lib/send_bytes.c.o cb_1/lib/recv_bytes.c.o cb_1/lib/memcpy.c.o cb_1/lib/conv.c.o cb_1/lib/debug.c.o cb_1/lib/compress.c.o cb_1/lib/string.c.o cb_1/lib/memset.c.o cb_1/lib/crypto.c.o cb_1/src/service.c.o OUTLAW_pov_1 OUTLAW_3_patched OUTLAW_pov_2 OUTLAW_2_patched OUTLAW_2 OUTLAW_1_patched OUTLAW_3 OUTLAW_1
+	rm -f pov_1/pov.c.o lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/pi_prng.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/syslog.c.o lib/sendall.c.o lib/sleep.c.o lib/int2str.c.o lib/strncpy.c.o lib/read_all.c.o lib/memset.c.o lib/strlen.c.o src/h2o.c.o src/tank.c.o src/operation.c.o src/service.c.o lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/pi_prng.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/syslog.c.o lib/sendall.c.o lib/sleep.c.o lib/int2str.c.o lib/strncpy.c.o lib/read_all.c.o lib/memset.c.o lib/strlen.c.o src/h2o.c.o src/tank.c.o src/operation.c.o src/service.c.o H20FlowInc_pov_1 H20FlowInc_patched H20FlowInc

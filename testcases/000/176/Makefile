@@ -1,4 +1,4 @@
-CHAL=Network_Queuing_Simulator
+CHAL=Pipelined
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,39 +20,75 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/mt.c.o -c src/mt.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/queue.c.o -c src/queue.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/receive.c.o -c src/receive.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/generator.c.o -c src/generator.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/transmit.c.o -c src/transmit.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/input.c.o -c src/input.c
-	$(CC) $(FLAGS) -o Network_Queuing_Simulator_patched lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/mt.c.o src/queue.c.o src/receive.c.o src/service.c.o src/generator.c.o src/transmit.c.o src/input.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/printf.c.o -c cb_1/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/cgc_libc.c.o -c cb_1/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/cgc_malloc.c.o -c cb_1/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/service.c.o -c cb_1/src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/printf.c.o -c cb_2/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/cgc_libc.c.o -c cb_2/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/cgc_malloc.c.o -c cb_2/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/contains.c.o -c cb_2/src/contains.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/printf.c.o -c cb_3/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/cgc_libc.c.o -c cb_3/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/cgc_malloc.c.o -c cb_3/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/word-count.c.o -c cb_3/src/word-count.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/printf.c.o -c cb_6/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/cgc_libc.c.o -c cb_6/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/cgc_malloc.c.o -c cb_6/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/src/decompress.c.o -c cb_6/src/decompress.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/printf.c.o -c cb_4/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/cgc_libc.c.o -c cb_4/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/cgc_malloc.c.o -c cb_4/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/src/does-not-contain.c.o -c cb_4/src/does-not-contain.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/printf.c.o -c cb_5/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/cgc_libc.c.o -c cb_5/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/cgc_malloc.c.o -c cb_5/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/src/compress.c.o -c cb_5/src/compress.c
+	$(CXX) $(FLAGS) -o Pipelined_4_patched cb_4/lib/printf.c.o cb_4/lib/cgc_libc.c.o cb_4/lib/cgc_malloc.c.o cb_4/src/does-not-contain.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_1_patched cb_1/lib/printf.c.o cb_1/lib/cgc_libc.c.o cb_1/lib/cgc_malloc.c.o cb_1/src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_3_patched cb_3/lib/printf.c.o cb_3/lib/cgc_libc.c.o cb_3/lib/cgc_malloc.c.o cb_3/src/word-count.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_5_patched cb_5/lib/printf.c.o cb_5/lib/cgc_libc.c.o cb_5/lib/cgc_malloc.c.o cb_5/src/compress.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_2_patched cb_2/lib/printf.c.o cb_2/lib/cgc_libc.c.o cb_2/lib/cgc_malloc.c.o cb_2/src/contains.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_6_patched cb_6/lib/printf.c.o cb_6/lib/cgc_libc.c.o cb_6/lib/cgc_malloc.c.o cb_6/src/decompress.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/mt.c.o -c src/mt.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/queue.c.o -c src/queue.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/receive.c.o -c src/receive.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/generator.c.o -c src/generator.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/transmit.c.o -c src/transmit.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/input.c.o -c src/input.c
-	$(CC) $(FLAGS) -o Network_Queuing_Simulator lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/mt.c.o src/queue.c.o src/receive.c.o src/service.c.o src/generator.c.o src/transmit.c.o src/input.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/printf.c.o -c cb_6/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/cgc_libc.c.o -c cb_6/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/lib/cgc_malloc.c.o -c cb_6/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_6/lib -I cb_6/src -I cb_6/include -O0 -g -o cb_6/src/decompress.c.o -c cb_6/src/decompress.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/printf.c.o -c cb_1/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/cgc_libc.c.o -c cb_1/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/cgc_malloc.c.o -c cb_1/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/service.c.o -c cb_1/src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/printf.c.o -c cb_3/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/cgc_libc.c.o -c cb_3/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/cgc_malloc.c.o -c cb_3/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/word-count.c.o -c cb_3/src/word-count.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/printf.c.o -c cb_4/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/cgc_libc.c.o -c cb_4/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/lib/cgc_malloc.c.o -c cb_4/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_4/lib -I cb_4/src -I cb_4/include -O0 -g -o cb_4/src/does-not-contain.c.o -c cb_4/src/does-not-contain.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/printf.c.o -c cb_2/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/cgc_libc.c.o -c cb_2/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/cgc_malloc.c.o -c cb_2/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/contains.c.o -c cb_2/src/contains.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/printf.c.o -c cb_5/lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/cgc_libc.c.o -c cb_5/lib/cgc_libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/lib/cgc_malloc.c.o -c cb_5/lib/cgc_malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I cb_5/lib -I cb_5/src -I cb_5/include -O0 -g -o cb_5/src/compress.c.o -c cb_5/src/compress.c
+	$(CXX) $(FLAGS) -o Pipelined_1 cb_1/lib/printf.c.o cb_1/lib/cgc_libc.c.o cb_1/lib/cgc_malloc.c.o cb_1/src/service.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_2 cb_2/lib/printf.c.o cb_2/lib/cgc_libc.c.o cb_2/lib/cgc_malloc.c.o cb_2/src/contains.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_3 cb_3/lib/printf.c.o cb_3/lib/cgc_libc.c.o cb_3/lib/cgc_malloc.c.o cb_3/src/word-count.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_4 cb_4/lib/printf.c.o cb_4/lib/cgc_libc.c.o cb_4/lib/cgc_malloc.c.o cb_4/src/does-not-contain.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_5 cb_5/lib/printf.c.o cb_5/lib/cgc_libc.c.o cb_5/lib/cgc_malloc.c.o cb_5/src/compress.c.o $(LCGC) 
+	$(CXX) $(FLAGS) -o Pipelined_6 cb_6/lib/printf.c.o cb_6/lib/cgc_libc.c.o cb_6/lib/cgc_malloc.c.o cb_6/src/decompress.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Network_Queuing_Simulator_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Network_Queuing_Simulator_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Pipelined_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/mt.c.o src/queue.c.o src/receive.c.o src/service.c.o src/generator.c.o src/transmit.c.o src/input.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/mt.c.o src/queue.c.o src/receive.c.o src/service.c.o src/generator.c.o src/transmit.c.o src/input.c.o Network_Queuing_Simulator_pov_2 Network_Queuing_Simulator_pov_1 Network_Queuing_Simulator_patched Network_Queuing_Simulator
+	rm -f pov_1/pov.c.o cb_6/lib/printf.c.o cb_6/lib/cgc_libc.c.o cb_6/lib/cgc_malloc.c.o cb_6/src/decompress.c.o cb_1/lib/printf.c.o cb_1/lib/cgc_libc.c.o cb_1/lib/cgc_malloc.c.o cb_1/src/service.c.o cb_3/lib/printf.c.o cb_3/lib/cgc_libc.c.o cb_3/lib/cgc_malloc.c.o cb_3/src/word-count.c.o cb_4/lib/printf.c.o cb_4/lib/cgc_libc.c.o cb_4/lib/cgc_malloc.c.o cb_4/src/does-not-contain.c.o cb_1/lib/printf.c.o cb_1/lib/cgc_libc.c.o cb_1/lib/cgc_malloc.c.o cb_1/src/service.c.o cb_2/lib/printf.c.o cb_2/lib/cgc_libc.c.o cb_2/lib/cgc_malloc.c.o cb_2/src/contains.c.o cb_3/lib/printf.c.o cb_3/lib/cgc_libc.c.o cb_3/lib/cgc_malloc.c.o cb_3/src/word-count.c.o cb_2/lib/printf.c.o cb_2/lib/cgc_libc.c.o cb_2/lib/cgc_malloc.c.o cb_2/src/contains.c.o cb_6/lib/printf.c.o cb_6/lib/cgc_libc.c.o cb_6/lib/cgc_malloc.c.o cb_6/src/decompress.c.o cb_4/lib/printf.c.o cb_4/lib/cgc_libc.c.o cb_4/lib/cgc_malloc.c.o cb_4/src/does-not-contain.c.o cb_5/lib/printf.c.o cb_5/lib/cgc_libc.c.o cb_5/lib/cgc_malloc.c.o cb_5/src/compress.c.o cb_5/lib/printf.c.o cb_5/lib/cgc_libc.c.o cb_5/lib/cgc_malloc.c.o cb_5/src/compress.c.o Pipelined_pov_1 Pipelined_6 Pipelined_1 Pipelined_3 Pipelined_4 Pipelined_1_patched Pipelined_2_patched Pipelined_3_patched Pipelined_2 Pipelined_6_patched Pipelined_4_patched Pipelined_5 Pipelined_5_patched

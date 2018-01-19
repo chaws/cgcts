@@ -27,10 +27,8 @@ THE SOFTWARE.
 #include "cgc_stdarg.h"
 #include "cgc_stdlib.h"
 #include "cgc_stdint.h"
-#include "cgc_mymath.h"
 
-// 5 digits of precision
-#define F32_PRECISION       0.00001
+#define INT_BUF_MAX         (32)
 
 int cgc_putc( int c )
 {
@@ -42,251 +40,112 @@ int cgc_putc( int c )
     return c;
 }
 
-void cgc_int_to_str( int val, char *buf )
-{
-    char temp_buf[32];
-    char *c = temp_buf;
-    int count = 0;
-
-    if ( buf == NULL )
-        return;
-
-    if ( val < 0 )
-    {
-        *buf = '-';
-        buf++;
-
-        val *= -1;
-    }
-
-    do
-    {
-        *c = (val % 10) + '0';
-        val /= 10;
-
-        c++;
-        count++;
-    } while ( val != 0 );
-
-    while ( count-- > 0 )
-    {
-        c--;
-        *buf = *c;
-        buf++;
-    }
-
-    *buf = '\0';
-}
-
-void cgc_int_to_hex( unsigned int val, char *buf )
-{
-    char temp_buf[32];
-    char *c = temp_buf;
-    int count = 0;
-
-    if ( buf == NULL )
-        return;
-
-    do
-    {
-        *c = (val % 16) + '0';
-	if (*c > '9') {
-		*c += 7;
-	}
-        val /= 16;
-
-        c++;
-        count++;
-    } while ( val != 0 );
-
-    while ( count-- > 0 )
-    {
-        c--;
-        *buf = *c;
-        buf++;
-    }
-
-    *buf = '\0';
-}
-
-void cgc_float_to_str( double val, char *buf )
-{
-    if ( buf == NULL )
-        return;
-
-    if ( cgc_isnan( val ) )
-    {
-        cgc_strcpy( buf, "nan" );
-    }
-    else if ( cgc_isinf( val ) )
-    {
-        cgc_strcpy( buf, "inf" );
-    }
-    else if ( val == 0.0 )
-    {
-        cgc_strcpy( buf, "0.00000" );
-    }
-    else
-    {
-        int digit;
-        int m;
-        int m1;
-        int fraction_digit;
-        int in_fraction;
-        int neg = 0;
-        char *c = buf;
-
-        if ( val > 0.0 )
-            val = val + (F32_PRECISION * 0.5);
-        else
-            val = val - (F32_PRECISION * 0.5);
-
-        // Negative numbers
-        if ( val < 0.0 )
-        {
-            neg = 1;
-            *(c++) = '-';
-            val = -val;
-        }
-
-        // Calculate magnitude
-        m = cgc_log10( val );
-
-        if ( m < 1.0 )
-            m = 0;
-
-        fraction_digit = 0;
-        in_fraction = 0;
-        while ( val > F32_PRECISION || m >= 0 )
-        {
-            double weight = cgc_pow( 10.0, m );
-            if ( weight > 0 && !cgc_isinf(weight) )
-            {
-                digit = cgc_floor( val / weight );
-                val -= (digit * weight);
-
-                *(c++) = '0' + digit;
-
-                if ( in_fraction )
-                    fraction_digit++;
-            }
-
-            if ( m == 0 && val > 0.0 )
-            {
-                *(c++) = '.';
-                in_fraction = 1;
-                fraction_digit = 0;
-            }
-
-            m--;
-        }
-
-        while ( in_fraction && fraction_digit < 5 )
-        {
-            *(c++) = '0';
-            fraction_digit++;
-        }
-
-        *c = '\0';
-    }
-}
-
 int cgc_vprintf( const char *fmt, va_list arg )
 {
-    int character_count = 0;
-    char temp_buf[64];
+    int i = 0;
 
     if ( fmt == NULL )
         return -1;
 
-    while ( *fmt )
+    for ( ; ; )
     {
-        if ( *fmt == '@' )
+        if ( *fmt == '\0' )
+            break;
+
+        if ( *fmt == '$' )
         {
             fmt++;
 
-            // We don't handle any special formatting
             switch ( *fmt )
             {
-            case '@':
-                cgc_putc( '@' );
+            case '$':
+                cgc_putc( '$' );
                 break;
 
-            case 'c':
-                // single charß
+            case 's':
                 {
+                    char *str1 = va_arg( arg, char * );
 
-                    char c = (char )va_arg(arg, int);
-                    cgc_putc(c);
+                    while ( *str1 )
+                    {
+                        cgc_putc( *str1 );
+                        i++;
+
+                        str1++;
+                        if ( str1 == '\0' )
+                            break;
+                    }
                 }
                 break;
-                
+
             case 'd':
-                // Integer
                 {
+                    char temp[INT_BUF_MAX];
+                    int char_count;
                     int int_arg = va_arg( arg, int );
-                    char *c;
 
-                    cgc_int_to_str( int_arg, temp_buf );
-
-                    c = temp_buf;
-                    while ( *c )
+                    char_count = 0;
+                    if ( int_arg < 0 )
                     {
-                        cgc_putc( *c );
-                        character_count++;
-                        c++;
+                        int_arg = -int_arg;
+                        cgc_putc( '-' );
+                        i++;
+                    }
+                    else if ( int_arg == 0 )
+                    {
+                        char_count = 1;
+                        temp[0] = '0';
+                    }
+
+                    while ( int_arg != 0 )
+                    {
+                        temp[char_count++] = (int_arg % 10) + '0';
+                        int_arg /= 10;
+
+                        if ( char_count >= INT_BUF_MAX )
+                            break;
+                    }
+
+                    while ( char_count-- > 0 )
+                    {
+                        cgc_putc( temp[char_count] );
+                        i++;
                     }
                 }
                 break;
 
             case 'x':
-                // hex
+            case 'X':
                 {
+                    char temp[INT_BUF_MAX];
+                    int char_count;
                     unsigned int int_arg = va_arg( arg, unsigned int );
-                    char *c;
 
-                    cgc_int_to_hex( int_arg, temp_buf );
-
-                    c = temp_buf;
-                    while ( *c )
+                    char_count = 0;
+                    while ( int_arg != 0 )
                     {
-                        cgc_putc( *c );
-                        character_count++;
-                        c++;
-                    }
-                }
-                break;
+                        unsigned int val = (int_arg & 0xF);
+                        int_arg = int_arg >> 4;
 
-            case 'f':
-                // Float
-                {
-                    double float_arg = va_arg( arg, double );
-                    char *c;
+                        if ( val >= 10 )
+                        {
+                            if ( *fmt == 'x' )
+                                temp[char_count++] = (val - 10) + 'a';
+                            else
+                                temp[char_count++] = (val - 10) + 'A';
+                        }
+                        else
+                            temp[char_count++] = val + '0';
 
-                    cgc_float_to_str( float_arg, temp_buf );
-
-                    c = temp_buf;
-                    while ( *c )
-                    {
-                        cgc_putc( *c );
-                        character_count++;
-                        c++;
-                    }
-                }
-                break;
-
-            case 's':
-                // String
-                {
-                    char *string_arg = va_arg( arg, char * );
-
-                    while ( *string_arg )
-                    {
-                        cgc_putc( *string_arg );
-                        character_count++;
-                        string_arg++;
+                        if ( char_count >= INT_BUF_MAX )
+                            break;
                     }
 
+                    while ( char_count-- > 0 )
+                    {
+                        cgc_putc( temp[char_count] );
+                        i++;
+                    }
                 }
                 break;
 
@@ -305,11 +164,11 @@ int cgc_vprintf( const char *fmt, va_list arg )
             cgc_putc( *fmt );
             fmt++;
 
-            character_count++;
+            i++;
         }
     }
 
-    return (character_count);
+    return (i);
 }
 
 int cgc_printf( const char *fmt, ... )

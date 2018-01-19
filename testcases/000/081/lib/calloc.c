@@ -23,7 +23,6 @@
  *
  */
 
-#include "cgc_wrapper.h"
 #include "libcgc.h"
 #include "cgc_stdlib.h"
 #include "cgc_string.h"

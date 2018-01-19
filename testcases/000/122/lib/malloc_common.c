@@ -96,7 +96,7 @@ static void *run_alloc(malloc_t *heap, int type)
     return (void *)alignedi;
 }
 
-static void *tiny_alloc(malloc_t *heap, cgc_size_t n)
+static void *cgc_tiny_alloc(malloc_t *heap, cgc_size_t n)
 {
     int bin;
     malloc_tiny_free_t *hdr;
@@ -381,9 +381,9 @@ void *cgc_malloc_alloc(malloc_t *heap, cgc_size_t n)
     n = ALIGNED(n, 4);
 
     if (n < TINY_SIZE)
-        ptr = tiny_alloc(heap, TINY_SIZE);
+        ptr = cgc_tiny_alloc(heap, TINY_SIZE);
     else if (n < SMALL_SIZE)
-        ptr = tiny_alloc(heap, n);
+        ptr = cgc_tiny_alloc(heap, n);
     else if (n < LARGE_SIZE)
         ptr = small_alloc(heap, n);
     else

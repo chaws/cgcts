@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
+ * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
+ *
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,120 +22,122 @@
  * THE SOFTWARE.
  *
  */
+
 #include "cgc_ctype.h"
 
-enum
-{
-    IS_ASCII = 0x01,
-    IS_DIGIT = 0x02,
-    IS_LOWER = 0x04,
-    IS_UPPER = 0x08,
-    IS_PRINT = 0x10,
-    IS_PUNCT = 0x20,
-    IS_SPACE = 0x40,
-    IS_CNTRL = 0x80
+#define NUM_ASCII_CHAR 128
+#define ASCII_MASK 0x7F
+
+// SPACE is first printable
+#define SPACE 0x20
+
+// DEL is only char after SPACE that is CNTRL
+#define DEL 0x7F
+
+static const unsigned char _punct[NUM_ASCII_CHAR] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0
 };
 
-static unsigned char __ctype[256] = {
-    0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xc1, 0xc1, 0xc1, 0xc1, 0xc1, 0x81, 0x81,
-    0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
-    0x51, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31,
-    0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31,
-    0x31, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19,
-    0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x31, 0x31, 0x31, 0x31, 0x31,
-    0x31, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15,
-    0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x31, 0x31, 0x31, 0x31, 0x81,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+static const unsigned char _xdigit[NUM_ASCII_CHAR] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-
-int cgc_isascii(int c)
-{
-    return __ctype[c & 0xff] & IS_ASCII;
-}
-
-int cgc_isdigit(int c)
-{
-    return __ctype[c & 0xff] & IS_DIGIT;
-}
-
-int cgc_isprint(int c)
-{
-    return __ctype[c & 0xff] & IS_PRINT;
-}
 
 int cgc_isalnum(int c)
 {
-    return __ctype[c & 0xff] & (IS_LOWER | IS_UPPER | IS_DIGIT);
+  return cgc_isalpha(c) || cgc_isdigit(c);
 }
 
 int cgc_isalpha(int c)
 {
-    return __ctype[c & 0xff] & (IS_LOWER | IS_UPPER);
+  return cgc_islower(c) || cgc_isupper(c);
 }
 
-int cgc_islower(int c)
+int cgc_isascii(int c)
 {
-    return __ctype[c & 0xff] & IS_LOWER;
+  return !(c & ~ASCII_MASK);
 }
 
-int cgc_isupper(int c)
+int cgc_isblank(int c)
 {
-    return __ctype[c & 0xff] & IS_UPPER;
-}
-
-int cgc_isspace(int c)
-{
-    return __ctype[c & 0xff] & IS_SPACE;
-}
-
-int cgc_ispunct(int c)
-{
-    return __ctype[c & 0xff] & IS_PUNCT;
+  return (c == ' ' || c == '\t');
 }
 
 int cgc_iscntrl(int c)
 {
-    return __ctype[c & 0xff] & IS_CNTRL;
+  return c == DEL || c < SPACE;
+}
+
+int cgc_isdigit(int c)
+{
+  return (unsigned int ) c - '0' < 10;
+}
+
+int cgc_isgraph(int c)
+{
+  return c != ' ' && cgc_isprint(c);
+}
+
+int cgc_islower(int c)
+{
+  return (unsigned int) c - 'a' < 26;
+}
+
+int cgc_isprint(int c)
+{
+  return c >= SPACE && c != DEL;
+}
+
+int cgc_ispunct(int c)
+{
+  return _punct[c];
+}
+
+int cgc_isspace(int c)
+{
+  return (c > 8 && c < 14) || c == ' ';
+}
+
+int cgc_isupper(int c)
+{
+  return (unsigned int ) c - 'A' < 26;
 }
 
 int cgc_isxdigit(int c)
 {
-    c = cgc_toupper(c);
-    return cgc_isdigit(c) || (c >= 'A' && c <= 'F');
+  return _xdigit[c];
 }
 
-int cgc_digittoint(int c)
+int cgc_toascii(int c)
 {
-    c = cgc_toupper(c);
-    if (cgc_isdigit(c))
-        return c - '0';
-    else if (c >= 'A' && c <= 'F')
-        return c - 'A' + 10;
-    else
-        return 0;
+  return c & ASCII_MASK;
 }
 
 int cgc_tolower(int c)
 {
-    c &= 0xff;
-    if (cgc_isupper(c))
-        return c ^= 0x20;
-    else
-        return c;
+  if (cgc_isupper(c))
+    return c | SPACE;
+
+  return c;
 }
 
 int cgc_toupper(int c)
 {
-    c &= 0xff;
-    if (cgc_isupper(c))
-        return c ^= 0x20;
-    else
-        return c;
+  if (cgc_islower(c))
+    return c & (~SPACE & ASCII_MASK);
+
+  return c;
 }

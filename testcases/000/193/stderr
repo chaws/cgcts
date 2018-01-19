@@ -1,5 +1,0 @@
-In file included from ../../shared/tsid/include/libpov/pov/cgc_stdlib.h:6:0,
-                 from pov_1/malloc.c:28:
-../../shared/tsid/include/libpov/pov/cgc_types.h:29:31: note: previous declaration of ‘va_list’ was here
-     typedef __builtin_va_list va_list;
-                               ^

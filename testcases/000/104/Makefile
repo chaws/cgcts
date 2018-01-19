@@ -1,4 +1,4 @@
-CHAL=Estadio
+CHAL=Material_Temperature_Simulation
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,29 +20,39 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/handler.c.o -c src/handler.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/protocol.c.o -c src/protocol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/messages.c.o -c src/messages.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/churn.c.o -c src/churn.c
-	$(CC) $(FLAGS) -o Estadio_patched lib/libc.c.o src/handler.c.o src/protocol.c.o src/service.c.o src/messages.c.o src/churn.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/tsim.c.o -c src/tsim.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/tvis.c.o -c src/tvis.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/room.c.o -c src/room.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/input.c.o -c src/input.c
+	$(CXX) $(FLAGS) -o Material_Temperature_Simulation_patched lib/printf.c.o lib/malloc.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/service.c.o src/tsim.c.o src/tvis.c.o src/room.c.o src/input.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/handler.c.o -c src/handler.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/protocol.c.o -c src/protocol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/messages.c.o -c src/messages.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/churn.c.o -c src/churn.c
-	$(CC) $(FLAGS) -o Estadio lib/libc.c.o src/handler.c.o src/protocol.c.o src/service.c.o src/messages.c.o src/churn.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/tsim.c.o -c src/tsim.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/tvis.c.o -c src/tvis.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/room.c.o -c src/room.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/input.c.o -c src/input.c
+	$(CXX) $(FLAGS) -o Material_Temperature_Simulation lib/printf.c.o lib/malloc.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/service.c.o src/tsim.c.o src/tvis.c.o src/room.c.o src/input.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Estadio_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CXX) $(FLAGS) -o Material_Temperature_Simulation_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Material_Temperature_Simulation_pov_2 pov_2/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/libc.c.o src/handler.c.o src/protocol.c.o src/service.c.o src/messages.c.o src/churn.c.o lib/libc.c.o src/handler.c.o src/protocol.c.o src/service.c.o src/messages.c.o src/churn.c.o Estadio_pov_1 Estadio_patched Estadio
+	rm -f pov_1/pov.c.o pov_2/pov.c.o lib/printf.c.o lib/malloc.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/service.c.o src/tsim.c.o src/tvis.c.o src/room.c.o src/input.c.o lib/printf.c.o lib/malloc.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/service.c.o src/tsim.c.o src/tvis.c.o src/room.c.o src/input.c.o Material_Temperature_Simulation_pov_1 Material_Temperature_Simulation_pov_2 Material_Temperature_Simulation_patched Material_Temperature_Simulation

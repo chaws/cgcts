@@ -21,102 +21,147 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from generator.actions import Actions
-import string
-import random
+from generator.actions import Actions, Variable
+from random import choice, randint
+from os.path import dirname, abspath, join
+import sys
 
-class TemplateGenerator(Actions):
+sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
+import support as sp
+from common import DEBUG, CONFIG
+from breakfast import Liquids, Cereals, Toppings
 
-	def start(self):
-		self.state['programs'] = list()
-		self.state['program_num'] = 0
-		pass
+class TemplatePoller(Actions):
 
-	def new_program(self):
-		if(self.state['program_num'] < 10):
-			self.write("program" + "\x07")
-			self.state['starting_lines'] = random.randint(20, 320)
-			self.state['lines'] = self.state['starting_lines']
-			self.state['prints'] = list()
-			self.state['stack'] = list()
-			self._size()
-			self._push_cmd()
-			for i in range(0, self.state['lines']):
-				command = random.randint(1,5)
-				if(command == 1):
-					self._push_cmd()
-				if(command == 2):
-					self._pop_cmd()
-				if(command == 3):
-					self._add_cmd()
-				if(command == 4):
-					self._print_cmd()
-				if(command == 5):
-					self._copy_cmd()
-			self.state['programs'].insert(self.state['program_num'], self.state['prints'])
-			self.state['program_num']+=1
-		else:
-			self.quit()
+    PLACE_BOWL_MSG      = '\x11\xd1\xe0\xa4'
+    ADD_CEREAL_MSG      = '\xec\xdf\x01\xbb'
+    ADD_LIQUID_MSG      = '\xba\xfd\xff\x03'
+    ADD_TOPPING_MSG     = '\xca\x0d\xcc\xf1'
+    BREAKFAST_READY_MSG = '\x3a\xcc\x00\xe8'
 
-	def execute_program(self):
-		if(self.state['program_num'] > 0):
-			program_num = random.randint(0,self.state['program_num']-1)
-			self.write("execute" + str(program_num) + "\x07")
-			for i in self.state['programs'][program_num]:
-				self.read(delim="\n", expect=str(i))
+    INITIAL_ORDER_ID        = 4242
+    INPUT_TYPE_PLAIN        = '\xdd\x11\x44\xaa'
+    INPUT_TYPE_SERIALIZED   = '\x00\xaa\xdd\x11'
 
-	def _size(self):
-		self.write("size" + str(self.state['lines']) + "\x07")
-
-	def _push_cmd(self):
-		a = random.randint(1,9999)
-		self.state['stack'].insert(0,a)
-		self.write("push" + str(a) + "\x07")
-		self.state['lines']-=1
-
-	def _pop_cmd(self):
-		if(len(self.state['stack']) >= 1):
-			self.state['stack'].pop(0)
-			self.write("pop" + "\x07")
-			self.state['lines']-=1
-		else:
-			self._push_cmd()
+    OK      = ''
+    ERR     = ''
 
 
-	def _add_cmd(self):
-		if(len(self.state['stack']) >= 2):
-			a = self.state['stack'].pop(0)
-			b = self.state['stack'].pop(0)
-			c_str = str(a+b)
-			c = int(c_str[:8])
-			self.state['stack'].insert(0, c)
-			self.write("add" + "\x07")
-			self.state['lines']-=1
-		else:
-			self._push_cmd()
+    def _gen_status_msgs(self):
+        ok = [0,0,0,0]
+        err = [0,0,0,0]
+        for idx in [c for c in range(len(self.magic_page)) if c % 2 == 0]:
+            ok[idx % 4] ^= ord(self.magic_page[idx])
+            err[(idx+1) % 4] ^= ord(self.magic_page[idx+1])
+        self.OK  = ''.join([chr(c) for c in ok])
+        self.ERR = ''.join([chr(c) for c in err])
 
-	def _print_cmd(self):
-		if(len(self.state['stack']) >= 1):
-			a = self.state['stack'].pop(0)
-			self.state['prints'].append(a)
-			self.write("print" + "\x07")
-			self.state['lines']-=1
-		else:
-			self._push_cmd()
+    def _create_stream(self, content_buf, type_buf):
+        b = type_buf
+        b += sp.pack_single_uint16(len(content_buf))
+        b += content_buf
+        return b
 
-	def _copy_cmd(self):
-		if(len(self.state['stack']) >= 1):
-			available_stack_space = self.state['starting_lines']*16 - len(self.state['stack']) - self.state['lines']
-			if(available_stack_space > 0):
-				a = self.state['stack'].pop(0)
-				copy_num = random.randint(1, available_stack_space)
-				for i in range(0,copy_num):
-					self.state['stack'].insert(0,a)
-				self.write("copy" + str(copy_num) + "\x07")
-				self.state['lines']-=1
-		else:
-			self._push_cmd()
+    def create_random_breakfast(self, item_count):
+        b = []
+        for idx in range(item_count):
+            item_type = choice([Liquids, Cereals, Toppings])
+            item = item_type()
+            item.rand_content()
+            b.append(item)
+        return b
+
+    def make_plain_content(self, breakfast):
+        content = ''
+        for item in breakfast:
+            content += item.get_plain_content()
+        return content
+
+    def make_serialized_content(self, breakfast):
+        content = ''
+        for item in breakfast:
+            content += item.get_serialized_content()
+        return content
 
 
-	def quit(self):
-		return -1
+    def start(self):
+        #self.delay(100)
+        if DEBUG:
+            print "------- start -----------"
+        self._gen_status_msgs()
+        self.order_id = self.INITIAL_ORDER_ID
+
+    def plain(self):
+        '''
+        Communicate using plain data (not serialized).
+        '''
+        if DEBUG:
+            print "cmd: plain -----------"
+
+        breakfast = self.create_random_breakfast(randint(3,16))
+        breakfast = list(set(breakfast)) # rm dups
+        content = self.make_plain_content(breakfast)
+        stream = self._create_stream(content, self.INPUT_TYPE_PLAIN)
+        self.write(stream)
+
+        read_buf = sp.pack_single_int32(self.order_id)
+        read_buf += self.PLACE_BOWL_MSG
+        if any( isinstance(item, Cereals) for item in breakfast ):
+            read_buf += self.ADD_CEREAL_MSG
+        if any( isinstance(item, Liquids) for item in breakfast ):
+            read_buf += self.ADD_LIQUID_MSG
+        if any( isinstance(item, Toppings) for item in breakfast ):
+            read_buf += self.ADD_TOPPING_MSG
+
+        read_buf += self.BREAKFAST_READY_MSG
+        read_buf += self.OK
+        self.read(length=len(read_buf), expect=read_buf)
+
+        self.order_id += 1
+
+        return 0
+
+    def serialized(self):
+        '''
+        Communicate using serialized data.
+        '''
+        if DEBUG:
+            print "cmd: serialized -----------"
+
+        breakfast = self.create_random_breakfast(randint(3,16))
+        breakfast = list(set(breakfast)) # rm dups
+        content = self.make_serialized_content(breakfast)
+        stream = self._create_stream(content, self.INPUT_TYPE_SERIALIZED)
+        self.write(stream)
+
+        read_buf = sp.pack_single_int32(self.order_id)
+        read_buf += self.PLACE_BOWL_MSG
+        if any( isinstance(item, Cereals) for item in breakfast ):
+            read_buf += self.ADD_CEREAL_MSG
+        if any( isinstance(item, Liquids) for item in breakfast ):
+            read_buf += self.ADD_LIQUID_MSG
+        if any( isinstance(item, Toppings) for item in breakfast ):
+            read_buf += self.ADD_TOPPING_MSG
+
+        read_buf += self.BREAKFAST_READY_MSG
+        read_buf += self.OK
+        self.read(length=len(read_buf), expect=read_buf)
+
+        self.order_id += 1
+
+        return 0
+
+    def quit(self):
+        '''
+        Quit cleanly
+        '''
+        if DEBUG:
+            print "cmd: quit -----------"
+
+        return -1
+
+    def broker(self):
+        '''
+        Branching node for all nodes
+        '''
+        return 0

@@ -27,7 +27,7 @@
 #include "cgc_malloc.h"
 #include "cgc_stdlib.h"
 
-static void cgc_free_huge(struct blk_t *blk)
+static void free_huge(struct blk_t *blk)
 {
     cgc_deallocate(blk, blk->size);
 }
@@ -43,7 +43,7 @@ void cgc_free(void *ptr)
     return;
 
   if (blk->size >= NEW_CHUNK_SIZE) {
-    cgc_free_huge(blk);
+    free_huge(blk);
   } else {
     cgc_insert_into_flist(blk);
     cgc_coalesce(blk);

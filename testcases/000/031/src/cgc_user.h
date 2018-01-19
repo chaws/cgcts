@@ -1,8 +1,8 @@
 /*
 
-Author: Joe Rogers <joe@cromulence.com>
+Author: Debbie Nuttall <debbie@cromulence.com>
 
-Copyright (c) 2015 Cromulence LLC
+Copyright (c) 2016 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,14 +25,24 @@ THE SOFTWARE.
 */
 #ifndef USER_H
 #define USER_H
-#include "libcgc.h"
+
 #include "cgc_stdint.h"
 
-void cgc_Login(void);
-uint8_t cgc_ChUser(Command *pCmd);
-uint8_t cgc_ChPw(Command *pCmd);
-uint8_t cgc_ID(Command *pCmd);
-uint8_t cgc_NewUser(Command *pCmd);
-uint8_t cgc_DelUser(Command *pCmd);
+#define MAX_USERS 20
+
+// Defined users
+#define USER_GUEST    0xffff
+#define USER_NONE     0x0000
+
+typedef struct user_s {
+  uint32_t userID;
+  uint8_t  *username;
+  uint8_t *password;
+} user;
+
+extern user allUsers[MAX_USERS];
+
+void cgc_GenerateUsers();
+uint32_t cgc_LookupUser(uint8_t *username, uint8_t *password);
 
 #endif

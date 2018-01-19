@@ -23,6 +23,7 @@
  *
  */
 
+#include "cgc_wrapper.h"
 #include "libcgc.h"
 
 char *cgc_strchr(const char *s, int c)
@@ -35,9 +36,6 @@ char *cgc_strchr(const char *s, int c)
       return (char *) p;
     p++;
   }
-
-  if (c == (int)NULL)
-    return (char *)p;
 
   return NULL;
 }

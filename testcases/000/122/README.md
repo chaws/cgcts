@@ -1,82 +1,66 @@
-# Venture_Calculator
+# Childs_Game
+
+## Author Information
+Kaprica Security
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
 ## Description
 
-A command line visual stack-based performant RPN calculator. Leveraging the old
-to build the new. Guaranteed to net a mad series A.
+A gaming system that pits a user against a basic AI
 
 ### Feature List
 
-Support for variety of useful operations:
-  
-  - `+`
-  - `-`
-  - `*`
-  - `/`
-  - `!`
-  - `neg`
-  - `abs`
-  - `mod`
-  - `&`
-  - `|`
-  - `^`
-  - `~`
-  - `sum`
-  - `avg`
-  - `dup`
-  - `dupn`
-  - `dupr`
-  - `min`
-  - `max`
-  - `depth`
-  - `drop`
-  - `dropn`
-  - `undo (we keep a history!)`
-  - `ivrt (invert stack, super useful!)`
-  - `shuf (shuffle stack, even more useful!)`
+After a user registers, there are 3 games that can be played
+Games:
+    1. Hammer, Sheet, Sheers
+    2. Guess my number
+    3. Three in a row
+    4. Give up
 
-Only signed 32bit integers are currently supported, but our
-rockst^H^H^H^H^H^Hdevelopers are working on 64bit support and maybe even floats
-soon!
+The games are inspired by class children's games.
 
 ## Vulnerability
+
 ### Vuln 1
+The Guess my number game let's a user choose the maximum of the range of numbers the computer will choose.
+There is an improper bounds check that doesn't account for negative numbers. The random number is generated
+from the magic page and then a bitewise & is done against the value and the range max. If a user changes the
+range max to -1, it will & with 0xFFFFFFFF. If the CRS can guess the number by doing a binary search it will
+leak 4 bytes from the magic page.
 
-In the `shuf` function, random bytes are loaded from the secret page and then
-predictably scrambled. The resulting scrambled bytes are utilized to shuffle
-the stack.
+### Vuln 2
+Vulnerability 2 is a fairly straightforward buffer overflow. The difficult part is reaching the code control
+that allows a user to exploit the system. The vulnerable function is only ever called after the player has
+one both games and tied with the computer 600 times in a row. At this point if a player has chosen option 4
+to create a custom 'flair', it's possible to overwrite the buffer and take control of eip and ebp. 3 in a row
+is a solved game and has deterministic behavior, but the AI will never lose and will always make optimal moves.
+Beating the computer requires an oponent to never make a suboptimal move.
 
-In the `dupr` function, the passed position and length arguments are converted
-to 16bit unsigned integers and then added to form a slice into the current
-stack. The values used to form the index are checked, but the invalidation
-routine is faulty.  The resulting indexed values are then pushed onto the
-stack. This gives an attacker the ability to load values out of memory within
-a limited distance from `Vector` in the `VC` class and push them onto the
-`CalcStack` where they will then be printed out.
+### Generic class of vulnerability
+Stack based buffer overflow
+Information Exposure
 
-If the random bytes loaded for the shuffle function are left in memory within
-a short enough distance from the accesses made in the `dupr` function, an
-attacker could leak secret page data out of the problem.
+### CWE classification
+CWE-121: Stack-based Buffer Overflow
+CWE-839: Numeric Range Comparison Without Minimum Check
+## Challenges
 
-#### Generic class of vulnerability
+Vulnerability 1 requires using a bounds check error and then requires winning the game to obtain the leak.
+Winning the game requires doing a simple binary search against the game.
 
-Improper cleansing and leaking of sensitive data.
+Vulnerability 2 allows for a function pointer overwrite the second time a user logs in. This function is called
+after a player successfully ties with the AI 100 times. The bug is a reference to a 1983 film.
 
-#### CWE classification
+Vulnerability 2 allows for a buffer overflow once the opponent has beaten the AI several times. Specifically
+the player must win games 1 and 2 once and tie at game 3 (3 in a row) 600 times without losing.
 
-  - CWE-125: Out-of-bounds Read
-  - CWE-129: Improper Validation of Array Index
-  - CWE-398: Indicator of Poor Code Quality
+Both vulnernerabilities were meant to test the reasoning system of the CRS and were created such that brute force
+or fuzzing would not be a viable solution for discovering either of the vulnerabilities.
 
-#### Challenges
+## Difficulty
 
- - Performing the required heap manipulation to place the secret page data with reach of the out-of-bounds read.
-
-#### Difficulty
-
- - **Discovery**: Easy
- - **Proving**: Medium
- - **Patching**: Easy
+Discovering = Easy
+Proving = Medium
+Patching = Medium

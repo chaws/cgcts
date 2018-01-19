@@ -20,3 +20,26 @@ The `libpov.a` file will contain all files within `libpov` directory.
 
 Apparently, all projects that need a malloc function will have them implemented within itself  
 
+Some tests contain the use of CGC_FLAG_PAGE_ADDRESS, which defines a constant memory address that is used by programs to get random data. The problem with that is that it generates segfault, due to the address not being mapped to the process (most likely)
+
+The script `generate_makefiles.py' will go through all challenges within `trailofbits/challenges'. For each challenge, the script will attempt to generate a folder in `testcases/000' for it, containing a makefile and all files that are part of that challenge. The makefiles are an extension of the template `makefile_template'. 
+
+Some challenges did not compile, they were added to `blacklisted_challenges' and all challenges compiled successfully are listed in `processed_challenges'. The script `generate_makefiles_patches.py' is a support script that have patches needed by a few challenges in order to compile.
+
+** IMPORTANT **
+CGC test cases were implemented in a way that standard libc was avoided. This way, there will be local implementations of most of common functions, like malloc, free, strcpy an so on, that will look like cgc_malloc, cgc_free, cgc_strcpy. This makes it harder for marking bugs. For example, tools know what `free' does but they don't for `cgc_free'. In that matter, if a bug was supposed to happen during a lib call, that line will be marked as buggy as well as the first line in the cgc_* implementation of that function. Ex:
+
+char * ptr; // ptr contains garbage
+cgc_free(ptr); // call to `free' would cause undefined behavior
+               // but tools don't know `cgc_free', so we need to go further
+void cgc_free(void *ptr)
+{
+  if (ptr == NULL)
+    return;
+
+  struct blk_t *blk = (struct blk_t *)((intptr_t)ptr - HEADER_PADDING);
+
+  if (blk->free != 0) // this lini would also be marked as buggy, but not lines hereafter
+    return;
+
+My goal now is to write a last script that converts these tests into a manifest file to be imported in the SARD.

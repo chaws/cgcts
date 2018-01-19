@@ -33,7 +33,7 @@ cgc_ssize_t cgc_fwrite(const void *ptr, cgc_size_t size, FILE *stream)
 unbuffered:
         if (stream->xlat_map == NULL)
         {
-            if (cgc_transmit_all(stream->fd, ptr, size) != 0)
+            if (transmit_all(stream->fd, ptr, size) != 0)
                 return -1;
         }
         else

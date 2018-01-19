@@ -1,194 +1,151 @@
 #!/usr/bin/env python
-#
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 
 from generator.actions import Actions
-from random import choice, randint
-from os.path import dirname, abspath, join
-import imp
 import random
-import string
-import sys
+import pdb
+import locale
+import decimal
+import ctypes
 
+class Paycheck():
+    def __init__(self):
+        self.standardhours = 0
+        self.standardminutes = 0
+        self.overtimehours = 0
+        self.overtimeminutes = 0
+        self.standardpay = 0
+        self.overtimepay = 0
 
-TICKATACK_DIR = dirname(dirname(dirname(abspath(__file__))))
-sys.path.append(join(TICKATACK_DIR, "support"))
-from tickatack import TickATackGame
+class Employee():
 
-def random_alpha(a, b):
-    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
+    def __init__(self):
+        self.id = -1
+        self.name = ""
+        self.wagedollars= 0
+        self.wagecents = 0
+        self.paychecks = []
+        for i in range(0,52):
+            self.paychecks.append(Paycheck())
 
-def random_string(a, b):
-    chars = string.letters + string.digits
-    return ''.join(choice(chars) for _ in range(randint(a, b)))
+class TimecardPollGenerator(Actions):
 
-def random_digits(a, b):
-    chars = string.digits
-    return ''.join(choice(chars) for _ in range(randint(a, b)))
+    def start(self):
+        self.NUMBER_OF_EMPLOYEES = 50
+        self.state['employees'] = []
+        for each in range(0, self.NUMBER_OF_EMPLOYEES):
+            self.state['employees'].append(Employee())
+        # Generate a random list of employee id's from 1 to 10 elements long. The generator will create inputs for those employees only.
+        self.state['id_subset'] = random.sample(range(0,self.NUMBER_OF_EMPLOYEES), random.randint(1,10))
+        
+        testlib = ctypes.CDLL('build/patched/so/CROMU_00007.so')
+        self.standardpay = testlib.c_standardpay
+        self.standardpay.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        self.standardpay.restype = ctypes.c_float
+        self.overtimepay = testlib.c_overtimepay
+        self.overtimepay.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        self.overtimepay.restype = ctypes.c_float
+        self.netpay = testlib.c_netpay
+        self.netpay.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        self.netpay.restype = ctypes.c_float
 
+    def register(self):
+        names = ["Jonathan Archer", "Chef", "Daniels", "Travis Mayweather", "John Paxton", "Phlox", "Malcolm Reed", "Hoshi Sato", "T'Pol", "Trip Tucker"]
+        for id in self.state['id_subset']:
+            name = names[random.randint(0, len(names) - 1)]
+            self.state['employees'][id].name = name
+            self.state['employees'][id].id = id
+            self.state['employees'][id].wagedollars = random.randint(10, 75)
+            if (self.state['employees'][id].wagedollars == 75):
+                self.state['employees'][id].wagecents = 0
+            else:
+                self.state['employees'][id].wagecents = random.randint(0, 99)
+            self.write("employee_id-{a.id}`employee_name-{a.name}`wage-{a.wagedollars}.{a.wagecents:02}`\n".format(a=self.state['employees'][id]))
 
-class TICKATACK(Actions):
+   
+    def week(self):
+        self.state['week'] = random.randint(0,51)
+        self.write("week-%d`" % self.state['week'])
 
-	CMD_CHAR_LEN=14
-	DEBUG = False
+    def logday(self, day, paycheck):
+       
+        if self.chance(0.85):
+            hours = random.randint(0,8)
+        else:
+            hours = random.randint(0,24)
+        minutes = random.randint(0,59)  
+        self.write("%s-%dh%dm`" % (day, hours,minutes))
+        if (minutes < 8):
+            minutes = 0
+        elif (minutes < 23):
+            minutes = 15
+        elif (minutes < 38):
+            minutes = 30
+        elif (minutes < 53):
+            minutes = 45
+        else:
+            minutes = 0
+            hours += 1
+        if (day == "saturday" or day== "sunday"):
+            paycheck.overtimehours += hours + (paycheck.overtimeminutes + minutes) / 60
+            paycheck.overtimeminutes = (paycheck.overtimeminutes + minutes) % 60
+        elif (hours < 8):
+            paycheck.standardhours += (hours) + (paycheck.standardminutes + minutes) / 60
+            paycheck.standardminutes = (paycheck.standardminutes + minutes) % 60
+        else:
+            paycheck.standardhours += 8
+            paycheck.overtimehours += hours - 8 + (paycheck.overtimeminutes + minutes) / 60
+            paycheck.overtimeminutes = (paycheck.overtimeminutes + minutes) % 60
 
-	def _load_game(self):
-		self.state['game'] = TickATackGame()
-		# self.state['move_coords'] = {'row': -1, 'col': -1}
-		# self.state['move_fail'] = False
-		# self.state['game_complete'] = False
-		self.state['replay'] = False
+    def loghours(self):
+        for id in self.state['id_subset']:
+            for week in range(0,52):
+                self.write("employee_id-{}`week-{}`".format(id, week))
+                if self.chance(0.9):    
+                    self.logday("monday", self.state['employees'][id].paychecks[week])
+                if self.chance(0.9):
+                    self.logday("tuesday", self.state['employees'][id].paychecks[week])
+                if self.chance(0.9):
+                    self.logday("wednesday", self.state['employees'][id].paychecks[week])
+                if self.chance(0.9):
+                    self.logday("thursday", self.state['employees'][id].paychecks[week])
+                if self.chance(0.9):
+                    self.logday("friday", self.state['employees'][id].paychecks[week])
+                if self.chance(0.2):
+                    self.logday("saturday", self.state['employees'][id].paychecks[week])
+                if self.chance(0.1):
+                    self.logday("sunday", self.state['employees'][id].paychecks[week])
+                self.write("\n")
+                employee = self.state['employees'][id]
+                paycheck = employee.paychecks[week]
+                paycheck.standardpay = self.standardpay(paycheck.standardhours, paycheck.standardminutes, employee.wagedollars, employee.wagecents )
+                paycheck.overtimepay = self.overtimepay(paycheck.overtimehours, paycheck.overtimeminutes, employee.wagedollars, employee.wagecents, 0)
+    def get_response(self, id, week):
+        employee = self.state['employees'][id]
+        pay = employee.paychecks[week]
+        netpay = self.netpay(pay.standardhours, pay.standardminutes, pay.overtimehours, pay.overtimeminutes, employee.wagedollars, employee.wagecents, 0)
+        response = "employee-{}`week-{}`standardtime-{pay.standardhours}h{pay.standardminutes}m`overtime-{pay.overtimehours}h{pay.overtimeminutes}m`standardpay-${pay.standardpay:,.2f}`overtimepay-${pay.overtimepay:,.2f}`netpay-${netpay:,.2f}`\n".format(self.state['employees'][id].name, week, pay=pay, netpay=netpay)
+        return response
 
-	def start(self):
-		self._load_game()
-		self.read(delim="\n", 
-			expect="Welcome to Tick-A-Tack.\n", 
-			expect_format='asciic')
+    def query(self):
+        for id in self.state['id_subset']:
+            if self.chance(0.50):
+                for week in range(0,52):
+                    self.write("query-week`employee_id-{}`week-{}`\n".format(id, week))
+                    self.read(delim='\n', expect=self.get_response(id, week))
+            elif self.chance(0.75):
+                self.write("query-one`employee_id-{}`\n".format(id))
+                response = " "
+                for week in range(0,52):
+                   self.read(delim='\n', expect=self.get_response(id, week))
+            else:
+                self.write("query-all`\n")
+                response = " "
+                sorted = self.state['id_subset']
+                sorted.sort()
+                for id2 in sorted:
+                    for week in range(0,52):
+                        self.read(delim='\n', expect=self.get_response(id2, week))
 
-	def init_menu(self):
-		self.read(delim="\n", 
-			expect="Make your selection:\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="PLAY\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="QUIT\n", 
-			expect_format='asciic')
-		self.read(delim='$ ', expect='$ ', expect_format='asciic')
-
-	def replay_menu(self):
-		self.read(delim="\n", 
-			expect="Make your selection:\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="PLAY AGAIN\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="START OVER\n", 
-			expect_format='asciic')
-		self.read(delim="\n", 
-			expect="QUIT\n", 
-			expect_format='asciic')
-		self.read(delim='$ ', expect='$ ', expect_format='asciic')
-
-	def quit(self):
-		self.write("QUIT\x07")
-		expect_str = "Give up?. Don't be a stranger!\n"
-		self.read(delim='\n', expect=expect_str, expect_format='asciic')
-		return -1
-
-	def play(self):
-		self.write("PLAY\x07")
-		if self.DEBUG:
-			print("Play")
-
-	def select_char(self):
-		expect_str = "P goes first. Do you want P or Q?\n"
-		self.read(delim='\n', expect=expect_str, expect_format='asciic')
-		self.read(delim='$ ', expect='$ ', expect_format='asciic')
-
-	def select_char_good(self):
-		# select either P or Q
-		if self.chance(0.5):
-			# P
-			self.write("P\x07")
-			self.state['game'].init_game(self.state['replay'], 'P')
-		else:
-			# Q
-			self.write("Q\x07")
-			self.state['game'].init_game(self.state['replay'], 'Q')
-
-	def begin_game(self):
-		expect_str = "Game on!\n"
-		self.read(delim='!\n', expect=expect_str, expect_format='asciic')
-		game_complete = False
-		move_coords = {'row': -1, 'col': -1}
-
-		# if game complete; return
-		while not game_complete:
-
-			# read the board
-			# expect_str = self.state['game'].get_board_content()
-			# self.read(length=len(expect_str), expect=expect_str, expect_format='asciic')
-
-			# if player's turn, send bad coords a small percentage of the time
-			# and send too much input an even smaller % of time and return -1
-			if self.state['game'].is_players_turn():
-				# read MAKEMOVE string
-				expect_str = "It's your move. Enter 'row col'\n"
-				self.read(delim='\n', expect=expect_str, expect_format='asciic')
-				self.read(delim='$ ', expect='$ ', expect_format='asciic')
-
-				# write valid coords
-				move_coords = self.state['game'].player_valid_random_move()
-
-			# if computer's turn, use random_move to select coords
-			else:
-				move_coords = self.state['game'].computer_valid_random_move()
-
-			# update board
-			update_failed = self.state['game'].update_board(move_coords)
-
-			# if board update failed, coords are bad.
-			# if coords are bad, and it's player's turn, send BADMOVE
-			if update_failed:
-				if self.state['game'].is_players_turn():
-					self.write('{0} {1}\x07'.format(move_coords['row'], move_coords['col']))
-					expect_str = "Invalid coordinates!\n"
-					self.read(delim='\n', expect=expect_str, expect_format='asciic')
-			else:
-				# if coords are good, move_complete()
-				if self.state['game'].is_players_turn():
-					self.write('{0} {1}\x07'.format(move_coords['row'], move_coords['col']))
-				else:
-					#read computer's move
-					expect_str = "Computer's move: {0} {1}.\n".format(move_coords['row'], move_coords['col'])
-					self.read(delim='.\n', expect=expect_str, expect_format='asciic')
-
-				self.state['game'].move_complete()
-
-			if self.state['game'].have_winner() or not self.state['game'].have_moves_remaining():
-			   self.state['game'].update_score()
-			   game_complete = True
-
-	def game_results(self):
-
-		# read the board
-		# expect_str = self.state['game'].get_board_content()
-		# self.read(length=len(expect_str), expect=expect_str, expect_format='asciic')
-
-		# read win/loss
-		if self.state['game'].is_player_winner():
-			expect_str = "Congratulations! You Win!\n"
-			self.read(delim='\n', expect=expect_str, expect_format='asciic')
-		else:
-			expect_str = "Nice effort. Maybe next time.\n"
-			self.read(delim='\n', expect=expect_str, expect_format='asciic')
-
-		# read final score msg
-		player_score = self.state['game'].get_scores()['player'] % 256
-		computer_score = self.state['game'].get_scores()['computer'] % 256
-		expect_str = "{0} wins. {1} losses.\n".format(player_score, computer_score)
-		self.read(delim='.\n', expect=expect_str, expect_format='asciic')
-
-
+    def quit(self):
+        self.write("\n")
+        self.read(delim='\n', expect="Exiting")

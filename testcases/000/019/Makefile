@@ -1,4 +1,4 @@
-CHAL=SOLFEDGE
+CHAL=Casino_Games
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,25 +20,41 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o SOLFEDGE_patched lib/libc.c.o src/operation.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/slots.c.o -c src/slots.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/poker.c.o -c src/poker.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/blackjack.c.o -c src/blackjack.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/deck.c.o -c src/deck.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/casino.c.o -c src/casino.c
+	$(CXX) $(FLAGS) -o Casino_Games_patched lib/printf.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/slots.c.o src/poker.c.o src/blackjack.c.o src/deck.c.o src/casino.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/operation.c.o -c src/operation.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o SOLFEDGE lib/libc.c.o src/operation.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/slots.c.o -c src/slots.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/poker.c.o -c src/poker.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/blackjack.c.o -c src/blackjack.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/deck.c.o -c src/deck.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/casino.c.o -c src/casino.c
+	$(CXX) $(FLAGS) -o Casino_Games lib/printf.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/slots.c.o src/poker.c.o src/blackjack.c.o src/deck.c.o src/casino.c.o $(LCGC) 
 
 pov: $(LIBPOV)
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o SOLFEDGE_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o SOLFEDGE_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
+	$(CXX) $(FLAGS) -o Casino_Games_pov_4 pov_4/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Casino_Games_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Casino_Games_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Casino_Games_pov_3 pov_3/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/libc.c.o src/operation.c.o src/service.c.o lib/libc.c.o src/operation.c.o src/service.c.o SOLFEDGE_pov_2 SOLFEDGE_pov_1 SOLFEDGE_patched SOLFEDGE
+	rm -f pov_3/pov.c.o pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/slots.c.o src/poker.c.o src/blackjack.c.o src/deck.c.o src/casino.c.o pov_4/pov.c.o lib/printf.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/slots.c.o src/poker.c.o src/blackjack.c.o src/deck.c.o src/casino.c.o Casino_Games_pov_3 Casino_Games_pov_2 Casino_Games_pov_1 Casino_Games_patched Casino_Games_pov_4 Casino_Games

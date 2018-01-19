@@ -1,47 +1,40 @@
-# CGC Challenge Binary Template
-
-## Author Information
-
-"Jason Rogers" <info@narfindustries.com>
+# CGC Challenge Binary (KPRCA\_00017): HackMan
 
 ### DARPA performer group
-Narf Industries (NRFIN)
+Kaprica Security (KPRCA)
 
 ## Description
 
-Not sure where all your money is going? Having trouble staying with in your limits? Try BudgIT, the new personal finance management tool. BudgIT will alow you to set a budget, track your expenses, and let you know when you OVER BUDGET! So get started today on the road to financial success. 
-
+HackMan is a game that the player needs to guess the word correctly. The word list is pre-populated with 20 dictionary words of various length. Unlike its sister game, Hangman, HackMan allows the player to try as many times as possible until he or she gets the answer. The word is picked based on the seed value the user provides. When a player wins, he or she can leave a comment to brag. However, this comment is immediately discarded. It's just there for making players feel good about themselves. The game even keeps track of how many tries a player tried for each word. This is a solid game for all ages.
 
 ### Feature List
 
-To begin, provide BudgIT with a budget category, e.g. Groceries, followed by your spending goal for the month. Then, each time you spend money on a budget category, enter the transaction into BudgIT. BudgIT will let you know when you have reached or surpassed your budget. If at any time you are unsure of how much you have left, BudgIT can provide you a simple report that shows all your budget categories, their remaining budgets, and a total of all budgets. 
+It's a game. That's the only feature.
 
+There are some control characters to access limited menu:
+
+  - '+' starts a new challenge word
+  - '?' resets the current challenge (# tries & progress)
+  - '/' quits the game
 
 ## Vulnerability
-This service has two vulnerabilities. 
 
-The first vulnerability is an off-by-one error that results in an out-of-bounds write. The service will create a buffer on the heap that is large enough for 128 budget categories. The check in the setMap function allows the creation of 129 categories, leading to the out-of-bounds write.
+When the game starts (*play_game* function), the internal state for the game (*h_state*) is set up on the stack. However, this struct is not initialized always. It is only set to the sane value (pointers to the correct functions) when the pointer members inside of the struct are NULL.
 
-The second vulnerability is a use of pointer subtraction to determine size vulnerability that causes an out-of-bounds read. The getSize function uses a loop to find the last budget entry in the list, and then subtracts its address from the start of the list to calculate the size. By selectively removing a budget entry and creating a new budget entry, one can control the output of the getSize call in sendReport to read memory outside the bounds of the buffer.
+In general, those function pointers will be NULL due to the side-effect of *banner* function, where allocates a large stack space and initializes with NULL bytes. Initialized stack area coincides with where *h_state* is located on the stack.
+
+However, one can attack this uninitialized stack variable (struct) by leveraging *record_winner* function after winning a round of the game. Since *record_winner* also uses a large stack buffer, it is possible to control the contents of the stack  area that coincides with where *h_state* will be located. Note that *banner* does not get invoked when *record_winner* is executed, therefore **not** initializing the stack with NULL bytes. And since the function pointers in *h_state_* is not initialized if they are not NULL, the attacker can make the program to call an arbitrary address (EIP control).
 
 ### Generic class of vulnerability
-Heap-based Buffer Overflow
-Out-of-bounds Read
-Incorrect Calculation of Buffer Size
-Off-by-one Error
-Use of Pointer Subtraction to Determine Size
-Out-of-bounds Write
+
+Unitialized stack variable usage
+
+Function pointer overwrite
 
 ### CWE classification
-CWE-122: Heap-based Buffer Overflow
-CWE-125: Out-of-bounds Read
-CWE-131: Incorrect Calculation of Buffer Size
-CWE-193: Off-by-one Error
-CWE-469: Use of Pointer Subtraction to Determine Size
-CWE-787: Out-of-bounds Write
 
-## Challenge
+Use of Uninitialized Variable (CWE-457)
 
-1) Determine how budget entries are created, stored, and removed by interacting with the service.
+## Challenges
 
-2) Understand how the getSize call can be manipulated by creating and removing specific budget entries.
+This CB tests if the competitors can detect uninitialized stack variable and its insecure usage. This requires a good understanding and reasoning of the stack throughout interprocedural control flows. The CB also tests the ability to analyze unusual control-flow introduced by *goto* statements. 

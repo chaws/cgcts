@@ -1,0 +1,9 @@
+src/service.c:57 # req is declared
+src/service.c:59 # req is heap-allocated: req->recv[1044] and req->resp[1024]
+src/service.c:62 # rearrange req to stay at the end of the memory page
+src/service.c:67 # reads input from user into req->recv
+src/service.c:73 # checks if the input starts with Elizabeth's identifier
+src/service.c:74 # process input according to Elizabeth's strategy
+src/members.c:127:CWE457 # checks if req->nomatch(function pointer), which was never initialized, is equal to `cgc_eliz_all'
+src/members.c:134:CWE457 # if req->nomatch(function pointer), which was never initialized, is equal to `cgc_eliz_all', req->match(function pointer) is invoked, but it was never initialized
+

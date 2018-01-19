@@ -1,59 +1,41 @@
-# CGC Challenge Binary CROMU_00021
+# CGC Challenge Binary Template
 
 ## Author Information
 
-"Dustin Fraze" <df@cromulence.co>
+"Jason Rogers" <info@narfindustries.com>
 
 ### DARPA performer group
-Cromulence (CROMU)
+Narf Industries (NRFIN)
 
 ## Description
 
-This is a challenge which implements a simple integer calculator.  It supports variables, and has a number of built-in functions, some of which are arithmetic and some of which aren't.  It also supports booleans and strings, and some functions on those datatypes.
+Double your money with our High Frequency Trading Algo. We unleash the power of pair trading at cyber speed to work the margins and deliver returns. 
+
 
 ### Feature List
 
-This is a multi-function calculator.  It supports addition, subtraction, multiplication, division, modulus, length, type, int casts, and equality checks on integers, strings, and booleans.
+To begin a trading session, provide our Algo with an initial trading deposit. Our Algo will integrate with all standard real-time quote feeds, looking for statistical arbitrage in the historically correlated stocks that you select. Once we've doubled your money, a notification will be sent. 
 
-It allows for some pseudo-intelligent operations to occur on different datatypes.  For example, adding a string and an integer will cast the integer to a string, and concatenate the two.  Adding a integer and a string will not add, because I didn't think that made as much sense.
 
 ## Vulnerability
-There are multiple vulnerabilities of differing severity.
+This service has two vulnerabilities. 
 
-The most severe vulnerability is type confusion.
+The first vulnerability is a null pointer dereference due to an assumption that memory has already been allocated to a pointer. Once enough records have been sent to move the service out of learning mode, the updateStockValues function will be called to iterate through the array of purchased stocks and update their current price. If a "Balance" record was never sent, this array will not be initialized yet, causing a null pointer dereference. To patch this vulnerability, all for loops that iterate through the portfolio->stocks array should ensure that the array has been initialized.  (CWE-476 Null Pointer Dereference)
 
-Most of the internal functions are of special type "Function".  These include "add", "sub", "mul", and their friends.  Many of them have a shorthand notation.  Add, for example, is +.
-
-One can redefine an internal function and have the program "mostly" work - var add = 5 will change add to 5, such that 5 add 5 will return 5 (the function stack will be empty, and the last operand in the operator stack is 5).
-
-Variable names are legally only of a string of letters and numbers, with no whitespace between them.  The shorthand operators are made up of symbol characters.  A shorthand operation is always pushed into the function stack, even if the underlying function has been redefined.  The calculator will attempt to call the type data as a function.  In the case of a string type, the calculator will execute the bytes which make up the string.
-
-There is another bug in the operand and function stack.  All inputs are read into a single, length checked buffer.  Inputs are then tokenized, and shoved into a function stack or operand stack, depending on type information.  Each of these stacks contains 32 elements, and there is no bounds check on insertion.  Without a sufficiently fortunate series of heap allocations, this leads to a crash.
-
-A NULL pointer dref exists if a user passes the "var" command without any arguments. Strtok returns NULL and if it does not find a space without a check before the following dereference.
-
-There is an integer overflow vulnerability in the mul command when multiplying a string by an integer. Depending on the length of the string and the size of the integer, an integer overflow may occur resulting in a too small buffer allocation before the string is written leading to a buffer overflow. 
+The second vulnerability occurs the second time the portfolio->stocks array is enlarged in the getNextFreeEntry function to accommodate more stock purchases. In order to purchase a stock, the pair trading algorithm must receive a quote for two stocks such that their price relative is greater than or less than a standard deviation away from the mean of all price relative computations that have been received over the course of the session. When the portfolio->stock array is enlarged the second time the new size will be less than the old size due to an integer overflow. When the old array is copied into the new array it will go beyond the length of the new array, leading to an out-of-bounds write. To patch this vulnerability the overflow should be detected, and the service should terminate. 
 
 ### Generic class of vulnerability
-Type Confusion
-Out of bounds read
-out of bounds write
 NULL Pointer Dereference
-Integer overflow
+Integer Overflow or Wraparound
+Out-of-bounds Write
 
 ### CWE classification
-Type Confusion
-CWE-843
+CWE-476: Null Pointer Dereference
+CWE-787: Out-of-bounds Write
+CWE-190: Integer Overflow
 
-Out of bounds read
-CWE-125
+## Challenge
 
-Ouf of bounds write
-CWE-787
+1) Determine how the service expects the user to interact with the service.
 
-CWE-476 NULL Pointer DREF
-CWE-190 Integer Overflow or Wraparound
-
-## Challenges
-
-This challenge binary uses a trie to store function pointers to reach deeper functionality.  Exploration of the challenge set will require processing the entries in the trie and generating inputs capable of exercising the application.
+2) Understand how the input provided to the service is used to determine when a stock should be bought or sold.  

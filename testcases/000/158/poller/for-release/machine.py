@@ -1,224 +1,131 @@
 #!/usr/bin/env python
-from functools import partial
-from generator.actions import Actions
+
 import random
-import struct
+import string
+import cStringIO
+import tarfile
 
-def random_bytes(minlen, maxlen):
-    length = random.randint(minlen, maxlen)
-    return ''.join([chr(random.randint(0,255)) for x in xrange(length)])
+from generator.actions import Actions
 
-class Filter(object):
-    def __init__(self):
-        self.insn = []
-        self._insn = []
-        self.rfp = 15
-        self.ra = random.randint(0, 6)
-        self.rb = random.randint(self.ra+1, 9)
-        self.rc = random.randint(self.rb+1, 11)
-        self.rt = random.randint(self.rc+1, 14)
 
-        # move ctx pointer into Rc
-        self.move(self.rc, 0)
+def rs(n=16):
+    return ''.join([random.choice(string.letters) for _ in xrange(n)])
 
-        # initialize Ra to zero
-        self.alu(11, self.ra, rextra=0)
 
-        self.ld_ctx(0)
+def ru(_max=8 ** 6):
+    return random.randint(0, _max - 1)
 
-    def bytecode(self):
-        return struct.pack('<I', len(self.insn)) + ''.join(self.insn)
 
-    def ret(self):
-        self.move(0, self.ra)
-        self.jmp(5, 0, 0, 0)
-        self._insn.append(partial(self._ret))
+def rmode():
+    return random.choice([
+        0700,
+        0500,
+        0666,
+        0123
+    ])
 
-    def _ret(self):
-        self.reg[0] = self.reg[self.ra]
-    
-    def jmp(self, code, offset, rdst, rsrc=None, rextra=None):
-        if rsrc is None:
-            source = 1
-            rsrc = 0
-        else:
-            source = 0
-            rextra = 0
-        x = struct.pack('<BBHI', (code << 4) | (source << 3) | 4, (rsrc << 4) | rdst, offset, rextra)
-        self.insn.append(x)
-    
-    def alu(self, code, rdst, rsrc=None, rextra=None):
-        if rsrc is None:
-            source = 1
-            rsrc = 0
-        else:
-            source = 0
-            rextra = 0
-        x = struct.pack('<BBHI', (code << 4) | (source << 3) | 3, (rsrc << 4) | rdst, 0, rextra)
-        self.insn.append(x)
 
-    def ld(self, dst, src, offset, size=0):
-        x = struct.pack('<BBHI', (0 << 5) | (size << 3) | 0, (src << 4) | dst, offset, 0)
-        self.insn.append(x)
+class Mine(tarfile.TarInfo):
+    _user_codes = (
+        "iCT3gePALvnIHM7tiDFtZyK5d9HmEH+flOccF+Xzpyo4Vwl39UrOlvma31gToV54Jq7HQ2uyznvZaSgRnqb8pxqG0JjTK+EkOLK"
+        "R4L3gBHn1ape0jqBuzqINm956fkh/LmeIZnNbxiPiWA1SV1KAy2U7/3WErZGE3HlMKNcivjT+Je/exrnCAKW5r7J8G7VEYfv/dG"
+        "He/jJ8bDD+vUEyGhQRV3GOG4+B7TbfaUZTDSWClMKxnOGWHN8JATRw1MsVXxHTVyqK+kf/DS2MmXiaxJprWeDn+jhWpO964+FW2"
+        "uYn/U/EJ2zHNDwkBw45rTqx/VeanI1KnEndeTHvfYEVUQ=="
+    )
 
-    def st(self, dst, src, offset, size=0):
-        x = struct.pack('<BBHI', (0 << 5) | (size << 3) | 2, (src << 4) | dst, offset, 0)
-        self.insn.append(x)
+    def user_code(self):
+        try:
+            return self._user_codes[self.uid * self.gid:][:4]
+        except IndexError:
+            return ""
 
-    def ld_ctx(self, offset):
-        # if past header, we have to verify
-        if offset > 16:
-            # init Rb to 0
-            self.alu(11, self.rb, rextra=0)
+    def type_name(self):
+        return {
+            '\0': "Normal",
+            "0": "Normal",
+            "1": "Hard link",
+            "2": "Symbolic link",
+            "3": "Character device",
+            "4": "Block device",
+            "5": "Directory",
+            "6": "FIFO"
+        }.get(self.type, "Unknown")
 
-            # retrieve length from ctx
-            self.ld(self.rt, self.rc, 8, size=2)
+    def __str__(self):
+        return (
+            """name:\t\t{}
+    mode:\t\t{}
+    uid:\t\t{}
+    gid:\t\t{}
+    user_code:\t\t{}
+    size:\t\t{}
+    mtime:\t\t{}
+    type:\t\t{}
+    link_name:\t\t{}
+    magic:\t\t{}
+    version:\t\t{}
+    owner_name:\t\t{}
+    group_name:\t\t{}
+    dev_major:\t\t{}
+    dev_minor:\t\t{}
+    prefix:\t\t{}\n"""
+        ).format(
+            self.name,
+            "000" + oct(self.mode),
+            self.uid,
+            self.gid,
+            self.user_code(),
+            self.size,
+            self.mtime,
+            self.type_name(),
+            self.linkname,
+            "ustar",
+            0,
+            self.uname,
+            self.gname,
+            0,
+            0,
+            ""
+        )
 
-            # if offset -gte length, jump over ld
-            self.jmp(3, 1, self.rt, rextra=offset-16)
 
-        # do the load
-        self.ld(self.rb, self.rc, offset)
-        self._insn.append(partial(self._ld_ctx, offset))
-
-    def _ld_ctx(self, offset):
-        if offset < len(self.ctx):
-            self.reg[self.rb] = ord(self.ctx[offset])
-        else:
-            self.reg[self.rb] = 0
-
-    def ld_fp(self, offset):
-        self.ld(self.rb, self.rfp, offset, size=2)
-        self._insn.append(partial(self._ld_fp, offset))
-
-    def _ld_fp(self, offset):
-        val = self.stack[offset]
-        val |= self.stack[offset + 1] << 8
-        val |= self.stack[offset + 2] << 16
-        val |= self.stack[offset + 3] << 24
-        self.reg[self.rb] = val
-
-    def st_fp(self, offset):
-        self.st(self.rfp, self.ra, offset, size=2)
-        self._insn.append(partial(self._st_fp, offset))
-
-    def _st_fp(self, offset):
-        val = self.reg[self.ra]
-        self.stack[offset] = val & 0xff
-        self.stack[offset + 1] = (val >> 8) & 0xff
-        self.stack[offset + 2] = (val >> 16) & 0xff
-        self.stack[offset + 3] = (val >> 24) & 0xff
-
-    def move(self, dst, src):
-        self.alu(11, dst, rsrc=src)
-        self._insn.append(partial(self._binop, lambda a, b: b, dst, src))
-
-    def binop(self, op, alu, dst, rsrc):
-        self.alu(alu, dst, rsrc=rsrc)
-        self._insn.append(partial(self._binop, op, dst, rsrc))
-
-    def binop_const(self, op, alu, dst, extra):
-        self.alu(alu, dst, rextra=extra)
-        self._insn.append(partial(self._binop_const, op, dst, extra))
-
-    def _binop(self, op, dst, src):
-        self.reg[dst] = op(self.reg[dst], self.reg[src]) & 0xffffffff
-
-    def _binop_const(self, op, dst, extra):
-        self.reg[dst] = op(self.reg[dst], extra) & 0xffffffff
-
-    def random(self, count=1):
-        INSN = [
-            partial(self.move, self.ra, self.rb), # rA -> rB
-#            partial(self.move, self.rb, self.ra), # rB -> rA
-            lambda: self.ld_ctx(random.randint(0, 1000)), # ctx[rand] -> rB
-            partial(self.binop, lambda a, b: a+b, 0, self.ra, self.rb), # rA + rB -> rA
-            lambda: self.binop_const(lambda a, b: a+b, 0, self.ra, random.randint(0, 0x7fffffff)), # rA + rand -> rA
-            partial(self.binop, lambda a, b: a-b, 1, self.ra, self.rb), # rA - rB -> rA
-            lambda: self.binop_const(lambda a, b: a-b, 1, self.ra, random.randint(0, 0x7fffffff)), # rA - rand -> rA
-            partial(self.binop, lambda a, b: a*b, 2, self.ra, self.rb), # rA * rB -> rA
-            lambda: self.binop_const(lambda a, b: a*b, 2, self.ra, random.randint(0, 0x7fffffff)), # rA * rand -> rA
-#            partial(self.binop, lambda a, b: a/b, 3, self.ra, self.rb), # rA / rB -> rA
-            lambda: self.binop_const(lambda a, b: a/b, 3, self.ra, random.randint(0x1, 0x7fffffff)), # rA / rand -> rA
-#            partial(self.binop, lambda a, b: a%b, 4, self.ra, self.rb), # rA % rB -> rA
-            lambda: self.binop_const(lambda a, b: a%b, 4, self.ra, random.randint(0x1, 0x7fffffff)), # rA % rand -> rA
-            partial(self.binop, lambda a, b: a|b, 5, self.ra, self.rb), # rA | rB -> rA
-            lambda: self.binop_const(lambda a, b: a|b, 5, self.ra, random.randint(0, 0x7fffffff)), # rA | rand -> rA
-            partial(self.binop, lambda a, b: a&b, 6, self.ra, self.rb), # rA & rB -> rA
-            lambda: self.binop_const(lambda a, b: a&b, 6, self.ra, random.randint(0, 0x7fffffff)), # rA & rand -> rA
-            partial(self.binop, lambda a, b: a^b, 7, self.ra, self.rb), # rA ^ rB -> rA
-            lambda: self.binop_const(lambda a, b: a^b, 7, self.ra, random.randint(0, 0x7fffffff)), # rA ^ rand -> rA
-#            partial(self.binop, lambda a, b: a<<b, 8, self.ra, self.rb), # rA << rB -> rA
-            lambda: self.binop_const(lambda a, b: a<<b, 8, self.ra, random.randint(0, 30)), # rA << rand -> rA
-#            partial(self.binop, lambda a, b: a>>b, 9, self.ra, self.rb), # rA >> rB -> rA
-            lambda: self.binop_const(lambda a, b: a>>b, 9, self.ra, random.randint(0, 30)), # rA >> rand -> rA
-            lambda: self.ld_fp(random.randint(0, 32)),
-            lambda: self.st_fp(random.randint(0, 32))
-        ]
-
-        for x in xrange(count):
-            random.choice(INSN)()
-
-    def execute(self, pkt, action):
-        ts, ts_usec, orig_length, data = pkt
-
-        # initialize executor state
-        self.ctx = struct.pack('<IIII', ts, ts_usec, len(data), orig_length) + data
-        self.reg = [0] * 16
-        self.stack = [0] * 48
-
-        # run through the bytecode
-        for f in self._insn:
-            try:
-                f()
-            except ZeroDivisionError:
-                self.reg[0] = 0xFFFFFFFF
-                break
-
-        action.read(length=4, expect=struct.pack('<I', self.reg[0]))
-
-class TemplateGenerator(Actions):
+class Machine(Actions):
     def start(self):
-        self.delay(50)
-        self.state['filter'] = None
-        self.state['pkts'] = []
+        #self.delay(100)
+        verify = ''.join([self.magic_page[i] for i in xrange(0, 0x1000, 4)])
+        self.read(length=len(verify), expect=verify)
 
-        self.write(self.magic_page[:4])
-        self.read(length=0x1000, expect=self.magic_page)
+        self.state['io'] = cStringIO.StringIO()
+        self.state['tar'] = tarfile.open(mode='w', fileobj=self.state['io'], format=tarfile.USTAR_FORMAT)
+        self.state['dz'] = open('/dev/zero')
 
-    def random_pkts(self):
-        for x in xrange(int(25 * random.paretovariate(2))):
-            self.random_pkt()
+        self.add_object()
 
-    def random_pkt(self):
-        if len(self.state['pkts']) > 1000:
-            return
-        ts = random.randint(1, 0x7FFFFFFF)
-        ts_usec = random.randint(0, 1000000)
-        pkt = random_bytes(1, 2000)
-        orig_length = random.randint(len(pkt), 2000)
-        self.state['pkts'].append((ts, ts_usec, orig_length, pkt))
+    def branch(self):
+        pass
 
-    def random_filter(self):
-        self.state['filter'] = Filter()
-        self.state['filter'].random(random.randint(10, 100))
-        self.state['filter'].ret()
+    def add_object(self):
+        new = Mine()
+        new.name = rs()
+        new.mode = rmode()
+        new.uid = 1
+        new.gid = ru(len(Mine._user_codes) - 4)
+        new.size = ru(256)
+        new.mtime = ru()
+        new.type = random.choice(tarfile.SUPPORTED_TYPES)
+        if new.type == tarfile.DIRTYPE:
+            new.name += '/'
+        new.linkname = rs()
+        new.uname = rs()
+        new.gname = rs()
 
-    def send_pkts(self):
-        file_hdr = struct.pack('<IHHII', 0x12ab34cd, 3, random.randint(10, 0xFFFF), random.randint(2000, 0xFFFF), 1)
-        pkts = ''.join([struct.pack('<IIII', ts, ts_usec, len(data), orig_length) + data for ts, ts_usec, orig_length, data in self.state['pkts']])
-        self.write(struct.pack('<I', len(file_hdr) + len(pkts)))
-        self.write(file_hdr)
-        self.write(pkts)
-        self.read(length=1, expect='\x01')
+        self.state['tar'].addfile(new, self.state['dz'])
 
-    def send_filter(self):
-        bc = self.state['filter'].bytecode()
-        self.write(bc)
-        self.read(length=1, expect='\x01')
+    def fin(self):
+        self.write(self.state['io'].getvalue())
+        for ti in self.state['tar'].getmembers():
+            ex = str(ti)
+            self.read(length=len(ex), expect=ex)
 
-    def execute(self):
-        self.send_filter()
-        self.send_pkts()
-        for pkt in self.state['pkts']:
-            self.state['filter'].execute(pkt, self)
+        self.state['dz'].close()
+        self.state['tar'].close()

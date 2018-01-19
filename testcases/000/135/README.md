@@ -1,32 +1,53 @@
-# User Manager
-
-## Author Information
-
-"Jason Williams" <jdw@cromulence.co>
+# KPRCA-00031
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Kaprica Security (KPRCA)
 
-## Description
+## Description:
 
-This service is a reimplementation of the service CROMU_00001 specification with additional functionality added including an admin login, admin console, admin and user passwords, and written using C++ classes.
+This service implements a fictitious chat channel on the Enslavednode chat
+server. There are two bots in the channel named "case" and "molly". They are
+both markov chain bots that chat in the channel when the user enters text.
+They only respond a certain percentage of the time and since they are markov
+bots their responses are purely based off the input of the user and a small
+initial corpus of text that is fed into the system upon initialization. Case
+generates a response whenever the user enters text. This response is always
+sent to molly who uses it to build her markov chain and it is occasionally sent
+back to the user. Molly's generated text is only sent back to the user with
+some probability.
 
 ### Feature List
 
-This service features an an initial menu that allows a user to login, a new user to be created, or an administrator to login to administrator console. The service allows users to send messages to each other from there user menu after logging in. New messages that are received are marked as unread and when a user attempts to read their messages they first are prompted with any unread messages. The administrator console allows an admin after proper authentication to list all users, delete a user, or change their password.
+The bots implement a set of separate bot functions that can be activated if the
+input they are sent triggers them. They are listed below:
+
+  * case:
+    * `/hello` - Responds with a kind greeting to the user.
+    * `/rev` - Reverses the users input string
+    * `/howsmart` - Gives a metric on the bots "intelligence".
+
+  * molly:
+    * `/pont` - Pontificates about the topic at hand.
+
+The user can also quit with the `/part` command.
 
 ## Vulnerability
 
-There is one vulnerability in this service. It is due to the method in which unread messages are tracked per user. An unread message pointer points to the last unread message in the linked list of user messages. When a message is deleted by a user (but not read -- as this will clear the unread message pointer) and that message that is chosen to be deleted is the one the unread message is pointing to the unread message pointer will now point to deleted data. Hence a use after free event can occur. When a user then goes to read a message the program will attempt to display the oldest unread message (which points to deleted data) and a use after free will occur.
+The vulnerability for this service is in the `/pont` command for molly. She constructs
+a response and initialiez a new string with the response before returning it to
+the user. The string constructor however does not check the size of the string
+it is copying into itself at initialization. This results in a heap overflow.
 
 ### Generic class of vulnerability
-
-Use after free
+Heap-based Buffer Overflow
 
 ### CWE classification
-
-CWE-416: Use After Free
+CWE-122: Heap-based Buffer Overflow
 
 ## Challenges
 
-This CB requires the reasoning system to login and provide the proper credentials. In order for the reasoning system to effectively do this it must track the state of the users in the database and provide the proper authentication parameters to access the user console where messages can be sent and the vulnerability exercised. Lastly a use after free event does not immediately constitute a crash. The memory pointer that points to stale data on the heap must be manipulated in a manner to cause a crashing event.
+The vulnerability in this service is simple enough, but is guarded behind
+a fairly complex layer of logic. I.e. the markov chain text generation. An
+attacker must be able to corrently insert text into the system that will result
+in a vulnerability triggering emission for the `/pont` command. This will
+require a fairly decent dataflow analysis system.

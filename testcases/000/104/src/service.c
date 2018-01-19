@@ -1,8 +1,8 @@
 /*
 
-Author: Bryce Kerley <bk@cromulence.co>
+Author: Joe Rogers <joe@cromulence.co>
 
-Copyright (c) 2014-2015 Cromulence LLC
+Copyright (c) 2014 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,70 +23,49 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
-
 #include "libcgc.h"
-#include "cgc_libc.h"
+#include "cgc_stdlib.h"
+#include "cgc_stdint.h"
+#include "cgc_room.h"
+#include "cgc_tsim.h"
+#include "cgc_tvis.h"
+#include "cgc_input.h"
 
-#include "cgc_isopropyl.h"
-#include "cgc_messages.h"
-#include "cgc_protocol.h"
-#include "cgc_churn.h"
-#include "cgc_handler.h"
-
-const int cgc_gauntlet_count = 32;
-
-void cgc_seed();
-void cgc_gauntlet();
-void cgc_operate();
+extern double *cgc_TGrid;
+extern double *cgc_HGrid;
+extern uint32_t cgc_X;
+extern uint32_t cgc_Y;
+extern uint32_t cgc_Z;
 
 int main(int cgc_argc, char *cgc_argv[]) {
-  cgc_send_empty_frame(HELLO_ID);
-  cgc_expect_empty_frame(HELLO_ID);
 
-  cgc_seed();
-  cgc_gauntlet();
+	// Init global vars
+	cgc_TGrid = NULL;
+	cgc_HGrid = NULL;
+	cgc_X = 0;
+	cgc_Y = 0;
+	cgc_Z = 0;
 
-  while(1) {
-    cgc_operate();
-  }
+	// Init Material
+	if (cgc_InitMaterial()) {
+		cgc__terminate(-1);
+	}
 
-  return 0;
-}
+	// Determine length of simulation
+	if (cgc_GetSimLength()) {
+		cgc__terminate(-1);
+	}
 
-void cgc_seed() {
-  protocol_frame* seed_data = cgc_expect_frame(SEED_REQ_ID);
-  cgc_handle_seed(seed_data);
-  cgc_free_frame(seed_data);
-}
+	// Print Starting Temps
+	cgc_GraphTemps(cgc_TGrid);
+	cgc_printf("At 0.00000 seconds\n");
+	cgc_kbhit();
 
-void cgc_gauntlet() {
-  for (int i = 0; i < cgc_gauntlet_count; i++) {
-    protocol_frame* guess_data = cgc_expect_frame(GUESS_REQ_ID);
-    cgc_handle_guess(guess_data);
-    cgc_free_frame(guess_data);
-  }
-}
+	// Run the simulation
+	cgc_RunSim();
 
-void cgc_operate() {
-  cgc_transmit(STDERR, ".", 1, NULL);
-  protocol_frame* frame = cgc_receive_frame();
+	// Output the results
+	cgc_GraphTemps(cgc_TGrid);
 
-  switch(frame->type) {
-  case SEED_REQ_ID:
-    cgc_handle_seed(frame);
-    break;
-  case RAND_REQ_ID:
-    cgc_handle_rand(frame);
-    break;
-  case GUESS_REQ_ID:
-    cgc_handle_guess(frame);
-    break;
-  case ECHO_REQ_ID:
-    cgc_handle_echo(frame);
-    break;
-  default:
-    cgc__terminate(-1);
-  }
-
-  cgc_free_frame(frame);
+	return(0);
 }

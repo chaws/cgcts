@@ -1,4 +1,4 @@
-CHAL=Simple_Stack_Machine
+CHAL=TIACA
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,23 +20,33 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -o src/main.c.o -c src/main.c
-	$(CC) $(FLAGS) -o Simple_Stack_Machine_patched src/main.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/asan.c.o -c src/asan.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/string.c.o -c src/string.c
+	$(CXX) $(FLAGS) -o TIACA_patched lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o lib/libc.c.o src/asan.c.o src/service.c.o src/string.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -o src/main.c.o -c src/main.c
-	$(CC) $(FLAGS) -o Simple_Stack_Machine src/main.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/asan.c.o -c src/asan.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/string.c.o -c src/string.c
+	$(CXX) $(FLAGS) -o TIACA lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o lib/libc.c.o src/asan.c.o src/service.c.o src/string.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -pedantic -O0 -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -pedantic -O0 -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -pedantic -O0 -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Simple_Stack_Machine_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Simple_Stack_Machine_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Simple_Stack_Machine_pov_3 pov_3/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o TIACA_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o TIACA_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_3/pov.c.o pov_2/pov.c.o pov_1/pov.c.o src/main.c.o src/main.c.o Simple_Stack_Machine_pov_3 Simple_Stack_Machine_pov_2 Simple_Stack_Machine_pov_1 Simple_Stack_Machine_patched Simple_Stack_Machine
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o lib/libc.c.o src/asan.c.o src/service.c.o src/string.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o lib/libc.c.o src/asan.c.o src/service.c.o src/string.c.o TIACA_pov_2 TIACA_pov_1 TIACA_patched TIACA

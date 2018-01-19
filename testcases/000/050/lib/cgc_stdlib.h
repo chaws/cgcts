@@ -8,12 +8,9 @@
 #define isinf(x) __builtin_isinf(x)
 #define isnan(x) __builtin_isnan(x)
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-
 extern int cgc_fdprintf(int fd, const char *fmt, ...);
 extern int cgc_sprintf(char *s, const char *fmt, ...);
-#define cgc_printf(...) cgc_fdprintf(STDOUT, __VA_ARGS__)
+#define cgc_printf(...) fdprintf(STDOUT, __VA_ARGS__)
 
 long cgc_strtol(const char *str, char **endptr, int base);
 unsigned long strtoul(const char *str, char **endptr, int base);
@@ -29,5 +26,4 @@ static void cgc_exit(int ret)
     cgc__terminate(ret);
 }
 
-#pragma GCC diagnostic pop
 #endif /* !STDLIB_H_ */

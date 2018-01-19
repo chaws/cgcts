@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
+ * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
+ *
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,9 +22,16 @@
  * THE SOFTWARE.
  *
  */
+
+#include "libcgc.h"
+
 int cgc_strcmp(const char *s1, const char *s2)
 {
-  while (*s1 && *s2 && *s1 == *s2)
-    s1++, s2++;
-  return *s1 - *s2;
+    while (*s1 && *s2)
+      if (*s1 != *s2)
+        break;
+      else
+        s1++, s2++;
+
+    return *s2 - *s1;
 }

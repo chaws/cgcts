@@ -35,7 +35,7 @@
 #define PRINTF_CHAR '%'
 #endif
 
-static void _convert_unsigned(char *buf, unsigned x, int base, int upper)
+static void cgc__convert_unsigned(char *buf, unsigned x, int base, int upper)
 {
     const char *numbers;
     char *tmp = buf + 20;
@@ -63,7 +63,7 @@ static void _convert_unsigned(char *buf, unsigned x, int base, int upper)
     cgc_memmove(buf, tmp, 20 - (buf - tmp));
 }
 
-static void _convert_signed(char *buf, int x, int base, int upper)
+static void cgc__convert_signed(char *buf, int x, int base, int upper)
 {
     if (x < 0)
     {
@@ -71,7 +71,7 @@ static void _convert_signed(char *buf, int x, int base, int upper)
         x = -x;
     }
 
-    _convert_unsigned(buf, x, base, upper);
+    cgc__convert_unsigned(buf, x, base, upper);
 }
 
 static int cgc__vsfprintf(const char *fmt, va_list ap, FILE *stream, char *buf, cgc_size_t buf_size)
@@ -200,7 +200,7 @@ static int cgc__vsfprintf(const char *fmt, va_list ap, FILE *stream, char *buf, 
                     intarg = va_arg(ap, int);
                 else goto done;
 
-                _convert_signed(numbuf, intarg, 10, 0);
+                cgc__convert_signed(numbuf, intarg, 10, 0);
             }
             else
             {
@@ -208,7 +208,7 @@ static int cgc__vsfprintf(const char *fmt, va_list ap, FILE *stream, char *buf, 
                     uintarg = va_arg(ap, unsigned int);
                 else goto done;
 
-                _convert_unsigned(numbuf, uintarg, ch == 'u' ? 10 : 16, ch == 'X');
+                cgc__convert_unsigned(numbuf, uintarg, ch == 'u' ? 10 : 16, ch == 'X');
             }
 
             numbuflen = cgc_strlen(numbuf);

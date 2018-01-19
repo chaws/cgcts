@@ -10,85 +10,92 @@ Narf Industries (NRFIN)
 
 ## Description
 
-FISHYXML brings the world-renowned game Go Fish to an ultra-low bandwidth wireless handset near you. When you are sitting by the campfire at the family picnic, you don't have to worry about terrible cellular reception to keep the e-children entertained. Whip out a set of ultra-low bandwidth wireless handsets featuring FISHYXML and they will be entertained for hours.
+HIGHCOO is the hottest message of the day (MOTD) program on the market. Instead of boring quotes and quips showing up at your login prompts, HIGHCOO honors your intellectual side by providing thoughful and enlightening Haiku.
+
+from within HIGHCOO
+new Haiku every login
+a warm thought engulfs
 
 ### Feature List
 
-This service is the server side of a 2-player Go Fish game, and provides an excellent AI to test your Go Fish Witts against. The service is designed to only handle a single remote player and a bot player run by the server.
+This service is a message of the day (MOTD) program specifically designed to provide Haiku as the daily message.
 
-The serialization protocol of this service is a stripped-down version of wbxml, a binary xml format, called FISHYXML. So, the client and server communicate using FISHYXML.
+It provide functions both to add new Haikus as well as those to query the current Haiku collection.
 
-Yes, the game and the serialization protocol share the same name.
-
-And fishy is not just because of the name Go Fish, it is also because of the fishy implementation of the shuffle algorithm's choice of a random seed.
-
-The rules of this version of the game Go Fish are as follows:
-
-# Starting
-* The remote player provides their name to get the game started.
-
-# Dealing
-* A single 52 card deck is used. No jokers.
-* There can be 2 to 4 players in standard Go Fish, but we only support 2 players total. The remote player and an opponent played by the server.
-* Initial deal for 2 players is 7 cards each
-* The remainder of the deck becomes the pool.
-
-# Play a turn
-* First player is the remote player.
-* In a turn, the player first selects a card from their hand and asks the other player if that player has any cards of that rank. If the asked player does, then they give all cards of that rank to the asking player. If the asked player does not, then they tell the asking player to Go Fish. Then the asking player selects a single card from the pool. If the asking player picks a card from the pool that matches the rank they asked for, they show the card to the other player. At the end of a turn, if a player has 4 cards of a rank, they have a book, which they play face up. Then the turn ends. At no point does a player get to take another turn, even if they get cards of the asked rank.
-
-# Runing out of cards
-* If a player runs out of cards, they draw a new hand from the pool of size equal to their initially dealt hand.
-* If the pool has less cards than the player needs to draw, the player draws the remaining cards.
-* If the player goes fish and the pool has no more cards, the players turn is over.
-
-# Ending the game
-* The game ends when all books have been laid down (all cards are laid down face up)
-
-# Scoring
-* The winner is the player with the most books. It is possible to have a tie.
-
+Valid functions are:
+* add haiku
+* get haiku by id
+* get haiku random
+* get haiku count
+* get list of haiku ids
 
 ## Vulnerability
 
-The primary vulnerability is in parse\_xml\_cards() in fishyxml.c:150. The loop reads in cards provided by the remote player. But, it does not check against a known quantity of cards that are expected. So, it will continue to read in cards provided the data is properly formatted xml for a card. The cards are created as they are read and pointers to the cards are saved into the cards[] buffer. This leads to writing beyond the end of the cards[] buffer. The cards buffer is allocated adjacent to other allocations, so it takes a total of 625 cards to overflow; which equates to 5004 bytes.
 
-The solution to this vuln is to check the count of cards received against the qty value; the known number of cards expected.
+When a new haiku is added, the user first provides the total number of bytes in the haiku; which the program assumes includes line termination charactors. Followed by each line of the haiku.
 
-Cooperating with this vulnerability is an excessivly large buffer in read\_cards() in rxtx.c:88. This buffer size is defined by bytes\_needed and is set to 5120 (10*512). It only needed to be 5003, but 5120 makes for even memory allocations.
+The function recv\_haiku at operation.c:319 controls receiving a new haiku. It allocates memory on the heap to store the haiku id, length, content, and the trailing null for the content. The user supplied total\_bytes value is used to define the size of the haiku content.
 
-By lowering the bytes\_needed value to less than 5004, the vuln in parse\_xml\_cards() is not reachable.
+Then there is the while loop at operation.c:335 that controls receipt of the actual haiku content. This is the first problem. The while loop control variable starts off equal to the uesr supplied total\_bytes value. It assumes that the number of bytes in the haiku content matches the total\_bytes value.
+
+Right inside the while loop, recv\_haiku\_line is called to receive each of the 3 haiku lines. Inside recv\_haiku\_lines, each line of the haiku is read in and stored in a temporary stack buffer: temp\_line\_buf. snprintf is then used to copy the content followed by a line termination charactor into the allocated heap buffer. The size parameter for snprintf is a decrementing count of bytes\_remaining, which starts off as the total number of bytes in the haiku. So, it also assumes that the total includes the line termination charactors and matches the number of bytes in the haiku content.
+
+Back in recv\_haiku, bytes\_remaining is decremented by the number of bytes in that line that were written to the heap.
+
+This means that there are conditions when the total number of bytes written will not correctly match the total\_bytes value, which will cause the bytes\_remaining value to become negative. 
+
+The while loop checks for the loop invariant to equal 0, but under these conditions, it skips past 0 and goes negative, so the while loop condition will continue to be true until either bytes\_remaining wraps around all the way back to 0. Or something causes the system to crash prior to that.
+
+Each time through the while loop will allow an additional line of input to be stored into the heap buffer. The allocation of the heap buffer for a haiku allocates 2 pages worth of memory. So an overflow takes a haiku of length of at least 8184 bytes (8192-8) to cause a memory access error and thus segfault (POV).
+
+Since, snprintf is using a signed short (bytes\_remaining) as its size parameter, the size value will be cast to an unsigned short and become a large value. So, the only limit on how much data can be written into the heap buffer for each line of input is the max length of a line of input which is null terminated.
+
+There are several options for how to patch this problem. The patched version changes the while loop condition to be true only when bytes\_remaining is > 0. Another option would be to decrement the parameter to recvline from MAX\_HAIKU\_LINE\_LEN to some smaller amount when bytes\_remaining is less than MAX\_HAIKU\_LINE\_LEN. And then use bytes\_received in the snprintf, instead of bytes\_remaining. Putting a test at the beginning of recv\_haiku\_line to ensure bytes\_remaining is positive, would be advised as well. Another option would be to put a test at the end of the while loop in recv\_haiku that breaks out of the loop if bytes\_remaining <= 0, although that is effectively redundant to the patched version.
+
+
+Separately, there is no limit on the number of haiku a user can add. So, it is possible to use up the whole heap.
+
 
 ### Generic class of vulnerability
 
+
 Improper Input Validation
+
+Improper Signed to Unsigned conversion
 
 Heap Buffer overflow
 
 Improper checking of loop invariant
 
-Improper array bounds checking
+Off-by-one-error
+
+Integer underflow and overflow with wrap around
 
 ### CWE classification
 
 Improper Input Validation
 CWE-20
 
-Heap-based Buffer Overflow
-CWE-122
-
 Improper Validation of Array Index
 CWE-129
 
-Incorrect Calculation of Buffer Size
-CWE-131
+Integer Overflow or Wraparound
+CWE-190
 
-Out-of-bounds Write
-CWE-787
+Integer Underflow or Wraparound
+CWE-191
+
+Off-by-one Error
+CWE-193
+
+Signed to Unsigned Conversion Error
+CWE-195
+
+Integer Overfow to Buffer Overflow
+CWE-680
 
 ## Challenges
-* Solving the grammar for the fishyxml serialization protocol will be a good challenge. I stripped the fishyxml grammar to as minimal as possible to lessen the tokens that need to be discovered. Plus, the binary version of xml has very short tokens (most are 1 byte). So, that makes it a little easier.
-* Learning the rules of the game to get enough plays to reach the vulnerabilities, and further to complete/win a game, will be challenging.
-* To reach the vulnerability through dynamic analysis, the player has to play part of the game and provide input that matches the xml grammar. And then the code required to trigger the vulnerability has to be properly formatted xml as well.
-* Due to the requirement for formatted xml grammar for all I/O, a fuzzer is not going to be of any use.
+* A fuzzer will be challenged because anytime that an add function is selected and the total haiku size provided is less than the actual haiku size, the code will enter a problem state. It will usually just result in a receive timeout, but if enough data is provided in the haiku, it will cause segfault/POV.
+* A fuzzer will also have problems with the requirement for 3 lines of data, each having a non-standard line termination charactor. At the same time, the length of a line is restricted along with the total length of all 3 lines.
+* A SMT solver should be able to work out the proper inputs to create a valid haiku. But, the amount of input required to trigger the POV is much more than the size of the buffer, so is not something that can be learned from code conditions.
 * 

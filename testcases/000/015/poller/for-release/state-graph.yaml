@@ -1,77 +1,66 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
 ---
 nodes:
 - name: start
-- name: end
-- name: menu
-- name: recipe
-- name: recipe_menu
-- name: add_recipe
-- name: remove_recipe
-- name: list_recipe
-- name: list_all
-- name: recipe_costs
-- name: leave_recipe_menu
-- name: pantry
-- name: pantry_menu
-- name: leave_pantry
-- name: create_pantry
-- name: delete_pantry
-- name: print_pantry
-- name: update_pantry
-- name: query
-- name: query_menu
-- name: leave_query
-- name: query_by_pantry
-- name: query_by_cost
-- name: print_cheapest
-- name: print_expensivest
-- name: prn
-
+# - name: add_person
+- name: full_set
+# - name: load_resort_digraph
+# - name: load_rider_group
+# - name: load_rider_single
+# - name: unload_riders
+# - name: reset_simulation
+# - name: trail_stats
+# - name: lift_stats
+# - name: start_simulation
+# - name: rider_stats
+# - name: broker
+- name: quit
 
 edges:
-- start: menu
-- menu: recipe
-- recipe: recipe_menu
-- recipe_menu: add_recipe
-- add_recipe: recipe_menu
-- recipe_menu: recipe_costs
-- recipe_costs: recipe_menu
-- recipe_menu: remove_recipe
-- remove_recipe: recipe_menu
-- recipe_menu: list_recipe
-- list_recipe: recipe_menu
-- recipe_menu: list_all
-- list_all: recipe_menu
-- recipe_menu: prn
-- prn: recipe_menu
-- recipe_menu: leave_recipe_menu
-- leave_recipe_menu: menu
-  weight: .4
-- menu: pantry
-- pantry: pantry_menu
-- pantry_menu: leave_pantry
-  weight: .4
-- leave_pantry: menu
-- pantry_menu: create_pantry
-- create_pantry: pantry_menu
-- pantry_menu: delete_pantry
-- delete_pantry: pantry_menu
-- pantry_menu: print_pantry
-- print_pantry: pantry_menu
-- pantry_menu: update_pantry
-- update_pantry: pantry_menu
-- menu: query
-- query: query_menu
-- query_menu: leave_query
-  weight: .4
-- leave_query: menu
-- query_menu: query_by_pantry
-- query_by_pantry: query_menu
-- query_menu: query_by_cost
-- query_by_cost: query_menu
-- query_menu: print_cheapest
-- print_cheapest: query_menu
-- query_menu: print_expensivest
-- print_expensivest: query_menu
-- menu: end
-  weight: .4
+- start: full_set
+- full_set: quit
+
+# - start_simulation: broker
+# - rider_stats: broker
+# - trail_stats: broker
+# - lift_stats: broker
+# - unload_riders: quit
+#   weight: 0.1
+# - reset_simulation: quit
+#   weight: 0.1
+# - load_rider_group: broker
+# - load_rider_single: broker
+# - load_resort_digraph: broker
+
+# - broker: start_simulation
+# - broker: rider_stats
+# - broker: trail_stats
+# - broker: lift_stats
+# - broker: unload_riders
+# - broker: reset_simulation
+# - broker: load_rider_group
+# - broker: load_rider_single
+# - broker: load_resort_digraph
+# - broker: quit
+#   weight: 0.1

@@ -25,8 +25,6 @@
 
 #include "cgc_libc.h"
 #include "cgc_list.h"
-#include "cgc_memset.h"
-#include "cgc_memcpy.h"
 
 struct chunk {
     cgc_size_t header;

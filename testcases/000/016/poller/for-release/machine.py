@@ -1,130 +1,83 @@
 #!/usr/bin/env python
-#
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 
 from generator.actions import Actions
-from os.path import dirname, abspath, join
-import struct
-import sys
+import random
+import string
 
-sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-from support import Support
+BOARD_SIZE = 32
+ZERO_CHAR = '.'
+ONE_CHAR = '1'
+END_CHAR = chr(0xFF)
+INIT_VALUE_PY = [ONE_CHAR for _ in xrange(BOARD_SIZE)]
+ROW_1 = BOARD_SIZE - 1
+ROW_2 = BOARD_SIZE - 2 
 
-class Linkronicity(Actions):
-    SUCCESS = struct.pack('<i', 0)
-    FAILURE = struct.pack('<i', -1)
+
+class BitBreaker(Actions):
 
     def start(self):
-        self.state['model'] = Support()
+        self.board = [ [ZERO_CHAR for _ in xrange(BOARD_SIZE)] for __ in xrange(BOARD_SIZE) ]
+        self.board[ROW_1] = INIT_VALUE_PY
+        self.board[ROW_2] = INIT_VALUE_PY 
 
-    def cmd(self):
-        pass
+    def isWinner(self):
+        for row in self.board :
+            if not row == "".join([ZERO_CHAR for _ in xrange(BOARD_SIZE)]) :
+                return False
+        return True
 
-    def cd(self):
-        # Can only read/write to one directory under normal operation, so just
-        # hop out then back in
-        self.write(self.state['model'].make_cd('..'))
-        self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
-        self.write(self.state['model'].make_cd('user'))
-        self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
+    def shift_right(self, row):
+        self.board[row] = [ self.board[row][-1] ] + self.board[row][0:-1]
 
-    def read_file(self):
-        pass
+    def shift_down(self, col):
+        botrow = self.board[-1] 
+        for row in reversed(xrange(1, BOARD_SIZE)) :
+            self.board[row] = self.board[row][0:col] + self.board[row-1][col:col+1] + self.board[row][col+1:]
+        self.board[0] = self.board[0][0:col] + botrow[col:col+1] + self.board[0][col+1:]
 
-    def valid_read_file(self):
-        name = self.state['model'].get_filename()
-        if not name:
-            return
-        exp = self.state['model'].read_file(name)
-        if exp is not None:
-            self.write(self.state['model'].make_read_file(name))
-            self.read(length=len(exp), expect=exp)
-            self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
+    def toCmd(self, direction, num) :
+        if direction == 'R' :
+            return (0x20 | num) & 0xFF 
+        else :
+            return ((~0x20) & num) & 0xFF
 
-    def invalid_read_file(self):
-        name = self.state['model'].get_new_filename()
-        self.write(self.state['model'].make_read_file(name))
-        self.read(length=len(self.FAILURE), expect=self.FAILURE)
+    def remove_bits(self) :
+        if (self.board[-1][0] == ONE_CHAR and self.board[-1][1] == ONE_CHAR and
+           self.board[-2][0] == ONE_CHAR and self.board[-2][1] == ONE_CHAR) :
+            self.board[-1] = [ZERO_CHAR, ZERO_CHAR] + self.board[-1][2 :]       
+            self.board[-2] = [ZERO_CHAR, ZERO_CHAR] + self.board[-2][2 :]       
+ 
+    def go(self):
+        d = random.choice("RD")
+        n = random.randint(0,BOARD_SIZE - 1) 
 
-    def write_file(self):
-        pass
+        bak = self.board
 
-    def valid_write_file(self):
-        name = self.state['model'].get_filename()
-        if not name:
-            return
-        contents = self.state['model'].get_new_contents()
-        exp = self.state['model'].write_file(name, contents)
-        if exp:
-            self.write(self.state['model'].make_write_file(name, len(contents), contents))
-            self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
+        if d == "R" :
+            self.shift_right(n)  
+        else :
+            self.shift_down(n)  
 
-    def invalid_write_file(self):
-        name = self.state['model'].get_filename()
-        if not name:
-            return
-        contents = ''
-        self.write(self.state['model'].make_write_file(name, len(contents), contents))
-        self.read(length=len(self.FAILURE), expect=self.FAILURE)
+        self.remove_bits()
 
-    def too_big_write_file(self):
-        name = self.state['model'].get_new_filename()
-        self.write(self.state['model'].make_write_file(name, 2 * self.state['model'].MAX_FILE_SIZE, ''))
-        self.read(length=len(self.FAILURE), expect=self.FAILURE)
+        if self.isWinner() :
+            #if we won somehow then just skip this one
+            print "WARNING: We won!!!"
+            self.board = bak
+        else :
+            self.write([chr(self.toCmd(d,n))])
 
-    def ln(self):
-        pass
+    def toStr(self) :
+        ret = ""
+        for row in self.board :
+            ret += "".join(row) + "\n"
 
-    def valid_ln(self):
-        src = self.state['model'].get_new_filename()
-        dst = self.state['model'].get_filename()
-        if not dst:
-            return
-        self.write(self.state['model'].make_ln(src, dst))
-        self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
+        return (ret)
 
-    def invalid_ln(self):
-        src = self.state['model'].get_filename()
-        dst = self.state['model'].get_filename()
-        if not src or not dst:
-            return
-        self.write(self.state['model'].make_ln(src, dst))
-        self.read(length=len(self.FAILURE), expect=self.FAILURE)
+    def end(self):
+        self.write(END_CHAR)
+        s = self.toStr()
+        self.read(length=len(s), expect=s)
 
-    def rm(self):
-        pass
 
-    def valid_rm(self):
-        name = self.state['model'].get_filename()
-        if not name:
-            return
-        self.write(self.state['model'].make_rm(name))
-        self.read(length=len(self.SUCCESS), expect=self.SUCCESS)
-
-    def invalid_rm(self):
-        name = self.state['model'].get_new_filename()
-        self.write(self.state['model'].make_rm(name))
-        self.read(length=len(self.FAILURE), expect=self.FAILURE)
-
-    def finish(self):
-        self.write(self.state['model'].make_quit())
 

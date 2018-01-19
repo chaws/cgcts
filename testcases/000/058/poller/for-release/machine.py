@@ -24,371 +24,388 @@
 from generator.actions import Actions, Variable
 from random import choice, randint
 from os.path import dirname, abspath, join
-import string
 import sys
 
 sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-from mathsupport import MathSupport
+import support as sp
+from common import DEBUG, CONFIG
+from onsale import OnSale
 
-class MultiPass(Actions):
-	
-	DEBUG = False
-	DEBUG_ERR = DEBUG or False
-	DEBUG_FUNC = DEBUG or False
+class OnSalePoller(Actions):
 
-	DEBUG_MEAN = DEBUG or False
-	DEBUG_SUM = DEBUG or False
-	DEBUG_PRODUCT = DEBUG or False
-	DEBUG_MIN = DEBUG or False
-	DEBUG_MAX = DEBUG or False
-	DEBUG_MEDIAN = DEBUG or False
-	DEBUG_SORT = DEBUG or False
-	DEBUG_RSORT = DEBUG or False
-	DEBUG_ODDS = DEBUG or False
-	DEBUG_EVENS = DEBUG or False
-	DEBUG_MODE = DEBUG or False
-	DEBUG_RANGE = DEBUG or False
+    CMD_BUY            = '\xBE\x0E\xBE\x0E'
+    CMD_CHECK          = '\xC4\xEC\x4E\xEE'
+    CMD_ADD            = '\xAD\xDD\xAD\xDD'
+    CMD_RM             = '\xDE\xAD\xDE\xAD'
+    CMD_UPDATE         = '\x04\xD4\x7E\x00'
+    CMD_ONSALE         = '\x54\x13\x54\x13'
+    CMD_NOSALE         = '\x0F\x0F\x0F\x0F'
+    CMD_LIST           = '\x11\x44\x11\x44'
+    CMD_QUIT           = '\xFF\xFF\xFF\xFF'
 
-	MAX_UINT32 = 2 * sys.maxint + 1
-	MAX_LIST_LEN = 1000
 
-	def start(self):
-		self.LIST_TYPE = choice(['INT32', 'DBL64'])
-		self.LIST_SIZE = randint(5, 1005)
-		self.state['m'] = MathSupport(list_type=self.LIST_TYPE, list_size=self.LIST_SIZE)
-		self.state['created'] = False
-		self.state['cnonce'] = Variable('cnonce')
-		self.state['cnonce'].set_slice(0,8)
-		self.state['enonce'] = Variable('enonce')
-		self.state['enonce'].set_slice(0,8)
+    STATUS_OK                   = ''
+    STATUS_ERR                  = ''
+    STATUS_QUIT                 = ''
 
-	def process_nonce_create(self):
-		if self.DEBUG_FUNC:
-			print('-- process_nonce_create --')
+    def compute_status_codes(self):
+        ok = [0, 0]
+        err = [0, 0]
+        quit = [0, 0]
 
-		self.read(length=8, assign=self.state['cnonce'])
-		self.write(self.state['cnonce'])
+        idx = 0
+        while idx < 4094:
+            ok[idx % 2]         ^= ord(self.magic_page[idx])
+            err[(idx + 1) % 2]  ^= ord(self.magic_page[idx + 1])
+            quit[(idx + 2) % 2] ^= ord(self.magic_page[idx + 2])
+            idx += 3
 
-		return 0
+        self.STATUS_OK      = ''.join([chr(c) for c in ok])
+        self.STATUS_ERR     = ''.join([chr(c) for c in err])
+        self.STATUS_QUIT    = ''.join([chr(c) for c in quit])
 
-	def process_nonce_eval(self):
-		if self.DEBUG_FUNC:
-			print('-- process_nonce_eval --')
+    def send_cmd(self, cmd):
+        self.write(cmd)
 
-		self.read(length=8, assign=self.state['enonce'])
-		if self.chance(0.001):
-			# send an invalid nonce
-			self.write(self.state['cnonce'])
-			expected = self.state['m'].pack_single_int32(-44)
-			self.read(length=len(expected), expect=expected)
-			if self.DEBUG_ERR:
-				print('exiting due to incorrect nonce.')
-			return -1
-		else:
-			self.write(self.state['enonce'])
-			return 0
+    def recv_status(self, status):
+        self.read(length=2, expect=sp.pack_single_string(status))
 
-	def _send_command(self, command):
-		if self.DEBUG_FUNC:
-			print('-- _send_command --')
+    def recv_uint16(self, val, match=True):
+        if True == match:
+            self.read(length=2, expect=sp.pack_single_uint16(val))
+        else:
+            self.read(length=2)
 
-		if self.chance(0.001):
-			# send invalid command (BAD)
-			cmd = self.state['m'].pack_command('BAD')
-			self.write(cmd)
-			expected = self.state['m'].pack_single_int32(-150)
-			self.read(length=len(expected), expect=expected)
-			if self.DEBUG_ERR:
-				print('exiting due to BAD command.')
-			return -1
-		else:
-			cmd = self.state['m'].pack_command(command)
-			self.write(cmd)
-			return 0
+    def recv_uint32(self, val, match=True):
+        if True == match:
+            self.read(length=4, expect=sp.pack_single_uint32(val))
+        else:
+            self.read(length=4)
 
-	def send_eval(self):
-		if self.DEBUG_FUNC:
-			print('-- send_eval --')
+    def recv_float(self, val, match=True):
+        if True == match:
+            self.read(length=4, expect=sp.pack_single_float(val))
+        else:
+            self.read(length=4)
 
-		# Eval only works after load_list has been run
-		if self.state['created'] == False:
-			# EVAL before load_list CREATE
-			if self._send_command('EVAL') < 0:
-				return -1
-			expected = self.state['m'].pack_single_int32(-10)
-			self.read(length=len(expected), expect=expected)
-			if self.DEBUG_ERR:
-				print('exiting due to EVAL before CREATE.')
-			return -1
-		else:
-			# pack and send EVAL command
-			if self._send_command('EVAL') < 0:
-				return -1
+    def recv_double(self, val, match=True):
+        if True == match:
+            self.read(length=8, expect=sp.pack_single_double(val))
+        else:
+            self.read(length=8)
 
-	def _send_op_code(self, op_code):
-		if self.DEBUG_FUNC:
-			print('-- _send_op_code --')
+    def recv_hash(self, hash_val, match=True):
+        if True == match:
+            self.read(length=8, expect=hash_val)
+        else:
+            self.read(length=8)
 
-		if self.chance(0.001):
-			# invalid op_code to EVAL
-			op_code = self.state['m'].pack_op_code('BAD')
-			self.write(op_code)
-			expected = self.state['m'].pack_single_int32(-80)
-			self.read(length=len(expected), expect=expected)
-			if self.DEBUG_ERR:
-				print('exiting due to invalid op_code BAD.')
-			return -1
-		else:
-			# pack and send op_code
-			op_code = self.state['m'].pack_op_code(op_code)
-			self.write(op_code)
-			return 0
+    def start(self):
+        #self.delay(100)
+        self.state['e'] = OnSale()
+        self.compute_status_codes()
+        if DEBUG:
+            print "------- start -----------"
 
-	def send_create(self):
-		if self.DEBUG_FUNC:
-			print('-- send_create --')
+    def buy_products(self):
+        '''
+        Purchase one or more products
+        '''
+        self.send_cmd(self.CMD_BUY)
+        if DEBUG:
+            print "cmd: buy products"
 
-		if self.state['created'] == True:
-			# send CREATE command again
-			if self._send_command('CREATE') < 0:
-				return -1
-			expected = self.state['m'].pack_single_int32(-9)
-			self.read(length=len(expected), expect=expected)
-			if self.DEBUG_ERR:
-				print('exiting due to re-sending CREATE.')
-			return -1
-		else:
-			# pack and send CREATE command
-			if self._send_command('CREATE') < 0:
-				return -1
+        # get list of products from inventory (duplicates are ok)
+        products = self.state['e'].get_rand_products_to_buy(count=randint(1,50))
 
-			if self.chance(0.001):
-				# invalid list_type
-				# pack and send LIST_TYPE "BAD"
-				t = self.state['m'].pack_list_type('BAD')
-				self.write(t)
-				expected = self.state['m'].pack_single_int32(-30)
-				self.read(length=len(expected), expect=expected)
-				if self.DEBUG_ERR:
-					print('exiting due to invalid list_type BAD.')
-				return -1
-			else:
-				# pack and send LIST_TYPE
-				t = self.state['m'].pack_list_type()
-				self.write(t)
+        # for each product
+        write_str = ''
+        total_cost = 0.0
+        for p in products:
+            # send BUY_MORE
+            write_str += CONFIG['BUY_MORE']
+            # send barcode
+            write_str += (str(p.barcode))
 
-				# pack and send LIST LENGTH
-				l = self.state['m'].pack_length_and_list(internal_list=True, split=True)
-				self.write(l[0])
+            if DEBUG:
+                print "\t buy: {0}".format(p.barcode)
 
-				if self.LIST_SIZE > self.MAX_LIST_LEN:
-					expected = self.state['m'].pack_single_int32(-70)
-					self.read(length=len(expected), expect=expected)
-					if self.DEBUG_ERR:
-						print('exiting due to too large of list_size.')
-					return -1
+            total_cost += p.get_sale_price()
 
-				# pack and send LIST
-				self.write(l[1])
+        # when finished send BUY_TERM
+        write_str += CONFIG['BUY_TERM']
+        self.write(write_str)
 
-				self.state['created'] = True
-				return 0
+        # recv total cost; do NOT try matching floats/doubles
+        self.recv_double(total_cost, match=False) 
 
-	def _read_and_match_calculated_dbl64(self, val):
-		'''
-		This function will read the least significant byte of a double precision
-		float with a wildcard, and then read the other 7 bytes with an exact match.
+        if DEBUG:
+            print "\t total cost: {0}".format(total_cost)
 
-		Exact comparison with computed double precision floating point numbers
-		is non-deterministic when the numbers are computed in 2 different programming languages.
-		
-		There are too many cases where the least significant digit or two
-		of a calculated float differ when calculated in C vs Python.
-		'''
-		exp_result = self.state['m'].pack_single(val)[1:]
-		# read 1 byte with wildcard
-		least_sig_byte = Variable('LSB')
-		least_sig_byte.set_slice(0,1)
-		self.read(length=1, assign=least_sig_byte)
+        #     self.recv_status(self.STATUS_ERR)
+        self.recv_status(self.STATUS_OK)
 
-		# read 7 bytes for exact match
-		self.read(length=len(exp_result), expect=exp_result)
+        return 0
 
-	def _read_and_match_calculated_int32(self, val):
-		'''
-		Matching INTs is not a problem. So just do it.
-		'''
-		exp_result = self.state['m'].pack_single(val)
-		self.read(length=len(exp_result), expect=exp_result)
+    def check_product(self):
+        '''
+        Check info about product.
+        '''
+        self.send_cmd(self.CMD_CHECK)
+        if DEBUG:
+            print "cmd: check product"
 
-	def _read_and_match_calculated_value(self, val):
-		if self.LIST_TYPE == 'INT32':
-			self._read_and_match_calculated_int32(val)
-		else:
-			self._read_and_match_calculated_dbl64(val)
+        # select a product from existing inventory
+        invalid = False
+        if self.chance(0.1):
+            invalid=True
 
-	def mean_op(self):
-		if self.DEBUG_MEAN:
-			print('-- mean_op --')
+        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
 
-		if self._send_op_code('MEAN') < 0:
-			return -1
-		# read expected result
-		val = self.state['m'].get_mean()
-		if self.DEBUG_MEAN:
-			print('mean_op: val = {0}'.format(val))
-		self._read_and_match_calculated_value(val)
+        # send barcode
+        self.write(product.barcode)
 
-	def sum_op(self):
-		if self.DEBUG_SUM:
-			print('-- sum_op --')
+        if True == invalid:   # if not found/invalid, recv err status
+            self.recv_status(self.STATUS_ERR)
 
-		if self._send_op_code('SUM') < 0:
-			return -1
+        else:  # if found
+            match_str = ''
+        # recv model num
+            self.recv_uint32(product.model_num, match=True)
+        # recv price
+            self.recv_float(product.get_sale_price(), match=False)
+        # recv desc
+            desc_packed = sp.pack_single_string(product.description)
+            match_str += desc_packed
+        # recv desc term char
+            match_str += sp.pack_single_char(CONFIG['DESC_TERM'])
 
-		# read expected result
-		val = self.state['m'].get_sum()
-		if self.DEBUG_SUM:
-			print('sum_op: val = {0}'.format(val))
-		self._read_and_match_calculated_value(val)
+            self.read(length=len(match_str), expect=match_str)
+            self.recv_status(self.STATUS_OK)
+        return 0
 
-	def product_op(self):
-		if self.DEBUG_PRODUCT:
-			print('-- product_op --')
-			
-		if self._send_op_code('PRODUCT') < 0:
-			return -1
+    def add_product(self):
+        '''
+        Add a new product.
+        '''
+        self.send_cmd(self.CMD_ADD)
+        if DEBUG:
+            print "cmd: add product"
 
-		# read expected result
-		val = self.state['m'].get_product()
-		if self.DEBUG_PRODUCT:
-			print('product_op: val = {0}'.format(val))
-		self._read_and_match_calculated_value(val)
+        # gen new product
+        p = self.state['e'].get_new_rand_product()
+        #send bc
+        self.write(p.barcode)
+        # if bc is not unique -> STATUS_ERR
+        if False == self.state['e'].is_barcode_unique(p.barcode):
+            self.recv_status(self.STATUS_ERR)
+            return -1
 
-	def min_op(self):
-		if self.DEBUG_MIN:
-			print('-- min_op --')
-			
-		if self._send_op_code('MIN') < 0:
-			return -1
+        write_str = ''
+        #send model_num
+        write_str += sp.pack_single_uint32(p.model_num)
 
-		# read expected result
-		val = self.state['m'].get_min()
-		if self.DEBUG_MIN:
-			print('min_op: val = {0}'.format(val))
-		exp_result = self.state['m'].pack_single(val)
-		self.read(length=len(exp_result), expect=exp_result)
+        #send cost
+        write_str += sp.pack_single_float(p.cost)
 
-	def max_op(self):
-		if self.DEBUG_MAX:
-			print('-- max_op --')
-			
-		if self._send_op_code('MAX') < 0:
-			return -1
+        #send desc + CONFIG['DESC_TERM']
+        write_str += sp.pack_single_string(p.description + CONFIG['DESC_TERM'])
+        self.write(write_str)
 
-		# read expected result
-		val = self.state['m'].get_max()
-		if self.DEBUG_MAX:
-			print('max_op: val = {0}'.format(val))
-		exp_result = self.state['m'].pack_single(val)
-		self.read(length=len(exp_result), expect=exp_result)
+        # add new product to inventory
+        self.state['e'].add_prod_to_inventory(p)
 
-	def median_op(self):
-		if self.DEBUG_MEDIAN:
-			print('-- median_op --')
-			
-		if self._send_op_code('MEDIAN') < 0:
-			return -1
+        self.recv_status(self.STATUS_OK)
 
-		# read expected result
-		val = self.state['m'].get_median()
-		if self.DEBUG_MEDIAN:
-			print('median_op: val = {0}'.format(val))
-		self._read_and_match_calculated_value(val)
+        return 0
 
-	def sort_op(self):
-		if self.DEBUG_SORT:
-			print('-- sort_op --')
-			
-		if self._send_op_code('SORT') < 0:
-			return -1
+    def rm_product(self):
+        '''
+        Remove a product.
+        '''
+        self.send_cmd(self.CMD_RM)
+        if DEBUG:
+            print "cmd: rm product"
 
-		# read expected result
-		val_list = self.state['m'].get_sort()
-		if self.DEBUG_SORT:
-			print('sort_op: sorted list = {0}'.format(val_list))
-		exp_result = self.state['m'].pack_list(val_list)
-		self.read(length=len(exp_result), expect=exp_result)
+        # select a product from existing inventory
+        invalid = False
+        if self.chance(0.1):
+            invalid=True
 
-	def rsort_op(self):
-		if self.DEBUG_RSORT:
-			print('-- rsort_op --')
-			
-		if self._send_op_code('RSORT') < 0:
-			return -1
+        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
 
-		# read expected result
-		val_list = self.state['m'].get_rsort()
-		if self.DEBUG_RSORT:
-			print('rsort_op: rsorted list = {0}'.format(val_list))
-		exp_result = self.state['m'].pack_list(val_list)
-		self.read(length=len(exp_result), expect=exp_result)
+        # send barcode
+        self.write(product.barcode)
 
-	def odds_op(self):
-		if self.DEBUG_ODDS:
-			print('-- odds_op --')
-			
-		if self._send_op_code('ODDS') < 0:
-			return -1
+        if True == invalid:   # if not found/invalid, recv err status
+            self.recv_status(self.STATUS_ERR)
 
-		# read expected result
-		val_list = self.state['m'].get_odds()
-		if self.DEBUG_ODDS:
-			print('odds_op: odds count {0}, odds list = {1}'.format(len(val_list), val_list))
+        else:  # if found
+            self.state['e'].rm_prod_from_inventory(product)
+            del product
+            self.recv_status(self.STATUS_OK)
+    
+        return 0
 
-		exp_result = self.state['m'].pack_length_and_list(val_list=val_list)
-		self.read(length=len(exp_result), expect=exp_result)
+    def update_product(self):
+        '''
+        Update the info about a product.
+        '''
+        self.send_cmd(self.CMD_UPDATE)
+        if DEBUG:
+            print "cmd: update product"
 
-	def evens_op(self):
-		if self.DEBUG_EVENS:
-			print('-- evens_op --')
-			
-		if self._send_op_code('EVENS') < 0:
-			return -1
+        # select a product from existing inventory
+        invalid = False
+        if self.chance(0.1):
+            invalid=True
 
-		# read expected result
-		val_list = self.state['m'].get_evens()
-		if self.DEBUG_EVENS:
-			print('evens_op: evens count {0}, evens list = {1}'.format(len(val_list), val_list))
+        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
 
-		exp_result = self.state['m'].pack_length_and_list(val_list=val_list)
-		self.read(length=len(exp_result), expect=exp_result)
+        # send barcode
+        self.write(product.barcode)
 
-	def mode_op(self):
-		if self.DEBUG_MODE:
-			print('-- mode_op --')
-			
-		if self._send_op_code('MODE') < 0:
-			return -1
+        if True == invalid:   # if not found/invalid, recv err status
+            self.recv_status(self.STATUS_ERR)
 
-		# read expected result
-		val_list = self.state['m'].get_mode()
-		if self.DEBUG_MODE:
-			print('mode_op: val_list = {0}'.format(val_list))
+        else:  # if found
 
-		exp_result = self.state['m'].pack_length_and_list(val_list=val_list)
-		self.read(length=len(exp_result), expect=exp_result)
+            # gen new product
+            p = self.state['e'].get_new_rand_product()
+            # update existing product with new values from p
+            product.model_num = p.model_num
+            product.cost = p.cost
+            product.description = p.description
+    
+            write_str = ''
+            #send model_num
+            write_str += sp.pack_single_uint32(p.model_num)
+            #send cost
+            write_str += sp.pack_single_float(p.cost)
+            #send desc + CONFIG['DESC_TERM']
+            write_str += sp.pack_single_string(p.description + CONFIG['DESC_TERM'])
+            self.write(write_str)
 
-	def range_op(self):
-		if self.DEBUG_RANGE:
-			print('-- range_op --')
-			
-		if self._send_op_code('RANGE') < 0:
-			return -1
+            self.recv_status(self.STATUS_OK)
 
-		# read expected result
-		val = self.state['m'].get_range()
-		if self.DEBUG_RANGE:
-			print('range_op: val = {0}'.format(val))
-		self._read_and_match_calculated_value(val)
+        return 0
+
+    def set_onsale(self):
+        '''
+        Set a product as on sale.
+        '''
+        self.send_cmd(self.CMD_ONSALE)
+        if DEBUG:
+            print "cmd: set onsale"
+
+        # select a product from existing inventory
+        invalid = False
+        if self.chance(0.1):
+            invalid=True
+        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
+
+        # send barcode
+        self.write(product.barcode)
+
+        if True == invalid:   # if not found/invalid, recv err status
+            self.recv_status(self.STATUS_ERR)
+
+        else:  # if found
+        # send sale percent
+            sale_percent = randint(1, 150)
+            self.write(sp.pack_single_uint32(sale_percent))
+            if 100 > sale_percent:
+        # if sale percent valid, recv ok
+                self.recv_status(self.STATUS_OK)
+                product.set_on_sale(sale_percent)
+            else:
+        # if sale percent invalid, recv err
+                self.recv_status(self.STATUS_ERR)
+
+        return 0
+
+    def set_nosale(self):
+        '''
+        Set a product as not on sale.
+        '''
+        self.send_cmd(self.CMD_NOSALE)
+        if DEBUG:
+            print "cmd: set no sale"
+
+        # select a product from existing inventory
+        invalid = False
+        if self.chance(0.1):
+            invalid=True
+        product = self.state['e'].get_rand_product_from_inventory(invalid=invalid)
+
+        # send barcode
+        self.write(product.barcode)
+
+        if True == invalid:   # if not found/invalid, recv err status
+            self.recv_status(self.STATUS_ERR)
+
+        else:  # if found
+            self.recv_status(self.STATUS_OK)
+
+        return 0
+
+    def list_products(self):
+        '''
+        Get a listing of all products. Get additional info depending on options selected.
+        '''
+        self.send_cmd(self.CMD_LIST)
+        if DEBUG:
+            print "cmd: list products"
+
+        opt_model_num = chr(randint(1, 200))
+        opt_cost = chr(2) # don't want this option on; can't match float reliably
+        opt_sale_cost = chr(3) # don't want this option on; can't match float reliably
+        opt_description = chr(randint(1, 200))
+        options = "{0}{1}{2}{3}".format(opt_model_num, opt_cost, opt_sale_cost, opt_description)
+
+        self.write(sp.pack_single_string(options))
+
+        inventory = self.state['e'].inventory
+        if (0 == len(inventory)):
+            self.recv_status(self.STATUS_ERR)
+        else:
+            match_str = ''
+            for p in inventory:
+                match_str += sp.pack_single_string(p.barcode)
+
+                if 0 == ord(opt_model_num) % 2:
+                    match_str += sp.pack_single_uint32(p.model_num)
+
+                # skip cost and sale_cost
+
+                if 0 != ord(opt_description) % 2:
+                    if 0 < len(p.description):
+                        desc_packed = sp.pack_single_string(p.description)
+                        match_str += desc_packed
+                    # recv desc term char
+                    match_str += sp.pack_single_char(CONFIG['DESC_TERM'])
+
+            if '' != match_str:
+                self.read(length=len(match_str), expect=match_str)
+            self.recv_status(self.STATUS_OK)
+
+        return 0
+
+    def quit(self):
+        '''
+        Quit cleanly
+        '''
+        self.send_cmd(self.CMD_QUIT)
+        if DEBUG:
+            print "cmd: quit -----------"
+
+        self.recv_status(self.STATUS_QUIT)
+        return -1
+
+    def broker(self):
+        '''
+        Branching node for all nodes
+        '''
+        return 0
+
 

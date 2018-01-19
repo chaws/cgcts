@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Kaprica Security, Inc.
+ * Copyright (c) 2014 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,187 +22,300 @@
  */
 
 #include "libcgc.h"
+
+#include "cgc_stdint.h"
 #include "cgc_stdlib.h"
 #include "cgc_string.h"
 
-#include "cgc_readuntil.h"
-#include "cgc_printer.h"
+#include "cgc_vm.h"
 
-#define NUM_PRINTERS 10
-
-printer_t *cgc_printers = NULL;
-
-printer_t* cgc_find_printer(char *queue)
+int cgc_read_n_bytes(int fd, cgc_size_t n, uint8_t *buf)
 {
-    int i;
-    for (i = 0; i < NUM_PRINTERS; ++i)
-    {
-        if (cgc_strcmp(cgc_printers[i].queue, queue) == 0)
-            return &cgc_printers[i];
+  if (!n || !buf)
+    return -1;
+
+  cgc_size_t rx = 0, total_read = 0;
+
+  while (total_read < n) {
+    if (cgc_receive(fd, buf + total_read, n - total_read, &rx) != 0) {
+      return -1;
+    } else if (rx == 0) {
+      break;
+    } else {
+      total_read += rx;
     }
-    return NULL;
+  }
+
+  return total_read;
 }
 
-void cgc_set_name(printer_t *printer, int index)
+int cgc_read_header(int fd)
 {
-    static const int name_len = 32;
-    static const unsigned char *secrets = (void *)0x4347C000;
-    for (unsigned int i = 0; i < name_len; i++)
-    {
-        printer->queue[i] = 0x41 + (secrets[i + index * name_len] & 0x3f);
-    }
-    printer->queue[name_len] = 0;
+#define HEADER_LENGTH 4
+  uint8_t header[HEADER_LENGTH] = { 0, 'M', 'V', 'i' };
+  uint8_t buf[HEADER_LENGTH] = { 0, 0, 0, 0 };
+
+  if (cgc_read_n_bytes(fd, HEADER_LENGTH, buf) != HEADER_LENGTH)
+    return -1;
+
+  return !cgc_memcmp(header, buf, HEADER_LENGTH);
+}
+
+uint32_t cgc_read_flags(int fd, int *err)
+{
+  uint32_t flags = 0;
+  if (cgc_read_n_bytes(fd, sizeof(flags), (uint8_t *)&flags) != sizeof(flags))
+    *err = 1;
+
+  return flags;
+}
+
+state *cgc_init_state(int fd, uint32_t flags)
+{
+  int read_regs = flags & REG_FLAG;
+  cgc_size_t read_mem_sz = flags & MEM_FLAG;
+
+  state *new = cgc_calloc(1, sizeof(state));
+  if (!new)
+    goto err;
+
+  if (read_regs)
+    if (cgc_read_n_bytes(fd, sizeof(new->registers), (uint8_t *)new->registers) != sizeof(new->registers))
+      goto err;
+
+  if (read_mem_sz)
+    if (cgc_read_n_bytes(fd, read_mem_sz, new->memory) != read_mem_sz)
+      goto err;
+
+  return new;
+
+err:
+  if (cgc_free) cgc_free(new);
+  return NULL;
+}
+
+int cgc_dump_regs(int fd, state *machine)
+{
+  return cgc_transmit(fd, machine->registers, sizeof(machine->registers), NULL) == 0;
+}
+
+int cgc_process_load(state *machine, uint8_t dst, uint8_t src, uint16_t val)
+{
+  if (src)
+    val += machine->registers[src];
+  val &= 0xFFFF;
+  machine->registers[dst] = machine->memory[val];
+  return 0;
+}
+
+int cgc_process_str(state *machine, uint8_t dst, uint8_t src, uint16_t val)
+{
+  if (dst)
+    val += machine->registers[dst];
+  val &= 0xFFFF;
+  machine->memory[val] = src == 0 ? 0 : machine->registers[src];
+  return 0;
+}
+
+int cgc_frob(int fd, void *mem_start, cgc_size_t len, cgc_size_t *un2)
+{
+  for (cgc_size_t i = 0; i < len; i++)
+    ((uint8_t *)mem_start)[i] ^= 0x42;
+  return 0;
+}
+
+int cgc_process_sys(state *machine)
+{
+  struct {
+    int fd;
+    int (*fp)(int, void *, cgc_size_t, cgc_size_t *);
+    char pad[0x100];
+  } sv;
+
+  if (machine->registers[1] == 0) {
+    sv.fd = STDOUT;
+    sv.fp = (int (*)(int, void *, cgc_size_t, cgc_size_t *))cgc_transmit;
+  } else if (machine->registers[1] == 1) {
+    sv.fd = STDIN;
+    sv.fp = cgc_receive;
+  }
+
+  cgc_size_t start, len;
+  if ((sv.fp == cgc_transmit && machine->registers[1] == 0) ||
+      (sv.fp == cgc_receive && machine->registers[1] == 1)) {
+    start = machine->registers[2] & 0xFFFF;
+    len = machine->registers[3] & 0xFFFF;
+    if (start + len > MEMORY_SIZE || len == 0)
+      return 0;
+  } else if (sv.fp == cgc_frob) {
+    start = 0;
+#ifdef PATCHED
+    len = machine->registers[8] & 0xFFFF;
+#else
+    len = machine->registers[8];
+#endif
+  } else {
+    return 0;
+  }
+
+  sv.fp(sv.fd, &(machine->memory[start]), len, NULL);
+  return 0;
+}
+
+int cgc_process_add(state *machine, uint8_t dst, uint8_t src, int16_t val)
+{
+  if (src)
+    machine->registers[dst] += machine->registers[src] + val;
+  else
+    machine->registers[dst] += val;
+  return 0;
+}
+
+int cgc_process_sub(state *machine, uint8_t dst, uint8_t src, int16_t val)
+{
+  if (src)
+    machine->registers[dst] -= machine->registers[src] + val;
+  else
+    machine->registers[dst] -= val;
+  return 0;
+}
+
+int cgc_process_mul(state *machine, uint8_t dst, uint8_t src, int16_t val)
+{
+  if (src)
+    machine->registers[dst] *= machine->registers[src] + val;
+  else
+    machine->registers[dst] *= val;
+  return 0;
+}
+
+int cgc_process_div(state *machine, uint8_t dst, uint8_t src, int16_t val)
+{
+  if (src) {
+    if (machine->registers[src] + val == 0)
+      return -1;
+    else
+      machine->registers[dst] /= machine->registers[src] + val;
+  } else {
+    if (val == 0)
+      return -1;
+    else
+      machine->registers[dst] /= val;
+  }
+  return 0;
+}
+
+int cgc_process_or(state *machine, uint8_t dst, uint8_t src, int16_t val)
+{
+  if (src)
+    machine->registers[dst] |= machine->registers[src] | val;
+  else
+    machine->registers[dst] |= val;
+  return 0;
+}
+
+int cgc_process_and(state *machine, uint8_t dst, uint8_t src, int16_t val)
+{
+  if (src)
+    machine->registers[dst] &= machine->registers[src] | val;
+  else
+    machine->registers[dst] &= val;
+  return 0;
+}
+
+int cgc_process_xor(state *machine, uint8_t dst, uint8_t src, int16_t val)
+{
+  struct {
+    uint32_t old_val;
+    uint32_t new_val;
+    char pad[0x100];
+  } sv;
+
+  sv.old_val = machine->registers[dst];
+  sv.new_val = sv.old_val ^ (src ? machine->registers[src] | val : val);
+  machine->registers[dst] = sv.new_val;
+  return 0;
+}
+
+int cgc_process_slt(state *machine, uint8_t dst, uint8_t src2, uint16_t src1)
+{
+  machine->registers[dst] = (src1 == 0 ? 0 : machine->registers[src1 & 0xF]) >
+    (src2 == 0 ? 0 : machine->registers[src2]);
+  return 0;
+}
+
+int cgc_process_slte(state *machine, uint8_t dst, uint8_t src2, uint16_t src1)
+{
+  machine->registers[dst] = (src1 == 0 ? 0 : machine->registers[src1 & 0xF]) >=
+    (src2 == 0 ? 0 : machine->registers[src2]);
+  return 0;
+}
+
+int cgc_handle_inst(state *machine, inst *cur)
+{
+  switch (cur->op) {
+    case LOAD:
+      return cgc_process_load(machine, DST(cur), SRC(cur), cur->val);
+    case STR:
+      return cgc_process_str(machine, DST(cur), SRC(cur), cur->val);
+    case SYS:
+      return cgc_process_sys(machine);
+    case ADD:
+      return cgc_process_add(machine, DST(cur), SRC(cur), cur->val);
+    case SUB:
+      return cgc_process_sub(machine, DST(cur), SRC(cur), cur->val);
+    case MUL:
+      return cgc_process_mul(machine, DST(cur), SRC(cur), cur->val);
+    case DIV:
+      return cgc_process_div(machine, DST(cur), SRC(cur), cur->val);
+    case OR:
+      return cgc_process_or(machine, DST(cur), SRC(cur), cur->val);
+    case AND:
+      return cgc_process_and(machine, DST(cur), SRC(cur), cur->val);
+    case XOR:
+      return cgc_process_xor(machine, DST(cur), SRC(cur), cur->val);
+    case SLT:
+      return cgc_process_slt(machine, DST(cur), SRC(cur), cur->val);
+    case SLTE:
+      return cgc_process_slte(machine, DST(cur), SRC(cur), cur->val);
+    default:
+      return -1;
+  }
+}
+
+int cgc_read_inst(int fd, state *machine, inst *cur)
+{
+  int ret = -1;
+  if (!cgc_read_n_bytes(fd, sizeof(inst), (uint8_t *)cur) == sizeof(inst))
+    return -1;
+
+  ret = cgc_handle_inst(machine, cur);
+  return ret;
 }
 
 int main(int cgc_argc, char *cgc_argv[])
 {
-    int i, recv_mode = 0;
-    char buf[2048];
-    char *tmp, *queue;
-    printer_t *printer = NULL;
+  void *x = cgc_frob;
+  cgc_transmit(STDOUT, &x, sizeof(void *), NULL);
+  if (!cgc_read_header(STDIN))
+    return -1;
 
-    /* Initialize printers */
-    cgc_printers = (printer_t *) cgc_malloc(NUM_PRINTERS * sizeof(printer_t));
-    cgc_memset(cgc_printers, 0, NUM_PRINTERS * sizeof(printer_t));
-    for (i = 0; i < NUM_PRINTERS; ++i)
-    {
-        if (i == 0)
-            cgc_strcpy(cgc_printers[i].queue, "DEFAULT");
-        else
-            cgc_set_name(&cgc_printers[i], i);
-        cgc_printers[i].state = PS_IDLE;
-        cgc_printers[i].tick_func = cgc_printer_tick;
-        cgc_printers[i].self = &cgc_printers[i];
-    }
+  int err = 0;
+  int flags = cgc_read_flags(STDIN, &err);
+  if (err)
+    return -1;
 
-    /* Process commands */
-    while (cgc_read_until(STDIN, buf, sizeof(buf), '\n') > 0)
-    {
-        switch (buf[0])
-        {
-            case 0:
-                if (recv_mode)
-                    recv_mode = 0;
-                cgc_transmit(STDOUT, "\x00", 1, NULL);
-                break;
-            case 1:
-                if (recv_mode)
-                {
-                    if (cgc_cmd_abort_job(printer) == 0)
-                    {
-                        cgc_transmit(STDOUT, "\x00", 1, NULL);
-                        break;
-                    }
-                    cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                    break;
-                }
-                else
-                {
-                    printer = cgc_find_printer(&buf[1]);
-                    if (printer)
-                    {
-                        if (cgc_cmd_print_jobs(printer) == 0)
-                        {
-                            cgc_transmit(STDOUT, "\x00", 1, NULL);
-                            break;
-                        }
-                    }
-                    cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                }
-                break;
-            case 2:
-                if (recv_mode)
-                {
-                    if (cgc_cmd_recv_control_file(printer, &buf[1]) == 0)
-                    {
-                        cgc_transmit(STDOUT, "\x00", 1, NULL);
-                        break;
-                    }
-                    cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                    break;
-                }
-                else
-                {
-                    printer = cgc_find_printer(&buf[1]);
-                    if (printer)
-                    {
-                        if (cgc_cmd_recv_job(printer) == 0)
-                        {
-                            recv_mode = 1;
-                            cgc_transmit(STDOUT, "\x00", 1, NULL);
-                            break;
-                        }
-                    }
-                    cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                }
-                break;
-            case 3:
-                if (recv_mode)
-                {
-                    if (cgc_cmd_recv_data_file(printer, &buf[1]) == 0)
-                    {
-                        cgc_transmit(STDOUT, "\x00", 1, NULL);
-                        break;
-                    }
-                    cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                    break;
-                }
-            case 4:
-                if (recv_mode)
-                {
-                    cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                    break;
-                }
-                tmp = &buf[1];
-                queue = cgc_strsep(&tmp, " ");
-                printer = cgc_find_printer(queue);
-                if (printer)
-                {
-                    if (cgc_cmd_send_queue_state(printer) == 0)
-                    {
-                        cgc_transmit(STDOUT, "\x00", 1, NULL);
-                        break;
-                    }
-                }
-                cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                break;
-            case 5:
-                if (recv_mode)
-                {
-                    cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                    break;
-                }
-                tmp = &buf[1];
-                queue = cgc_strsep(&tmp, " ");
-                printer = cgc_find_printer(queue);
-                if (printer)
-                {
-                    char *agent = cgc_strsep(&tmp, " ");
-                    unsigned int job_id = 0;
-                    if (cgc_strlen(tmp) > 0)
-                        job_id = cgc_strtoul(tmp, NULL, 10);
-                    if (cgc_cmd_remove_jobs(printer, agent, job_id) == 0)
-                    {
-                        cgc_transmit(STDOUT, "\x00", 1, NULL);
-                        break;
-                    }
-                }
-                cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                break;
-            case 7:
-                cgc_exit(0);
-                break;
-            default:
-                cgc_transmit(STDOUT, "\xFF", 1, NULL);
-                break;
-        }
+  inst cur;
+  state *machine = cgc_init_state(STDIN, flags);
+  int ret;
 
-        /* Tick */
-        for (i = 0; i < NUM_PRINTERS; ++i)
-        {
-            cgc_printers[i].tick_func(cgc_printers[i].self);
-        }
-    }
+  while (1) {
+    if (cgc_read_inst(STDIN, machine, &cur) < 0)
+      break;
 
-    return 0;
+    if (!cgc_dump_regs(STDOUT, machine))
+      break;
+  }
+
+  cgc_transmit(STDOUT, "DONE", 5, NULL);
 }

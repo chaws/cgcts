@@ -1,8 +1,8 @@
 /*
 
-Author: Debbie Nuttall <debbie@cromulence.com>
+Author: Joe Rogers <joe@cromulence.co>
 
-Copyright (c) 2016 Cromulence LLC
+Copyright (c) 2014-2015 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,57 +24,43 @@ THE SOFTWARE.
 
 */
 #include "libcgc.h"
-#include "cgc_stdint.h"
 #include "cgc_stdlib.h"
-#include "cgc_stdio.h"
-#include "cgc_malloc.h"
-#include "cgc_transport.h"
-#include "cgc_user.h"
-#include "cgc_fs.h"
-#include "cgc_cgcrpc.h"
-#include "cgc_cgcmb.h"
+#include "cgc_board.h"
+#include "cgc_moves.h"
 
+// current player
+char cgc_CURR_PLAYER[6];
 
-int main(int cgc_argc, char *cgc_argv[]) 
-{
-  TransportMessage *tpMessage;
-  CGCMB_Message *mbMessage;
+int main(int cgc_argc, char *cgc_argv[]) {
+	char srcx, srcy, dstx, dsty;
+	// board
+	char board[X_MAX][Y_MAX];
 
-  cgc_mbServerState = cgc_calloc(sizeof(CGCMB_ServerState));
-  cgc_mbServerState->state = INITIAL;
-  cgc_mbServerState->dialect = 0;
-  cgc_mbServerState->sessionKey = 0;
+	cgc_InitBoard(board);
+	cgc_strcpy(cgc_CURR_PLAYER, "WHITE");
+	cgc_PrintBoard(board);
 
-  cgc_srand();
-  
-  cgc_GenerateUsers();
-  cgc_InitializeFileSystem();
-  cgc_InitializeCGCRPC();
- 
-TOP:
-  if (cgc_ReceiveTransportMessage(&tpMessage) != 0)
-  {
-    goto NEXT_MSG;
-  }
+	while (1) {
+		if (!cgc_AcceptMove(board, &srcx, &srcy, &dstx, &dsty)) {
+			cgc_puts("good game");
+			return(0);
+		}
 
-  if (cgc_ReceiveCGCMBMessage(tpMessage, &mbMessage) != 0)
-  {
-    goto NEXT_MSG;
-  }
+		if (!cgc_IsValidMove(board, srcx, srcy, dstx, dsty)) {
+			cgc_puts("NO");
+			continue;
+		}
 
-  if (cgc_ParseCGCMBMessage(mbMessage) != 0)
-  {
-    goto NEXT_MSG;
-  }
+		cgc_MakeMove(board, srcx, srcy, dstx, dsty);
 
-  if (cgc_HandleCGCMBMessage(mbMessage) != 0)
-  {
-    return 0;
-  }
-    
-NEXT_MSG:
-  cgc_DestroyCGCMBMessage(&mbMessage);
-  cgc_DestroyTransportMessage(&tpMessage);
-  goto TOP;
+		if (!cgc_strcmp(cgc_CURR_PLAYER, "WHITE")) {
+			cgc_strcpy(cgc_CURR_PLAYER, "BLACK");
+		} else {
+			cgc_strcpy(cgc_CURR_PLAYER, "WHITE");
+		}
 
+		cgc_puts("OK");
+	}
+
+	return(0);
 }

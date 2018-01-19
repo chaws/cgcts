@@ -1,4 +1,4 @@
-CHAL=CGC_Planet_Markup_Language_Parser
+CHAL=Headscratch
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,53 +20,85 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/genericParsers.c.o -c src/genericParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/countyParsers.c.o -c src/countyParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/cityParsers.c.o -c src/cityParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/territoryParsers.c.o -c src/territoryParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/countryParsers.c.o -c src/countryParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/planetParsers.c.o -c src/planetParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/helper.c.o -c src/helper.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/string.c.o -c src/string.c
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser_patched lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/genericParsers.c.o src/countyParsers.c.o src/cityParsers.c.o src/territoryParsers.c.o src/countryParsers.c.o src/planetParsers.c.o src/service.c.o src/helper.c.o src/string.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/exit.c.o -c lib/exit.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strndup.c.o -c lib/strndup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/fread.c.o -c lib/fread.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/fxlat.c.o -c lib/fxlat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strcasestr.c.o -c lib/strcasestr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strtoul.c.o -c lib/strtoul.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/fwrite.c.o -c lib/fwrite.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/fflush.c.o -c lib/fflush.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/fopen.c.o -c lib/fopen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strstr.c.o -c lib/strstr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -O2 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Headscratch_patched lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/genericParsers.c.o -c src/genericParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/countyParsers.c.o -c src/countyParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/cityParsers.c.o -c src/cityParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/territoryParsers.c.o -c src/territoryParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/countryParsers.c.o -c src/countryParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/planetParsers.c.o -c src/planetParsers.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/helper.c.o -c src/helper.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/string.c.o -c src/string.c
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/genericParsers.c.o src/countyParsers.c.o src/cityParsers.c.o src/territoryParsers.c.o src/countryParsers.c.o src/planetParsers.c.o src/service.c.o src/helper.c.o src/string.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strdup.c.o -c lib/strdup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strchr.c.o -c lib/strchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/memmove.c.o -c lib/memmove.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strcpy.c.o -c lib/strcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strcmp.c.o -c lib/strcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/ctype.c.o -c lib/ctype.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/exit.c.o -c lib/exit.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strndup.c.o -c lib/strndup.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/malloc_common.c.o -c lib/malloc_common.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/fread.c.o -c lib/fread.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strsep.c.o -c lib/strsep.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/memchr.c.o -c lib/memchr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/fxlat.c.o -c lib/fxlat.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strcasestr.c.o -c lib/strcasestr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strtoul.c.o -c lib/strtoul.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/free.c.o -c lib/free.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/stdio.c.o -c lib/stdio.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strncasecmp.c.o -c lib/strncasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/fwrite.c.o -c lib/fwrite.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strcasecmp.c.o -c lib/strcasecmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/fflush.c.o -c lib/fflush.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/fopen.c.o -c lib/fopen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/calloc.c.o -c lib/calloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strtol.c.o -c lib/strtol.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strstr.c.o -c lib/strstr.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/realloc.c.o -c lib/realloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O2 -g -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Headscratch lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_6 -I include -I lib -I src -O0 -g -pedantic -o pov_6/pov.c.o -c pov_6/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_5 -I include -I lib -I src -O0 -g -pedantic -o pov_5/pov.c.o -c pov_5/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_7 -I include -I lib -I src -O0 -g -pedantic -o pov_7/pov.c.o -c pov_7/pov.c
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser_pov_4 pov_4/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser_pov_5 pov_5/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser_pov_6 pov_6/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser_pov_7 pov_7/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o CGC_Planet_Markup_Language_Parser_pov_3 pov_3/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O2 -g -pedantic -O0 -o pov_1/pov_1.c.o -c pov_1/pov_1.c
+	$(CXX) $(FLAGS) -o Headscratch_pov_1 pov_1/pov_1.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/genericParsers.c.o src/countyParsers.c.o src/cityParsers.c.o src/territoryParsers.c.o src/countryParsers.c.o src/planetParsers.c.o src/service.c.o src/helper.c.o src/string.c.o lib/printf.c.o lib/mymath.c.o lib/stdlib.c.o src/genericParsers.c.o src/countyParsers.c.o src/cityParsers.c.o src/territoryParsers.c.o src/countryParsers.c.o src/planetParsers.c.o src/service.c.o src/helper.c.o src/string.c.o pov_1/pov.c.o pov_2/pov.c.o pov_6/pov.c.o pov_3/pov.c.o pov_4/pov.c.o pov_5/pov.c.o pov_7/pov.c.o CGC_Planet_Markup_Language_Parser CGC_Planet_Markup_Language_Parser_patched CGC_Planet_Markup_Language_Parser_pov_1 CGC_Planet_Markup_Language_Parser_pov_2 CGC_Planet_Markup_Language_Parser_pov_6 CGC_Planet_Markup_Language_Parser_pov_3 CGC_Planet_Markup_Language_Parser_pov_4 CGC_Planet_Markup_Language_Parser_pov_5 CGC_Planet_Markup_Language_Parser_pov_7
+	rm -f pov_1/pov_1.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/service.c.o lib/printf.c.o lib/strdup.c.o lib/strchr.c.o lib/memmove.c.o lib/malloc.c.o lib/strcpy.c.o lib/strcmp.c.o lib/ctype.c.o lib/exit.c.o lib/memcpy.c.o lib/strndup.c.o lib/memcmp.c.o lib/malloc_common.c.o lib/fread.c.o lib/strsep.c.o lib/memchr.c.o lib/fxlat.c.o lib/strcasestr.c.o lib/strtoul.c.o lib/free.c.o lib/stdio.c.o lib/strncpy.c.o lib/strncasecmp.c.o lib/fwrite.c.o lib/strcasecmp.c.o lib/fflush.c.o lib/fopen.c.o lib/calloc.c.o lib/strtol.c.o lib/memset.c.o lib/strstr.c.o lib/realloc.c.o lib/strlen.c.o src/service.c.o Headscratch_pov_1 Headscratch_patched Headscratch

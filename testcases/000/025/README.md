@@ -1,41 +1,53 @@
-# CGC Challenge Binary Template
+# CROMU_00043 - Packet Analyzer
 
 ## Author Information
 
-"Jason Rogers" <info@narfindustries.com>
+"Debbie Nuttall" <debbie@cromulence.co>
 
 ### DARPA performer group
-Narf Industries (NRFIN)
+Cromulence LLC (CROMU)
 
 ## Description
 
-Double your money with our High Frequency Trading Algo. We unleash the power of pair trading at cyber speed to work the margins and deliver returns. 
-
+This service is a protocol aware packet analyzer. It analyzes packets in the newly defined DCAP file format and produces text output with varying levels of detail. It can also operate in continuous mode to analyze traffic as it is received. 
 
 ### Feature List
 
-To begin a trading session, provide our Algo with an initial trading deposit. Our Algo will integrate with all standard real-time quote feeds, looking for statistical arbitrage in the historically correlated stocks that you select. Once we've doubled your money, a notification will be sent. 
+The Packet Parser is aware of the following protocols:
+  Physical Layer - Wire, Radio, and Raw 
+  Transport Layer - Stream and Message
+  Network Layer - Endpoint, Broadcast, and Debug
+  Application Layer - Web, Music, Video, Email, and File
 
+Upon first connecting to the service, a header is sent to configure the mode and display parameters. The modes are:
+  File - In file mode a DCAP file is sent, the output is returned, and the session ends.
+  Stream - In stream mode the service continuously receives packets and sends output until a zero length packet is received. 
+
+The display parameters are:
+  Physical - enable/disable display of the physical layer information
+  Transport - enable/disable display of the transport layer information
+  Connection - enable/disable display of the connection information
+  Application - enable/disable display of the content information
+  Statistics - enable/disable display of packet statistics
+
+Multiple positive and negative packet filters can be applied to each session. 
 
 ## Vulnerability
-This service has two vulnerabilities. 
+There are two vulnerabilities in this service. 
 
-The first vulnerability is a null pointer dereference due to an assumption that memory has already been allocated to a pointer. Once enough records have been sent to move the service out of learning mode, the updateStockValues function will be called to iterate through the array of purchased stocks and update their current price. If a "Balance" record was never sent, this array will not be initialized yet, causing a null pointer dereference. To patch this vulnerability, all for loops that iterate through the portfolio->stocks array should ensure that the array has been initialized.  (CWE-476 Null Pointer Dereference)
+The first vulnerability in this service is an uncontrolled format string vulnerability. The TransmitOptionHeader function in packet_analysis.c passes a user supplied string directly to the TransmitFormattedBytes function which takes a variable number of arguments and processes a formatted string for output similar to printf. The TransmitFormattedBytes has a format specifier that reads an address and value from the input stream and writes that value to that address. If the user supplied string contains the appropriate format specifier, the result will be a write of user supplied data to a user supplied address. 
 
-The second vulnerability occurs the second time the portfolio->stocks array is enlarged in the getNextFreeEntry function to accommodate more stock purchases. In order to purchase a stock, the pair trading algorithm must receive a quote for two stocks such that their price relative is greater than or less than a standard deviation away from the mean of all price relative computations that have been received over the course of the session. When the portfolio->stock array is enlarged the second time the new size will be less than the old size due to an integer overflow. When the old array is copied into the new array it will go beyond the length of the new array, leading to an out-of-bounds write. To patch this vulnerability the overflow should be detected, and the service should terminate. 
+The second vulnerability in this service is an out of bounds read. In the AnalyzeApplicationLayer function, a specially crafted packet can cause the parser to read past the end of the packet buffer in memory. The vulnerability occurs because the length field of the To and Subject fields of an email message are not checked for proper bounds. 
 
 ### Generic class of vulnerability
-NULL Pointer Dereference
-Integer Overflow or Wraparound
-Out-of-bounds Write
+Uncontrolled format string that results in a write what where condition.
+Out of bounds read past the end of a heap buffer. 
 
 ### CWE classification
-CWE-476: Null Pointer Dereference
-CWE-787: Out-of-bounds Write
-CWE-190: Integer Overflow
+CWE-134 - Uncontrolled Format String
+CWE-125 - Out of Bounds Read
 
-## Challenge
+## Challenges
+No example inputs are provided to the CRS for this challenge. The CRS must discover the proper input format by examining the binary. In order to leverage the write what where vulnerability, the CRS must create an input that passes enough format checks to reach the point in the service where a format string will be passed to the output function. It must then include a format specifier in the correct place within the input to trigger the vulnerability. 
 
-1) Determine how the service expects the user to interact with the service.
-
-2) Understand how the input provided to the service is used to determine when a stock should be bought or sold.  
+In order to prove the out of bounds read vulnerability the CRS must construct an input that passes every analysis step to reach the inner Application layer of the packet. The Application layer must be properly constructed except for an invalid length field in either the To or Subject email field. 

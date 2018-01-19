@@ -1,7 +1,5 @@
 /*
- * Author: Brian Pak <brian.pak@kapricasecurity.com>
- *
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,106 +20,109 @@
  * THE SOFTWARE.
  *
  */
-#define IS_SPACE(c) ((c == ' ') || (c == '\t') || (c == '\f') || (c == '\n') || (c == '\v'))
-#define IS_NUM(c) ((c >= '0') && (c <= '9'))
-#define IS_ALPHA(c) (((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z')))
-#define IS_UPPER(c) ((c >= 'A') && (c <= 'Z'))
+#include "cgc_ctype.h"
+#include "cgc_stdlib.h"
+#include "cgc_stdint.h"
 
-long int cgc_strtol(const char *nptr, char **endptr, int base)
+#ifdef STRTOUL
+unsigned long cgc_strtoul(const char *str, char **endptr, int base)
+#else
+long cgc_strtol(const char *str, char **endptr, int base)
+#endif
 {
-    int limit;
-    int neg = 0, val = 0, consumed = 0, n, a;
-    const char *p = nptr;
+    const char *orig = str;
+    int sign = 1, empty = 1, overflow = 0;
+#ifdef STRTOUL
+    unsigned long long val = 0;
+#else
+    unsigned long val = 0;
+#endif
 
-    /* Check validity of base */
-    if (base == 1 || base > 36 || base < 0)
-        goto done;
-
-    /* Skip white space */
-    while (1)
+    /* 1. initial sequence of white-space characters */
+    while (cgc_isspace(*str))
     {
-        if (IS_SPACE(*p))
-            ++p;
-        else
-            break;
+        if (*str == 0)
+            goto error;
+        str++;
     }
 
-    /* Check sign symbol */
-    if (*p == '-')
+    /* 2. subject sequence interpreted as an integer */
+    /* preceding sign */
+    if (*str == '+')
     {
-        neg = 1;
-        ++p;
+        sign = 1;
+        str++;
     }
-    if (*p == '+')
-        ++p;
-
-    /* Handle the base & its syntax */
-    switch (base)
+    else if (*str == '-')
     {
-        case 0:
-            if (*p == '0')
-            {
-                if (p[1] == 'x' || p[1] == 'X')
-                {
-                    p += 2;
-                    base = 16;
-                }
-                else
-                {
-                    ++p;
-                    base = 8;
-                }
-            }
-            else
-                base = 10;
-            break;
-        case 16:
-            if (*p == '0' && (p[1] == 'x' || p[1] == 'X'))
-            {
-                p += 2;
-                base = 16;
-            }
-            break;
+        sign = -1;
+        str++;
     }
-
-    /* Convert the rest of the string into int */
-    while ((n = IS_NUM(*p)) || (a = IS_ALPHA(*p)))
+    /* prefix */
+    if (base == 16)
     {
-        if (n)
-            n = *p - '0';
-        else if (a)
+        if (str[0] == '0' && cgc_tolower(str[1]) == 'x')
+            str += 2;
+    }
+    else if (base == 0)
+    {
+        if (str[0] == '0' && str[1] >= '0' && str[1] <= '7')
         {
-            if (IS_UPPER(*p))
-                n = *p - 'A';
-            else
-                n = *p - 'a';
-            // "... In bases above 10, the letter 'A' in either upper  or  lower case represents 10,
-            //      'B' represents 11, and so forth, with 'Z' representing 35. ..."
-            n += 10;
+            str++;
+            base = 8;
         }
+        else if (str[0] == '0' && cgc_tolower(str[1]) == 'x')
+        {
+            str += 2;
+            base = 16;
+        }
+        else if (cgc_isdigit(*str))
+            base = 10;
+        else
+            goto error;
+    }
+    /* value */
+    while (*str)
+    {
+        int x;
+        if (cgc_isdigit(*str))
+            x = *str - '0';
+        else if (cgc_islower(*str))
+            x = *str - 'a' + 10;
+        else if (cgc_isupper(*str))
+            x = *str - 'A' + 10;
+        else
+            goto error;
 
-        // "... stopping at the first character which is not a valid digit in the given base. ..."
-        if (n >= base)
-            break;
+        if (x >= base)
+            goto error;
 
-        val *= base;
-        val += n;
-        ++consumed;
-        ++p;
+        empty = 0;
+        val = val * base + x;
+#ifdef STRTOUL
+        if (val > ULONG_MAX)
+#else
+        if (val > LONG_MAX)
+#endif
+            overflow = 1;
+        str++;
     }
 
-    if (neg)
+error:
+    if (endptr != NULL)
+        *endptr = (char *) (empty ? orig : str);
+#ifdef STRTOUL
+    if (sign < 0)
+    {
+        if (val > LONG_MAX && val != (unsigned long)LONG_MIN)
+            overflow = 1;
         val = -val;
-
-done:
-    if (endptr)
-        *endptr = (char *)(consumed > 0 ? p : nptr);
-
-    return val;
-
-}
-
-long unsigned int cgc_strtoul(const char *nptr, char **endptr, int base)
-{
-    return (long unsigned int)cgc_strtol(nptr, endptr, base);
+    }
+    return overflow ? ULONG_MAX : val;
+#else
+    if (sign < 0)
+        return overflow ? LONG_MIN : -val;
+    else
+        return overflow ? LONG_MAX : val;
+#endif
 }

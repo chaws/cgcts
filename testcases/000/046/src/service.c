@@ -1,8 +1,8 @@
 /*
 
-Author: Jason Williams <jdw@cromulence.com>
+Author: Steve Wood <swood@cromulence.com>
 
-Copyright (c) 2014 Cromulence LLC
+Copyright (c) 2016 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,225 +23,190 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
+
 #include "libcgc.h"
 #include "cgc_stdlib.h"
-#include "cgc_mymath.h"
+#include "cgc_service.h"
+#include "cgc_filesystem.h"
+#include "cgc_stdio.h"
+#include "cgc_string.h"
+#include "cgc_input.h"
+#include "cgc_malloc.h"
 
-#include "cgc_simulation.h"
-#include "cgc_render.h"
+#define COMMAND_COUNT 10
 
-#define BANNER_STR "2D Particle Simulator\nEnter the number of particles to simulate (1-10):\n"
-#define PARTICLE_PROMPT_POSITION "Enter Position (x,y):\n"
-#define PARTICLE_PROMPT_VELOCITY "Enter Velocity (x,y):\n"
-#define PARTICLE_PROMPT_MASS     "Enter Mass:\n"
-#define PARTICLE_PROMPT_RADIUS   "Enter Radius:\n"
-#define SIMULATION_TIME_PROMPT   "Enter Simulation Runtime (in seconds):\n"
-#define SIMULATION_RUNNING_PROMPT   "Simulation running...\n"
+securityIdType securityID = 0;
 
-#define BAD_POSITION_ERROR      "Invalid position. Try again.\n"
-#define BAD_VELOCITY_ERROR      "Invalid velocity. Try again.\n"
-#define BAD_MASS_ERROR          "Invalid mass. Try again.\n"
-#define BAD_RADIUS_ERROR        "Invalid radius. Try again.\n"
-#define BAD_DATA_ERROR          "Invalid simulation data. Try again.\n"
+int main(int cgc_argc, char *cgc_argv[]) {
+char command[1024];
+char buffer[100];
+char nameBuffer[10];
+int retcode;
+int unauth = 1;
+unsigned int securityToken;
+int i;
+int argcount;
+char **args;
+fileHandleType fh;
 
-int cgc_g_lasterror = 0;
+    commandsTableType commands[] = {
 
-int cgc_readLine( int fd, char *buffer, cgc_size_t maxlen )
-{
-    cgc_size_t pos;
-    char temp_buffer[2];
-    int retvalue;
-    cgc_size_t rx_count;
+        {"make", cgc_makeFile },
+        {"erase", cgc_eraseFile }, 
+        {"list", cgc_listFiles },
+        {"write", cgc_overwriteFile }, 
+        {"show", cgc_dumpFile },
+        {"last", cgc_readFromEnd },
+        { "first", cgc_readFirstN }, 
+        { "copy", cgc_copyFile }, 
+        { "perms", cgc_setPermissions },
+        { "makememfile", cgc_makeMemFile }
 
-    for ( pos = 1; pos < maxlen; pos++ )
-    {
-        if ( (retvalue = cgc_receive( fd, (void *)temp_buffer, 1, &rx_count)) != 0 )
-        {
-            cgc_g_lasterror = retvalue;
-            return (-1);
-        }
-        else
-        {
-            if ( temp_buffer[0] == '\n' )
-                break;
+    };
 
-            buffer[0] = temp_buffer[0];
-            buffer++;
-        }
+    retcode = cgc_initFileSystem(4096, 8192, 8192*300);
+
+    if (retcode != 0) {
+
+        cgc_printf("Error making filesystem\n");
+        cgc__terminate(-1);
     }
 
-    buffer[0] = '\0';
-    return pos;
-}
 
-int cgc_parse_float_pair( const char *buf, double* pair1, double* pair2 )
-{
-    int pos;
-    int buf_pos;
-    char pair1_buf[1024];
-    char pair2_buf[1024];
+    retcode = cgc_createFile("README.txt", REGULAR, ROOT_ID);
 
-    // Split at comma
-    for ( pos = 0; pos < 1024; pos++ )
-    {
-        if ( buf[pos] == '\0' )
-            return -1;
+    if ( retcode != 0 ) {
 
-        if ( buf[pos] == ',' )
+        cgc_printf("error making README\n");
+        cgc__terminate(-1);
+    }
+
+    fh = cgc_openFile("README.txt", ROOT_ID);
+
+    if ( fh < 0 ) {
+
+        cgc_printf("error making README\n");
+        cgc__terminate(-1);
+
+    }
+
+    cgc_strcpy(buffer, "Welcome to the interactive filesystem shell. ");
+
+    retcode = cgc_writeFile(fh, buffer, cgc_strlen(buffer), ROOT_ID);
+
+    if (retcode < 0 ) {
+
+        cgc_printf("error making README\n");
+        cgc__terminate(-1);
+
+    }
+
+    cgc_strcpy(buffer, "Valid commands are make, makememfile, erase, list, copy, write, show, first, last, and perms.");
+
+    retcode = cgc_writeFile(fh, buffer, cgc_strlen(buffer), ROOT_ID);
+
+    if (retcode < 0 ) {
+
+        cgc_printf("error making Message of the Day\n");
+        cgc__terminate(-1);
+
+    }
+
+    // this should be cgc_read-only but needs to be writable so it can be deleted for the exploit
+    cgc_setPerms(fh, 3, ROOT_ID);
+
+    cgc_closeFile(fh);
+
+    cgc_makeMemoryFile("authentication.db", 0x4347C000, 4096,  1,  0 );
+
+    while (1) {
+
+        if (unauth) {
+
+            cgc_printf("login: ");
+        }
+        else {
+
+            cgc_printf("> ");
+        }
+
+        retcode = cgc_receive_until(command, '\n', sizeof(command));
+
+        if (cgc_strlen(command) == 0) {
+
+            continue;
+        }
+
+        argcount = cgc_tokenize(command, ' ', &args);
+        
+        if (unauth) {
+
+            if (argcount != 2) {
+
+                cgc_free(args);
+                continue;
+            }
+
+            securityToken = cgc_atoi(args[1]);
+
+            securityID = cgc_authenticate(args[0], securityToken);
+
+            if (securityID == 0) {
+
+                cgc_printf("Invalid login\n");
+                cgc_free(args);
+                continue;
+            }
+            else {
+
+                cgc_printf("Access allowed\n");
+                cgc_lookupName(nameBuffer, securityID);
+
+                cgc_printf("Welcome $s\n", nameBuffer);
+
+            }
+
+            unauth = 0;
+
+            cgc_free(args);
+            continue;
+
+        }
+
+        if (cgc_strcmp(args[0], "logout") == 0) {
+
+            cgc_printf("bye felicia\n");
+            unauth = 1;
+            continue;
+
+        }
+        else if (cgc_strcmp(args[0], "exit") == 0 ) {
+
             break;
 
-        pair1_buf[pos] = buf[pos];
-    }
+        }
+        else {
 
-    if ( pos == 1024 )
-        return -1;
+            for ( i= 0; i < COMMAND_COUNT; ++i ) {
 
-    pair1_buf[pos] = '\0';
+                if ( cgc_strcmp(args[0], commands[i].command) == 0 ) {
 
-    pos++;
-    buf_pos = 0;
-    for ( ; pos < 1024; pos++ )
-    {
-        if ( buf[pos] == '\0' )
-            break;
+                    retcode = commands[i].handler(argcount, args);
+                    break;
+                }
 
-        pair2_buf[buf_pos++] = buf[pos];
-    }
+            }
 
-    if ( pos == 1024 )
-        return -1;
+            if ( i == COMMAND_COUNT && cgc_strlen(args[0]) > 0 ) {
 
-    pair2_buf[buf_pos] = '\0';
+                cgc_printf("unknown command $s\n", args[0]);
 
-    *pair1 = cgc_atof( pair1_buf );
-    *pair2 = cgc_atof( pair2_buf );
-
-    return 0;
-}
-
-int main(int cgc_argc, char *cgc_argv[])
-{
-    char buf[1024];
-    int ret;
-    int i;
-
-    // Print banner
-    cgc_printf( BANNER_STR );
-
-    ret = cgc_readLine( STDIN, buf, sizeof(buf) );
-    if ( ret == -1 )
-        cgc__terminate(2);
-
-    int32_t particle_count = cgc_atoi( buf );
-
-    if ( particle_count == 0 )
-    {
-        cgc_printf( "Goodbye\n" );
-        cgc__terminate(0);
-    }
-
-
-    if ( particle_count > MAX_PARTICLE_COUNT )
-    {
-        cgc_printf( "Goodbye\n" );
-        cgc__terminate(3);
-    }
-
-    for ( i = 0; i < particle_count; )
-    {
-        double pos_x, pos_y;
-        double vel_x, vel_y;
-        double mass;
-        double radius;
-        int32_t particle_num;
-
-        // Get position
-        cgc_printf( PARTICLE_PROMPT_POSITION );
-
-        ret = cgc_readLine( STDIN, buf, sizeof(buf) );
-        if ( ret == -1 )
-            cgc__terminate(2);
-
-        if ( cgc_parse_float_pair( buf, &pos_x, &pos_y ) != 0 )
-        {
-            cgc_printf( BAD_POSITION_ERROR );
+            }
+            
             continue;
         }
 
-        // Get velocity
-        cgc_printf( PARTICLE_PROMPT_VELOCITY );
+    } //while
 
-        ret = cgc_readLine( STDIN, buf, sizeof(buf) );
-        if ( ret == -1 )
-            cgc__terminate(2);
+}  // main  
 
-        if ( cgc_parse_float_pair( buf, &vel_x, &vel_y ) != 0 )
-        {
-            cgc_printf( BAD_VELOCITY_ERROR );
-
-            continue;
-        }
-
-        // Get mass
-        cgc_printf( PARTICLE_PROMPT_MASS );
-
-        ret = cgc_readLine( STDIN, buf, sizeof(buf) );
-        if ( ret == -1 )
-            cgc__terminate(2);
-
-        if ( (mass = cgc_atof( buf )) == 0.0 )
-        {
-            cgc_printf( BAD_MASS_ERROR );
-            continue;
-        }
-
-        // Get radius
-        cgc_printf( PARTICLE_PROMPT_RADIUS );
-
-        ret = cgc_readLine( STDIN, buf, sizeof(buf) );
-        if ( ret == -1 )
-            cgc__terminate(2);
-
-        if ( (radius = cgc_atof( buf )) == 0.0 )
-        {
-            cgc_printf( BAD_RADIUS_ERROR );
-            continue;
-        }
-
-        // Now attempt to add to the simulation (this will validate the data sets)
-        if ( (particle_num = cgc_simulation_add_particle( pos_x, pos_y, vel_x, vel_y, mass, radius )) >= 0 )
-        {
-            // Particle added
-            i++;
-        }
-        else
-        {
-            cgc_printf( BAD_DATA_ERROR );
-            continue;
-        }
-
-        cgc_printf( "Particle #@d added at (@f,@f) velocity(@f,@f) mass(@f) radius(@f).\n", particle_num, pos_x, pos_y, vel_x, vel_y, mass, radius );
-    }
-
-    cgc_printf( "Running simulation with...\n" );
-    // Initialize render grid
-    cgc_init_render_grid();
-
-    // Display start information
-    cgc_display_simulation_data( );
-
-    // Run the simulation for the desired amount of time
-    cgc_simulation_run( 10 );
-
-    // Print out simple statistics
-    cgc_printf( "Simulation complete, @d collisions simulated over @d seconds in @d frames.\n", cgc_get_collision_count(), cgc_get_simulation_time(), cgc_get_simulation_frames() );
-
-    // Output end information
-    cgc_display_simulation_data( );
-
-    // Exit
-    cgc_printf( "Goodbye\n" );
-
-    // Exit
-    cgc__terminate( 0 );
-}

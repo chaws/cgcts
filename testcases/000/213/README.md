@@ -1,43 +1,70 @@
-# Network_File_System
-
-## Author Information
-
-"Joe Rogers" <joe@cromulence.com>
-
-### DARPA performer group
-Cromulence (CROMU)
+# DFARS Sample Service
 
 ## Description
 
-ShortDescription: A basic network file system
+This service implements a FAR section lookup service, including a niave
+compression, dynamic skip searching, and prefix tree searching for commands.
 
-### Feature List
+## Vulnerabilities
 
-The file system supports these functions: Login, Read, Write, WriteAppend, List, Delete, and Rename.  Reads can be requested with an offset allowing specific sections of a file to be retrieved.  
+The vulnerability is out-of-bounds memory corruption vulnerability triggered
+during path canonicalization.  The vulnerable condition is triggered by
+erroniously searching for a for path delimiter outside the bounds of the
+supplied buffer.
 
-## Vulnerability
+The function's intent is to normalize "|foo|++|" into "|".  The method is to
+identify a traversal marker "++|", and seek backwards until the previous marker
+"|" is identified, then replace from that location until the next marker "|" is
+found.
 
-A function called CallocAndRead() is used throughout the CB when new filesystem requests are received.  The function allocates space to hold values from the request and copies those values into the allocated buffers.  In order to avoid unterminated strings, the function adds one to any length value it's passed to ensure there's sufficient space for the terminating null character.  However, a mistake in the function declaration resulted in the length parameter being passed as an unsigned 8-bit integer, rather than something larger.  So, if the function is called with a value of 255, the added byte will overflow the 8-bit integer and cause the resulting calloc'd buffer to be too small for the subsequent read which will lead to a heap overflow.
+If the input does not begin with the marker "|", then the program will continue
+the search into unspecified memory regions.  If the marker is found elsewhere,
+the program will write the input after the traversal marker "++|" at the found
+location.
 
-The malloc library uses a linked list for various size free blocks of memory.  By carefully overflowing the first available block in this list, control over the subsequent 'next' pointers is possible resulting in the ability to write to arbitrary memory locations.
+By placing a a marker "|" in a known location, a specified input may be able to
+leverage the marker "|" to modify memory in a fashion that can be leveraged
+gain execution control.
 
-The POV in this CB takes advantage of the Rename function and the above vulnerability to overwrite the stack copies of EBP and EIP for the HandleRequest() function.  Since the vulnerability requires a heap overflow of 255 bytes, quite a bit of the heap is corrupted by the overwrite.  In order to keep the CB functioning sufficiently for the Rename function to work, the exploit must reconstruct portions of the heap with valid values.  For example, since the filesystem also relies on heap memory, the inode structures including filenames and data allocations are stored on the heap.  These are obviously critical to the Rename function's file operations and must be correct for that function to work.
+The out-of-bounds memory access has multiple prerequisites before a PoV can
+prove the vulnerability is identified.
 
-### Generic class of vulnerability
+1. The canonicalization process allows for at most only 2 canonicalizations per
+   input.
+   
+   This requires the identification of path delimiters in memory prior to an
+   "interesting" area, and setting them to something other than the delimiter.
+   
+   Immediately prior to the buffer in question is a counter specifying the
+   number of FAR sections are currently in the service.  The number, in byte
+   representation, is the path delimiter.  In order to access interesting
+   memory, the PoV must add an additional section to the FAR sections.  This
+   may be accomplished via the "put" command.
+   
+   Example: "put foo bar\x00\n"
 
-Integer overflow leading to an incorrect buffer allocation size and subsequent heap overflow.
+2. In order to add an additional section, the service needs to have a current
+   directory set.  By setting the current directory, there is now a known "|"
+   prior to the beginning of the buffer.
 
-### CWE classification
+   Example: "ch_sec |\n"
 
-CWE-131: Incorrect Calculation of Buffer Size
-CWE-190: Integer Overflow or Wraparound
-CWE-122: Heap-based Buffer Overflow
+3. The canonicalization process requires the buffer begin with a delimiter,
+   making at least two canonicalization reductions be supplied by the input to
+   search before the beginning of the buffer.  The vulnerable condition can be
+   triggered with "ch_sec |A|++|++|AAAAAAAAAA"  
+   
+4. The input buffer is smaller than the buffer size to get to area of interest,
+   In order to overwrite memory that will identify a PoV the the vulnerable
+   condition, a function pointer after the directory must be overwritten, and
+   then used.  This requires multiple triggering conditions, ending the input
+   with a delimiter.  This requires repeated calls to ch_sec, with the argument
+   including a trailing delimiter.
 
-## Challenges
+   Example: "ch_sec |A|++|++|AAAAAAAAAA|\n"
 
-Due to the required size of the heap overflow, large portions of the heap are overwritten causing issues with the CB's key data structures.  While the vulnerability should be easy to identify and patch, crafting a POV which correctly reconstructs the heap while utilizing the malloc library functions to perform the desired stack overwrites should be challenging for the CRS.
+## Notes
+* This vulnerability mirrors a critical vulnerability in multiple Microsoft products, MS08-067.
+* The content for the lookup service is from the US Government's Federal Acquisition Regulation website:
 
-Subjective Quantification:
-Discovering - Easy
-Proving - Hard
-Fixing - Easy
+    http://www.acquisition.gov/far/current/html/farhtml.zip

@@ -1,91 +1,125 @@
-# Matchmaker
+# CGC Planet Markup Language Parser
 
 ## Author Information
-"Maxwell Koo" <info@narfindustries.com>
+
+"John Berry" <hj@cromulence.co>
 
 ### DARPA performer group
-Narf Industries (NRFIN)
+Cromulence
 
 ## Description
-Parsing as a service! This service handles all of your regular language
-recognition needs. Input a description of a regular language compiled into a
-series of statements representing a discrete finite automaton, and then enter in
-strings to test if they are accepted by the language or not. Also included is a
-method to generate strings which match a language, for testing purposes.
-Configurable actions are taken on a match.
+
+A user is able to submit a Planet Markup Language (PML). This will be parsed and presented to the user via menu driven options that allow the elements to be modified.
+
+This CB was designed to push the limits of the CRS' capability to handle the state space explosion problem. While this is not as complex as someting such as a browser or media player, it is large enough to serve as a milestone for CRS'. While the state space is large, the two vulnerabilities are straight forward. 
 
 ### Feature List
-This service allows a user to test strings against a description of a regular
-language.
 
-- Parses descriptions of DFAs
-- Tests user input to see if it is accepted by a DFA
-- Can reset language description on the fly
-- Can generate example strings satisfying the language
-- Can configure custom actions to be taken on a match
+PML Format:
 
-## Vulnerability 1
-This service leaks data from the flag page. The "magic" action uses the input
-string to calculate an offset into the flag page to take a byte, and then drops
-the user into a "guess the number" style game. A byte from the flag page can be
-leaked then by binary search.
+Generic format:
+
+Each element opens with {ElementId} and closes with {#ElementId}.
+No element will have itself as a sub element.
+
+Top level Planet element:
+        {Planet}        -- This is the top level id indicating a new planet descriptor
+                {Name}  AlphaNumeric  {#Name}           -- Indicate the name of the planet
+                {Period} Float {#Period}                -- Orbital period in days
+                {OrbitSpeed} Float {#OrbitSpeed}        -- Average orbital speed in km/s
+                {Aphelion} Float {#Aphelion}            -- Aphelion in km
+                {Perihelion} Float {#Perihelion}        -- Perihelion in km
+                {Radius} Float {#Radius}                -- Mean radius in km
+                {ERadius} Float {#ERadius}              -- Equatorial radius in km
+                {Mass} Float {#Mass}                    -- Mass in kg
+                {Gravity} Float {#Gravity}              -- Surface gravity in m/s
+                {Population} Integer {#Population}      -- Global population as a positive integer
+                {Country} Country Format {#Country}     -- Country sub information. For full description see the
+                                                                Country subelement formatting. Multiple country
+								Subelements are allowed
+        {#Planet}
+
+Country Element:
+        {Country}
+                {Name} AlphaNumeric {#Name}             -- Name of the country
+                {Capitol} Alphabetic {#Captiol}         -- Capitol City
+                {Population} Integer {#Population}      -- Country population as an integer
+                {Language} Alphabetic {#Language}       -- Language spoken within the country. Multiple
+								languages can be specified.
+                {Border} Lat Long start/end {#Border}   -- This indicates the start/end via latitude/longitude
+                                                                pair of coordinates. It is necessary to use multiple
+                                                                Border elements to construct a complete border. [*]
+                                                                Ex. {Border} 45.012 34.123 080.123 20.000 {#Border}
+                {Territory} Territory Format {#Territory} -- Used to define territories within a country
+        {#Country}
+
+Territory Element:
+        {Territory}
+                {Name} AlphaNumeric {#Name}
+                {Population} Integer {#Population}
+                {Established} Integer {#Established}    -- Year the county was established. Can be negavive
+                {Founder} AlphaNum+Spaces {#Founder}    -- Founder of the territory
+                {Border} Lat Long start/end {#Border}
+                {County} County Format {#County}        -- County within a territory
+        {#Territory}
+
+County Element:
+        {County}
+                {Name} AlphaNumeric {#Name}
+                {Population} Integer{#Population}
+                {Border} Lat Long start/end {#Border}
+                {Seat} Alpha {#Seat}	                -- County seat
+                {Area} Float {#Area}                    -- Total area in square kilometers
+                {Density} Float {#Density}              -- Population density in people per km^2
+                {City} City Format {#City}              -- City within a county
+        {#County}
+
+City Element:
+        {City}
+                {Name} Alphanumeric {#Name}
+                {Mayor} AlphaNum+Spaces {#Mayor}	-- Mayor of the city
+                {Url} City Website {#Url}		-- City website
+                {Population} Integer {#Population}
+                {Border} Lat Long start/end {#Border}
+        {#City}
+
+## Vulnerability
+
+There are seven vulnerabilities in this CB.
+
+The first vulnerability is relatively simple and is found high in the state space.
+The size of the capitol element of a Country structure is 20 bytes.
+However, in the countryMenu() function it is possible to overflow this buffer with
+	40 total bytes. This corrupts other fields of the structure. One method of
+	causing a crash after the overflow is by selecing "1" to display the country
+	information.
+
+The second vulnerability is also very straight forward but it is much deeper in the PML
+parsing code. The City structure is able to store the name of the Mayor in a 20 byte
+buffer but the function strcpy() is used without bounds checking to copy the value
+from the PML element into the field. This results in a basic heap based buffer
+overflow.
+
+The third vulnerability exists in the float_to_str() function where a large floating point value will result in a stack based buffer overflow.
+
+The fourth vulnerability is a NULL dereference when parsing a malformed Border field in the PML.
+
+The fifth vulnerability is a NULL dereference when parsing a malformed Planet mass field in the PML.
+
+The sixth vulnerability is a NULL dereference when parsing a malformed Planet period field in the PML.
+
+The seventh vulnerability is a NULL dereference when parsing a malformed name field in the PML.
 
 ### Generic class of vulnerability
-Information exposure through sent data
+The first two vulnerabilities are heap-based buffer overflows
+The third is a heap based buffer overflow
+The Fourth through seventh are null pointer dereferences.
 
 ### CWE classification
-CWE-201 Information exposure through sent data
+CWE-120 Buffer copy without checking size of input
+CWE-122 Heap-based buffer overflow
+CWE-476 NULL Pointer Dereference
 
-### Challenges
-- The vulnerability can be discovered by a CRS which does taint tracking, this
-  is made more difficult by hiding the vulnerable function behind an indirect
-  function call which requires a specific input to enable.
-- Proving the vulnerability requires the ability to enable the vulnerable
-  function through a specific command, provide a series of inputs which result
-  in the leak of four consecutive bytes, and reasoning about the functionality
-  of the number game in order to successfully leak the required information.
-- Fixing the vulnerability is easy once identified. The byte retrieved from the
-  flag page is not crucial to the operation of the game, so changing where that
-  byte comes from is sufficient to prevent the leakage.
+## Challenges
 
-### Difficulty
-- Discovering is medium
-- Proving is hard
-- Fixing is easy
-
-## Vulnerability 2
-The service uses a signed type improperly as an array index, allowing crafted
-data to be parsed by the application leading to control of EIP and EAX. By
-transitioning to a state >= 128, state objects are looked up outside of the
-states array due to interpreting the state as a signed char. This allows an
-attacker to control the onmatch handler and data pointer.
-
-### Generic class of vulnerability
-Improper input validation
-Integer overflow or wraparound
-Improper validation of array index
-
-### CWE classification
-CWE-20: Improper input validation
-CWE-190: Integer overflow or wraparound
-CWE-129: Improper validation of array index
-
-### Challenges
-- The vulnerability can be discovered by a CRS which looks for out of bounds
-  array accesses, including those who do not directly lead to a crash. This is
-  made more difficult by requiring an input with >= 128 states to lead to an out
-  of bounds access.
-- This vulnerability was designed to make proving through fuzzing or symbolic
-  execution difficult by use of an input language with a specific grammar and
-  behaviors which require specific structure to the inputs and depend on input
-  length, etc. In order to trigger this vulnerability, an input with >= 128
-  states followed by an input which can successfully transition to an accept
-  state beyond 127 is required.
-- Fixing the vulnerability is easy once identified, by inserting bounds checks
-  around all potentially vulnerable accesses.
-
-### Difficulty
-- Discovering is medium
-- Proving is hard
-- Fixing is easy
-
+The primary difficulty with this challenge is handling the large number of possible combinations of element data. While the potential state space for this CB is no where near that of a standard browser, it will be useful in separating those who can more effectively manages a larger space.

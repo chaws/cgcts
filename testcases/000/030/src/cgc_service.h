@@ -2,7 +2,7 @@
 
 Author: Joe Rogers <joe@cromulence.com>
 
-Copyright (c) 2015 Cromulence LLC
+Copyright (c) 2014 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,4 +23,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
-#include "libcgc.h"
+struct pcm_header {
+    unsigned int ID;
+    unsigned int DataSize;
+    unsigned int NumSamples;
+};
+
+#define PCM 0x204d4350
+
+// error codes
+#define READ_ERROR          1
+#define INVALID_PCM_LEN     2
+#define ALLOC_FAIL          3
+#define INVALID_PCM_FMT     4
+#define TRANSMIT_FAILED     5
+#define UNABLE_TO_PARSE_PCM 6

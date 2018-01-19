@@ -28,7 +28,7 @@
 #include "cgc_stdlib.h"
 
 /* Get some more memory through allocate */
-static int cgc_allocate_new_blk(void)
+static int allocate_new_blk(void)
 {
   void *ret;
   struct blk_t *new_blk;
@@ -54,7 +54,7 @@ static int cgc_allocate_new_blk(void)
 }
 
 /* Find first fit block for a size */
-static int cgc_find_fit(cgc_size_t size, struct blk_t **blk)
+static int find_fit(cgc_size_t size, struct blk_t **blk)
 {
   int sc_i = cgc_get_size_class(size);
 
@@ -69,7 +69,7 @@ static int cgc_find_fit(cgc_size_t size, struct blk_t **blk)
   return -1;
 }
 
-static void *cgc_malloc_huge(cgc_size_t size)
+static void *malloc_huge(cgc_size_t size)
 {
     void *mem;
     size += HEADER_PADDING;
@@ -91,7 +91,7 @@ void *cgc_malloc(cgc_size_t size)
     return NULL;
 
   if (size + HEADER_PADDING >= NEW_CHUNK_SIZE)
-    return cgc_malloc_huge(size);
+    return malloc_huge(size);
 
   if (size % ALIGNMENT != 0)
     size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
@@ -101,11 +101,11 @@ void *cgc_malloc(cgc_size_t size)
   size += HEADER_PADDING;
 
   struct blk_t *blk = NULL;
-  int sc_i = cgc_find_fit(size, &blk);
+  int sc_i = find_fit(size, &blk);
 
   /* Allocate a new block if no fit */
   if (blk == NULL) {
-    if (cgc_allocate_new_blk() != 0) {
+    if (allocate_new_blk() != 0) {
       return NULL;
     } else {
       sc_i = NUM_FREE_LISTS - 1;

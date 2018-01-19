@@ -27,11 +27,16 @@
 #define MALLOC_COMMON_H
 
 #include "cgc_stdint.h"
+#include "cgc_mutex.h"
 
 #define NUM_FREE_LISTS 32
 #define HEADER_PADDING 24
 #define NEW_CHUNK_SIZE 262144
-#define ALIGNMENT 8
+#define ALIGNMENT 32
+
+#ifdef FILAMENTS
+    extern mutex_t cgc_malloc_mutex;
+#endif
 
 extern struct blk_t *cgc_free_lists[NUM_FREE_LISTS];
 extern cgc_size_t size_class_limits[NUM_FREE_LISTS];

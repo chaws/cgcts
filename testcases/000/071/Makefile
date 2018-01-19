@@ -1,4 +1,4 @@
-CHAL=Eddy
+CHAL=SFTSCBSISS
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,29 +20,33 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/editor.c.o -c src/editor.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -o src/regex.c.o -c src/regex.c
-	$(CC) $(FLAGS) -o Eddy_patched lib/malloc.c.o lib/libc.c.o src/editor.c.o src/service.c.o src/regex.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/packet.c.o -c src/packet.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/vars.c.o -c src/vars.c
+	$(CXX) $(FLAGS) -o SFTSCBSISS_patched lib/printf.c.o lib/malloc.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/packet.c.o src/service.c.o src/vars.c.o $(LCGC) 
 
 vulnerable:
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/editor.c.o -c src/editor.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/prng.c.o -c lib/prng.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/packet.c.o -c src/packet.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/regex.c.o -c src/regex.c
-	$(CC) $(FLAGS) -o Eddy lib/malloc.c.o lib/libc.c.o src/editor.c.o src/service.c.o src/regex.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/vars.c.o -c src/vars.c
+	$(CXX) $(FLAGS) -o SFTSCBSISS lib/printf.c.o lib/malloc.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/packet.c.o src/service.c.o src/vars.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Eddy_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Eddy_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o SFTSCBSISS_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/malloc.c.o lib/libc.c.o src/editor.c.o src/service.c.o src/regex.c.o lib/malloc.c.o lib/libc.c.o src/editor.c.o src/service.c.o src/regex.c.o Eddy_pov_2 Eddy_pov_1 Eddy_patched Eddy
+	rm -f lib/printf.c.o lib/malloc.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/packet.c.o src/service.c.o src/vars.c.o pov_1/pov.c.o lib/printf.c.o lib/malloc.c.o lib/prng.c.o lib/mymath.c.o lib/stdlib.c.o src/packet.c.o src/service.c.o src/vars.c.o SFTSCBSISS_patched SFTSCBSISS_pov_1 SFTSCBSISS

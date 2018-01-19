@@ -1,778 +1,234 @@
 #!/usr/bin/env python
-#
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
 
-from generator.actions import Actions, Variable
-from random import choice, randint
-from os.path import dirname, abspath, join
-import sys
-import struct
+from generator.actions import Actions
+from struct import *
+from sys import *
+from random import *
 
+class SPT:
+    def __init__(self):
+        self.nodes = {}
+        self.node_list = list()
+        self.edges = dict()
+        self.weights = dict()
+        self.visited = list()
 
-sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-import support as sp
-from common import DEBUG, CONFIG
-from election import Election, ElectionManager, Voter, Candidate, Vote
+    def new_node(self, name, value):
+        self.nodes[name] = value
+        self.node_list.insert(0, name)
+        self.edges[name] = list()
 
-class VotingMachine(Actions):
+    def new_edge(self, from_node, to_node, weight):
+        try:
+            if self.weights[(from_node, to_node)] > weight:
+                self.weights[(from_node, to_node)] = weight
+        except KeyError:
+            self.weights[(from_node, to_node)] = weight
+            self.edges[from_node].insert(0, to_node)
+            self.edges[to_node].insert(0, from_node)
 
-    ELECTION_NAME           = "Enter election name: "
-    ELECTION_CREATED        = "Election Created.\n"
-    ELECTION_OPEN           = "Voting Open.\n"
-    ELECTION_CLOSED         = "Voting Closed.\n"
-    CREATE_E_MGR            = "## Create election manager ##\n"
-    CREATE_VOTER            = "## Create voter ##\n"
-    CREATE_CANDIDATE        = "## Create candidate ##\n"
-    CANDIDATE_ADDED         = "Candidate Added.\n"
-    CANDIDATE_INVALID       = "New candidate invalid\n"
+        try:
+            if self.weights[(to_node, from_node)] > weight:
+                self.weights[(to_node, from_node)] = weight
+        except KeyError:
+            self.weights[(to_node, from_node)] = weight
 
-    ZERO_CANDIDATES         = "\tThere were zero candidates.\n"
-    CANDIDATE_ORDER         = "\t| Rank | Votes | Candidate Name |\n"
-    ZERO_VOTERS             = "\tThere were zero voters.\n"
-    VOTER_ORDER             = "\t| Voted? | Voter Name |\n"
+    def FindMinNode(self):
+        min_dist = maxint
+        min_node = -1
+        #for n in self.nodes:
+        for n in self.node_list:
+            if n not in self.visited:
+                if self.nodes[n] < min_dist:
+                    min_dist = self.nodes[n]
+                    min_node = n
 
-    VOTING_RESULTS          = "## Voting Results ##\n"
-    CANDIDATE_SUMMARY       = "## Candidate Summary ##\n"
-    VOTER_TURNOUT           = "## Voter Turnout ##\n"
+        return min_node
 
-    SELECT_CANDIDATE        = "Select one candidate from the folloowing:\n"
-    EMPTY_CANDIDATES        = "There are no candidates. Go add some.\n"
-    FULL_CANDIDATES         = "Not accepting additional candidates.\n"
-    INVALID_CANDIDATE       = "Invalid candidate. Try again.\n"
+    def SPT(self, starting_node, ending_node):
+        parent_node = dict()
 
-    F_NAME                  = "\tEnter first name: "
-    L_NAME                  = "\tEnter last name: "
+        prev_node = starting_node
+        self.nodes[starting_node] = 0
+        for i in range(len(self.nodes)):
+            min_node = self.FindMinNode()
+            if min_node is -1:
+                return
 
-    ENTER_ID                = "\tEnter your ID number: "
-    ENTER_AUTH_KEY          = "\tEnter auth key: "
-    NEW_AUTH_KEY            = "\tYour auth key is: "
-    NEW_UID                 = "\tYour ID number is: "
+            self.visited.append(min_node)
 
-    NUM_WINNERS_Q           = "Enter number of election winners desired: "
-    MAX_CANDIDATES_Q        = "Enter the max number of candidates allowed: "
-    WRITE_IN_OK_Q           = "Can voters write-in new candidates? (Yy/Nn): "
+            if min_node is ending_node:
+                break
 
-    CHOOSE                  = "Choose an option: "
+            for n in self.edges[min_node]:
+                if self.nodes[n] > self.nodes[min_node] + self.weights[(min_node, n)]:
+                    self.nodes[n] = self.nodes[min_node] + self.weights[(min_node, n)]
+                    parent_node[n] = min_node
+                    
+            prev_node = min_node
 
-    MENU_LOGIN              = "14: Login\n"
-    MENU_MAIN               = "15: Main Menu\n"
-    MENU_CREATE_ELECTION    = "17: Create Election\n"
-    MENU_OPEN_VOTING        = "18. Open Voting\n"
-    MENU_CLOSE_VOTING       = "20. Close Voting\n"
-    MENU_ELECTION_STATUS    = "22. Election Status\n"
+        shortest_path = list()
+        n = min_node
+        while n is not starting_node:
+            shortest_path.insert(0, str(n))
+            n = parent_node[n]
+        shortest_path.insert(0, str(n))
 
-    MENU_REGISTER_VOTER     = "38. Register Voter\n"
-    MENU_VOTE               = "36. Vote\n"
-    MENU_ADD_CANDIDATE      = "54. Add Candidate\n"
-    MENU_VOTING_RESULTS     = "56. Voting Results\n"
-    MENU_VOTER_TURNOUT      = "72. Voter Turnout\n"
-    MENU_CANDIDATE_SUMMARY  = "88. Candidate Summary\n"
+        return(shortest_path)
 
-    MENU_QUIT               = "95. Quit\n"
+class MyClass(Actions):
+    CMD_SEND_NODES = 1
+    CMD_SEND_EDGES = 2
+    CMD_RUN_SPT = 3
+    RESP_ERROR_DUPLICATE_NODE = 1
+    RESP_ERROR_TOO_MANY_NODES = 2
+    RESP_ERROR_TOO_MANY_EDGES = 3
+    RESP_ERROR_INVALID_NODE = 4
+    RESP_ERROR_INVALID_CMD = 5
+    RESP_NODE_SET = 6
+    RESP_ERROR_SPT_FAIL = 7
+    index = 0
+    NumNodes = 0
+    NumEdges = 0
 
-    FAIL                    = "Is voting too hard?!\n"
+    def RndByte(self):
+        self.index = (self.index+1) % 4096
+        return(ord(self.magic_page[self.index]))
 
-    MENU_ENTRIES            = {
-                                0x0E: MENU_LOGIN,
-                                0x0F: MENU_MAIN,
-
-                                0x11: MENU_CREATE_ELECTION,
-                                0x12: MENU_OPEN_VOTING,
-                                0x14: MENU_CLOSE_VOTING,
-                                0x16: MENU_ELECTION_STATUS,
-
-                                0x24: MENU_VOTE,
-                                0x26: MENU_REGISTER_VOTER,
-
-                                0x36: MENU_ADD_CANDIDATE,
-
-                                0x38: MENU_VOTING_RESULTS,
-                                0x48: MENU_VOTER_TURNOUT,
-                                0x58: MENU_CANDIDATE_SUMMARY,
-
-                                0x5F: MENU_QUIT,
-                            }
-
-    def _receive_by_len(self, a_str, delim='', term=''):
-        line = "{0}{1}{2}".format(a_str, delim, term)
-        self.read(length=len(line), expect=line)
-
-    def _receive_by_delim(self, delim=''):
-        self.read(delim=delim)
-
-    def _send_str(self, cmd):
-        self.write(sp.pack_single_string("{0}{1}".format(cmd, CONFIG['DELIM'])))
-
-    def _receive_prompt_send_answer(self, prompt, answer):
-        self._receive_by_len(prompt, term=CONFIG['TERM'])
-        self._send_str(answer)
-
-    def _send_first_last_name(self, f_name, l_name):
-        self._receive_prompt_send_answer(self.F_NAME, f_name)
-        self._receive_prompt_send_answer(self.L_NAME, l_name)
-
-    def _is_menu_id_valid_op(self, menu_id):
-        creds = False
-        op = 0 != (menu_id & self.state['e'].state)
-
-        if 0x0E == menu_id:
-            creds = (False == self.state['e'].have_authd_user())
-        elif 0x0F == menu_id:
-            creds = (True == self.state['e'].have_authd_user())
-
-        elif 0x11 == menu_id:
-            creds = (False == self.state['e'].have_authd_user())
-        elif 0x12 == menu_id:
-            creds = (True == self.state['e'].have_authd_e_mgr())
-        elif 0x14 == menu_id:
-            creds = (True == self.state['e'].have_authd_e_mgr())
-        elif 0x16 == menu_id:
-            creds = (True == self.state['e'].have_authd_e_mgr())
-
-        elif 0x24 == menu_id:
-            creds = (True == self.state['e'].have_authd_voter())
-        elif 0x26 == menu_id:
-            creds = (False == self.state['e'].have_authd_user())
-
-        elif 0x36 == menu_id:
-            creds = (((True == self.state['e'].have_authd_e_mgr()) or \
-                    ((True == self.state['e'].have_authd_user()) and (1 == self.state['e'].write_in_ok))) and \
-                    (self.state['e'].get_candidate_count() < self.state['e'].max_candidates))
-
-        elif 0x38 == menu_id:
-            creds = (True == self.state['e'].have_authd_user())
-        elif 0x48 == menu_id:
-            creds = (True == self.state['e'].have_authd_e_mgr())
-        elif 0x58 == menu_id:
-            creds = (True == self.state['e'].have_authd_e_mgr())
+    def SendNodes(self, Num=0):
+	if Num is 0:
+            self.NumNodes = 0
+            while self.NumNodes < 5:
+                self.NumNodes = self.RndByte()
         else:
-            creds = False
+	    self.NumNodes = Num
 
-        return op and creds
+        cgc_Nodes =  pack("B", self.CMD_SEND_NODES)
+        cgc_Nodes += pack("<L", self.NumNodes) # num elements
+        cgc_Nodes += pack("<L", 0) # N/A
+        cgc_Nodes += pack("<L", 0) # N/A
+        for i in range(self.NumNodes):
+            cgc_Nodes += pack("<L", i) # elements
+            self.spt.new_node(i,maxint)
 
-    def _receive_fail(self):
-        self._receive_by_len(self.FAIL, term=CONFIG['TERM'])
+        self.comment("Num cgc_Nodes: {}".format(self.NumNodes))
+        self.write(cgc_Nodes)
 
-    def _process_menu(self):
-        '''
-        Receive the relevant lines in the menu.
-
-        # login_menu
-        # admin_menu
-        # voting_menu
-        # results_menu
-        # quit entry
-        '''
-        cmds = self.MENU_ENTRIES.keys()
-        cmds.sort()
-        menu = ''
-        for m_id in cmds:
-            if True == self._is_menu_id_valid_op(m_id):
-                menu += self.MENU_ENTRIES[m_id] + CONFIG['TERM']
-
-        menu += self.MENU_QUIT + CONFIG['TERM']
-        self._receive_by_len(menu)
-
-        self._receive_by_len(self.CHOOSE, term=CONFIG['TERM'])
-
-    def _back_to_main_menu(self):
-        '''
-        Option to go from sub_menu back to main_menu.
-        '''
-        self._process_menu()
-
-        cmd = 0x0F
-        self._send_str(cmd)
-
-        if True == self._is_menu_id_valid_op(cmd):
-            self.state['e'].authd_user = None
-            return 0
+    def SendEdges(self, Num=0):
+        if Num is 0:
+            self.NumEdges = self.RndByte()
         else:
-            self._receive_fail()
-            return -1
-
-    def _create_election(self):
-        '''
-        Create the election manager profile and setup the election parameters
-        '''
-        self._process_menu()
-
-        self.state['e'].authd_user = None
-
-        cmd = 0x11
-        self._send_str(cmd)
-
-        if True == self._is_menu_id_valid_op(cmd):
-
-            # create election mgr
-            self._receive_by_len(self.CREATE_E_MGR, term=CONFIG['TERM'])
-            mgr = self.state['e'].make_random_e_mgr()
-            self._send_first_last_name(mgr.f_name, mgr.l_name)
-            self._receive_by_len(self.NEW_UID)
-            self._receive_by_len(mgr.id, delim=CONFIG['DELIM'])
-            self._receive_by_len(self.NEW_AUTH_KEY)
-            auth_key = Variable('authkey')
-            auth_key.set_slice(0)
-            self.read(delim=CONFIG['DELIM'], assign=auth_key)
-            self.state['e'].set_e_mgr_auth_key(auth_key)
-
-            # send election name
-            self._receive_prompt_send_answer(self.ELECTION_NAME, self.state['e'].name)
-
-            # set election conf
-            num_winners = randint(1, 4)
-            max_candidates = randint(5, 20)
-            write_in_ok = choice(['Y', 'N'])
-            self._receive_prompt_send_answer(self.NUM_WINNERS_Q, num_winners)
-            self._receive_prompt_send_answer(self.MAX_CANDIDATES_Q, max_candidates)
-            self._receive_prompt_send_answer(self.WRITE_IN_OK_Q, write_in_ok)
-
-            self.state['e'].num_winners = num_winners
-            self.state['e'].max_candidates = max_candidates
-            self.state['e'].write_in_ok = 1 if 'Y' == write_in_ok else 0
-            self.state['e'].is_configured = True
-
-            # set state to NEW
-            self.state['e'].set_state('NEW')
-
-            # recv ELECTION_CREATED
-            self._receive_by_len(self.ELECTION_CREATED, term=CONFIG['TERM'])
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _register_voter(self):
-        '''
-        Register a new voter
-        '''
-        self._process_menu()
-        cmd = 0x26
-        self._send_str(cmd)
-        self.state['e'].authd_user = None
-
-        if True == self._is_menu_id_valid_op(cmd):
-            self._receive_by_len(self.CREATE_VOTER, term=CONFIG['TERM'])
-
-            voter = self.state['e'].make_random_voter()
-            # send voter's first and last name
-            self._send_first_last_name(voter.f_name, voter.l_name)
-
-            # receive "NEW_UID" msg and voter's ID
-            self._receive_by_len(self.NEW_UID)
-            self._receive_by_len(voter.id, delim=CONFIG['DELIM'])
-
-            self.state['e'].add_voter(voter)
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _login(self, who="VOTER"):
-        '''
-        Login either a voter or the election manager, or cause login error
-        '''
-        self._process_menu()
-        cmd = 0x0E
-        self._send_str(cmd)
-
-        if True == self._is_menu_id_valid_op(cmd):
-            self.state['e'].authd_user = None
-            user = None
-            if who is "ERROR":
-                user = self.state['e'].make_random_voter(is_valid=False)
-            elif who is "E_MGR":
-                user = self.state['e'].e_mgr
-            elif who is "VOTER":
-                user = self.state['e'].get_random_voter()
-                if user is None:
-                    who = "ERROR"
-                    user = self.state['e'].make_random_voter(is_valid=False)
-
-            # send creds
-            self._receive_prompt_send_answer(self.ENTER_ID, user.id)
-            self._receive_prompt_send_answer(self.L_NAME, user.l_name)
-
-            if who is "E_MGR":
-                self._receive_by_len(self.ENTER_AUTH_KEY, term=CONFIG['TERM'])
-                self.write(user.auth_key) # auth_key is a Variable()
-
-            if who is "ERROR":
-                self._receive_fail()
-                return -1
-            else:
-                self.state['e'].authd_user = user
-
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _open_voting(self):
-        '''
-        Set voting to OPEN state
-        '''
-        self._process_menu()
-        cmd = 0x12
-        self._send_str(cmd)
-
-        if True == self._is_menu_id_valid_op(cmd):
-            self.state['e'].set_state('OPEN')
-            self._receive_by_len(self.ELECTION_OPEN, term=CONFIG['TERM'])
-
-            self.state['e'].authd_user = None
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _close_voting(self):
-        '''
-        Set voting to CLOSED state
-        '''
-        self._process_menu()
-        cmd = 0x14
-        self._send_str(cmd)
-
-        if True == self._is_menu_id_valid_op(cmd):
-            self.state['e'].set_state('CLOSED')
-            self._receive_by_len(self.ELECTION_CLOSED, term=CONFIG['TERM'])
-
-            self.state['e'].authd_user = None
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-
-    def _election_status(self):
-        '''
-        Get the status of the election.
-        '''
-        self._process_menu()
-        cmd = 0x16
-        self._send_str(cmd)
-
-        fmt = "\tNumber of voters: {0}\n\tNumber of votes: {1}\n\tNumber of candidates: {2}\n"
-
-        if True == self._is_menu_id_valid_op(cmd):
-            msg = fmt.format(self.state['e'].get_voter_count(),
-                                self.state['e'].get_vote_count(),
-                                self.state['e'].get_candidate_count())
-            self._receive_by_len(msg)
-
-            self.state['e'].authd_user = None
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _add_candidate(self):
-        '''
-        Add a new candidate for the election.
-        '''
-        self._process_menu()
-        cmd = 0x36
-        self._send_str(cmd)
-
-
-        if True == self._is_menu_id_valid_op(cmd):
-
-            if self.state['e'].get_candidate_count() >= self.state['e'].max_candidates:
-                self._receive_by_len(self.FULL_CANDIDATES, term=CONFIG['TERM'])
-            else:
-                self._receive_by_len(self.CREATE_CANDIDATE, term=CONFIG['TERM'])
-
-                candidate = None
-                c_invalid = False
-                # occassionally, submit candidate with same name
-                if self.chance(0.01) and 0 is not self.state['e'].get_candidate_count():
-                    candidate = self.state['e'].get_random_candidate()
-                    c_invalid = True
-                else:
-                    candidate = self.state['e'].make_random_candidate()
-                # send first and last name
-                self._send_first_last_name(candidate.f_name, candidate.l_name)
-
-                if c_invalid is True:
-                    self._receive_by_len(self.CANDIDATE_INVALID, term=CONFIG['TERM'])
-                else:
-                    self._receive_by_len(self.CANDIDATE_ADDED, term=CONFIG['TERM'])
-                    self.state['e'].add_candidate(candidate)
-
-            self.state['e'].authd_user = None
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _vote(self):
-        '''
-        Place a vote.
-        '''
-        self._process_menu()
-        cmd = 0x24
-        self._send_str(cmd)
-
-        if True == self._is_menu_id_valid_op(cmd):
-
-            # check to see if there are any candidates to vote for
-            if 0 == self.state['e'].get_candidate_count():
-                self._receive_by_len(self.EMPTY_CANDIDATES, term=CONFIG['TERM'])
-            else:
-                # read candidate list
-                self._receive_by_len(self.SELECT_CANDIDATE, term=CONFIG['TERM'])
-                fmt = "\t{0}: {1} {2}\n"
-                for c in self.state['e'].candidates:
-                    line = fmt.format(c.id, c.f_name, c.l_name)
-                    self._receive_by_len(line)
-
-                self._receive_by_len(self.CHOOSE, term=CONFIG['TERM'])
-
-                # make selection
-                c = self.state['e'].get_random_candidate()
-                self._send_str(c.id)
-
-                # receive voting receipt
-                p1 = "Confirmation #"
-                p2 = " Vote recorded for candidate: {0} {1}.\n"
-
-                self._receive_by_len(p1)
-
-                vote_id = Variable('voteid{0}'.format(self.state['e'].authd_user.id))
-                vote_id.set_slice(0)
-                self.read(delim='.', assign=vote_id)
-
-                self._receive_by_len(p2.format(c.f_name, c.l_name))
-
-                # record vote
-                v = Vote(vote_id, self.state['e'].authd_user, c)
-                self.state['e'].add_vote(v)
-
-            self.state['e'].authd_user = None
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _voting_results(self):
-        '''
-        Get the voting results
-        '''
-        self._process_menu()
-        cmd = 0x38
-        self._send_str(cmd)
-
-        if True == self._is_menu_id_valid_op(cmd):
-            self._receive_by_len(self.VOTING_RESULTS, term=CONFIG['TERM'])
-
-            # check to see if there were any candidates voted for
-            if 0 == self.state['e'].get_candidate_count():
-                self._receive_by_len(self.ZERO_CANDIDATES, term=CONFIG['TERM'])
-            else:
-                # calculate voting results
-                v_res = self.state['e'].get_voting_results()
-
-                # read candidate list
-                self._receive_by_len(self.CANDIDATE_ORDER, term=CONFIG['TERM'])
-                fmt = "\t{0}.\t{1}\t"
-                winners = 0
-                for (count, c) in v_res:
-                    if winners >= self.state['e'].num_winners:
-                        break
-                    winners += 1
-                    line = fmt.format(winners, count)
-                    self._receive_by_len(line)
-                    # use a wild card recv for the name portion because python and C code
-                    # have different results from a sort with multiple equal sort-keys.
-                    self._receive_by_delim(delim='\n')
-
-            self.state['e'].authd_user = None
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _voter_turnout(self):
-        '''
-        Get the voter turnout results
-        '''
-        self._process_menu()
-        cmd = 0x48
-        self._send_str(cmd)
-        fmt = "\tNumber of voters: {0}\n\tNumber of votes: {1}\n";
-
-        if True == self._is_menu_id_valid_op(cmd):
-            self._receive_by_len(self.VOTER_TURNOUT, term=CONFIG['TERM'])
-
-            if 0 is self.state['e'].get_voter_count():
-                self._receive_by_len(self.ZERO_VOTERS, term=CONFIG['TERM'])
-            else:
-                # get counts
-                line = fmt.format(self.state['e'].get_voter_count(), self.state['e'].get_vote_count())
-                self._receive_by_len(line)
-
-                # get all voters
-                self._receive_by_len(self.VOTER_ORDER, term=CONFIG['TERM'])
-                for i in range(self.state['e'].get_voter_count()):
-                    # use a wild card recv for the names portion because python and C code
-                    # have different ordering when reading all values from a hash table.
-                    self._receive_by_delim(delim='\n')
-
-            self.state['e'].authd_user = None
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-    def _candidate_summary(self):
-        '''
-        Get the candidate summary
-        '''
-        self._process_menu()
-        cmd = 0x58
-        self._send_str(cmd)
-        fmt = "\tNumber of candidates: {0}\n";
-
-        if True == self._is_menu_id_valid_op(cmd):
-            self._receive_by_len(self.CANDIDATE_SUMMARY, term=CONFIG['TERM'])
-
-            if 0 is self.state['e'].get_voter_count():
-                self._receive_by_len(self.ZERO_CANDIDATES, term=CONFIG['TERM'])
-            else:
-                # get counts
-                line = fmt.format(self.state['e'].get_candidate_count())
-                self._receive_by_len(line)
-
-                # read candidate list
-                v_res = self.state['e'].get_voting_results()
-                self._receive_by_len(self.CANDIDATE_ORDER, term=CONFIG['TERM'])
-                fmt = "\t{0}.\t{1}\t"
-                winners = 0
-                for (count, c) in v_res:
-                    winners += 1
-                    line = fmt.format(winners, count)
-                    self._receive_by_len(line)
-                    # use a wild card recv for the name portion because python and C code
-                    # have different results from a sort with multiple equal sort-keys.
-                    self._receive_by_delim(delim='\n')
-
-            self.state['e'].authd_user = None
-            return 0
-        else:
-            self._receive_fail()
-            return -1
-
-
-    def _quit(self):
-        '''
-        Quit cleanly
-        '''
-        self._process_menu()
-        cmd = 0x5F
-        self._send_str(cmd)
-        return -1
+            self.NumEdges = Num
+
+        cgc_Edges =  pack("B", self.CMD_SEND_EDGES)
+        cgc_Edges += pack("<L", self.NumEdges)
+        cgc_Edges += pack("<L", 0)
+        cgc_Edges += pack("<L", 0)
+        for i in range(self.NumEdges):
+            NodeA = self.RndByte() % self.NumNodes
+            NodeZ = self.RndByte() % self.NumNodes
+            while NodeZ is NodeA:
+                NodeZ = self.RndByte() % self.NumNodes
+            Weight = self.RndByte()
+            #
+            cgc_Edges += pack("<L", NodeA)
+            cgc_Edges += pack("<L", NodeZ)
+            cgc_Edges += pack("<L", Weight)
+            self.spt.new_edge(NodeA,NodeZ,Weight+ord(self.magic_page[self.NumNodes]))
+            self.comment("Edge: {} to {} weight {}".format(NodeA,NodeZ,Weight))
+
+        self.write(cgc_Edges)
+
+    def RunSpt(self):
+        StartingNode = self.RndByte() % self.NumNodes
+        EndingNode   = self.RndByte() % self.NumNodes
+        Cmd =  pack("B", self.CMD_RUN_SPT)
+        Cmd += pack("<L", 0)
+        Cmd += pack("<L", StartingNode)
+        Cmd += pack("<L", EndingNode)
+
+        self.comment("SPT from {} to {}".format(StartingNode, EndingNode))
+        self.write(Cmd)
+
+        SptResult = self.spt.SPT(StartingNode,EndingNode)
+        if SptResult is None:
+            Resp  = pack("B", self.RESP_ERROR_SPT_FAIL)
+            Resp += pack("B", 0)
+            self.comment("Disconnected graph")
+            self.read(length=len(Resp), expect=Resp)
+            return;
+
+        Resp  = pack("B", self.RESP_NODE_SET)
+        Resp += pack("B", len(SptResult))
+        for x in SptResult:
+            Resp += pack("<L", int(x)) 
+
+        self.comment(" ".join(SptResult))
+        self.read(length=len(Resp), expect=Resp)
+
+    def SendBadNodes(self):
+        r = randint(0,1)
+        if r is 0:
+	    # Too many nodes
+            self.comment("Too many nodes")
+	    self.SendNodes(256)
+            Resp  = pack("B", self.RESP_ERROR_TOO_MANY_NODES)
+            Resp += pack("B", 0)
+            self.read(length=len(Resp), expect=Resp)
+
+        elif r is 1:
+	    # Duplicate node
+            self.comment("Duplicate node")
+	    self.SendNodes(1)
+	    self.SendNodes(1)
+            Resp  = pack("B", self.RESP_ERROR_DUPLICATE_NODE)
+            Resp += pack("B", 0)
+            self.read(length=len(Resp), expect=Resp)
+
+    def SendBadEdges(self):
+        r = randint(0,2)
+        if r is 0:
+	    # Too many edges
+            self.comment("Too many edges")
+	    self.SendNodes()
+	    self.SendEdges(2001)
+            Resp  = pack("B", self.RESP_ERROR_TOO_MANY_EDGES)
+            Resp += pack("B", 0)
+            self.read(length=len(Resp), expect=Resp)
+        elif r is 1:
+	    # Invalid starting node in edge
+            self.comment("Invalid starting node")
+	    self.SendNodes(2)
+            cgc_Edges =  pack("B", self.CMD_SEND_EDGES)
+            cgc_Edges += pack("<L", 1)
+            cgc_Edges += pack("<L", 0)
+            cgc_Edges += pack("<L", 0)
+            cgc_Edges += pack("<L", 3) # Node 3 which doesn't exist
+            cgc_Edges += pack("<L", 0) # Node 0
+            cgc_Edges += pack("<L", 1) # Don't care about weight
+            self.write(cgc_Edges)
+            Resp  = pack("B", self.RESP_ERROR_INVALID_NODE)
+            Resp += pack("B", 0)
+            self.read(length=len(Resp), expect=Resp)
+        elif r is 2:
+	    # Invalid ending node in edge
+            self.comment("Invalid ending node")
+	    self.SendNodes(2)
+            cgc_Edges =  pack("B", self.CMD_SEND_EDGES)
+            cgc_Edges += pack("<L", 1)
+            cgc_Edges += pack("<L", 0)
+            cgc_Edges += pack("<L", 0)
+            cgc_Edges += pack("<L", 0) # Node 0
+            cgc_Edges += pack("<L", 3) # Node 3 which doesn't exist
+            cgc_Edges += pack("<L", 1) # Don't care about weight
+            self.write(cgc_Edges)
+            Resp  = pack("B", self.RESP_ERROR_INVALID_NODE)
+            Resp += pack("B", 0)
+            self.read(length=len(Resp), expect=Resp)
 
     def start(self):
-        #self.delay(100)
-        self.state['e'] = Election()
+        self.delay(50)
+        self.spt = SPT()
 
-    def init_state(self):
-        '''
-        Process the Election in the INIT state
-        '''
-        if self.chance(0.8):
-            return self._create_election()
-        else:
-            return self._quit()
-
-    def new_state(self):
-        '''
-        Process the Election in the NEW state
-        '''
-        # create some voters
-        for i in range(randint(5,15)):
-            if 0 != self._register_voter():
-                return -1
-
-        # add a candidate
-        if self.chance(0.5):
-            # e_mgr do it
-            if 0 != self._login("E_MGR") or 0 != self._add_candidate():
-                return -1
-        else:
-            # voter do it
-            if 0 != self._login("VOTER") or 0 != self._add_candidate():
-                return -1
-        # check election status
-        if self.chance(0.1):
-            if 0 != self._login("E_MGR") or 0 != self._election_status():
-                return -1
-        # open voting
-        if 0 != self._login("E_MGR") or 0 != self._open_voting():
-            return -1
-
-        # rarely use go back to main menu command
-        if self.chance(0.01):
-            # e_mgr do it
-            if 0 != self._login("E_MGR") or 0 != self._back_to_main_menu():
-                return -1
-        elif self.chance(0.01):
-            # voter do it
-            if 0 != self._login("VOTER") or 0 != self._back_to_main_menu():
-                return -1
-
-        # rarely use quit command
-        if self.chance(0.01):
-            # e_mgr do it
-            if 0 != self._login("E_MGR") or 0 != self._quit():
-                return -1
-        elif self.chance(0.01):
-            # voter do it
-            if 0 != self._login("VOTER") or 0 != self._quit():
-                return -1
-        elif self.chance(0.01):
-            # main menu do it
-            return self._quit()
-
-        # rarely do bogus login
-        if self.chance(0.01):
-            if 0 != self._login("ERROR"):
-                return -1
-
-        return 0
-
-    def open_state(self):
-        '''
-        Process the Election in the OPEN state
-        '''
-        # create some voters
-        for i in range(randint(5,15)):
-            if 0 != self._register_voter():
-                return -1
-
-        for c in range(1, self.state['e'].max_candidates):
-            # add a candidate
-            if self.chance(0.5):
-                # e_mgr do it
-                if 0 != self._login("E_MGR") or 0 != self._add_candidate():
-                    return -1
-            else:
-                # voter do it
-                if 0 != self._login("VOTER") or 0 != self._add_candidate():
-                    return -1
-
-        # do some voting
-        for v in range(5, self.state['e'].get_voter_count()):
-            if 0 != self._login("VOTER") or 0 != self._vote():
-                return -1
-
-        # check election status
-        if self.chance(0.1):
-            if 0 != self._login("E_MGR") or 0 != self._election_status():
-                return -1
-
-        # close voting
-        if 0 != self._login("E_MGR") or 0 != self._close_voting():
-            return -1
-
-        # use go back to main menu option
-        if self.chance(0.01):
-            # e_mgr do it
-            if 0 != self._login("E_MGR") or 0 != self._back_to_main_menu():
-                return -1
-        elif self.chance(0.01):
-            # voter do it
-            if 0 != self._login("VOTER") or 0 != self._back_to_main_menu():
-                return -1
-
-        # rarely use quit command
-        if self.chance(0.01):
-            # e_mgr do it
-            if 0 != self._login("E_MGR") or 0 != self._quit():
-                return -1
-        elif self.chance(0.01):
-            # voter do it
-            if 0 != self._login("VOTER") or 0 != self._quit():
-                return -1
-        elif self.chance(0.01):
-            # main menu do it
-            return self._quit()
-
-        # rarely do bogus login
-        if self.chance(0.01):
-            if 0 != self._login("ERROR"):
-                return -1
-
-        return 0
-
-
-    def closed_state(self):
-        '''
-        Process the Election in the CLOSED state
-        '''
-        # check voting results
-        if self.chance(0.5):
-            if 0 != self._login("E_MGR") or 0 != self._voting_results():
-                return -1
-        else:
-            if 0 != self._login("VOTER") or 0 != self._voting_results():
-                return -1
-
-        # check voter turnout
-        if 0 != self._login("E_MGR") or 0 != self._voter_turnout():
-            return -1
-
-        # check candidate summary
-        if 0 != self._login("E_MGR") or 0 != self._candidate_summary():
-            return -1
-
-        # use go back to main menu option
-        if self.chance(0.01):
-            # e_mgr do it
-            if 0 != self._login("E_MGR") or 0 != self._back_to_main_menu():
-                return -1
-        elif self.chance(0.01):
-            # voter do it
-            if 0 != self._login("VOTER") or 0 != self._back_to_main_menu():
-                return -1
-
-        # rarely use quit command
-        if self.chance(0.01):
-            # e_mgr do it
-            if 0 != self._login("E_MGR") or 0 != self._quit():
-                return -1
-        elif self.chance(0.01):
-            # voter do it
-            if 0 != self._login("VOTER") or 0 != self._quit():
-                return -1
-        elif self.chance(0.01):
-            # main menu do it
-            return self._quit()
-
-        # rarely do bogus login
-        if self.chance(0.01):
-            if 0 != self._login("ERROR"):
-                return -1
-
-        return 0
-
+    def end(self):
+	pass

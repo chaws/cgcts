@@ -1,15 +1,56 @@
-# Diophantine Password Wallet
+# KPRCA-00001
 
-## Description
+## Author Information
 
-This service is supposed to be a simple service where a user can login to the service and and then *add*, *delete* and *print* out the list of currently stored passwords. The strange thing about this service is that the passwords must all be 3rd power diophantine equations in the form of secret1^3 + secret2^3 + secret3^3 = stored-secret^3. 
+"Andrew Wesie" <andrew.wesie@kapricasecurity.com>
 
-This CB is meant to be a harder version of YAN01_00008, but is also provided to help CRS authors to test their solver integration. What makes this CB more difficult than the other is that, the uint32 numbers are converted into 256bit large ints before addition and multiplication takes place. This and the fact that numbers are entered as ascii decimal numbers and then converted into uint32_t also obfuscates the process.
+### DARPA performer group
+Kaprica Security (KPRCA)
 
-## Vulnerabilities
+## Description:
 
-There is a null pointer dereference vulnerability. The vulnerability arises from the fact that some numbers *d* have more than one solution to a^3 + b^3 + c^3 = d^3, but the CB itself only initializes the function pointers for one set of solutions. In this way, finding the alternative solution will result in a null pointer derefernece. This falls under [CWE-824: Access of Uninitialized Pointer](http://cwe.mitre.org/data/definitions/824.html) and [CWE-476: Null Pointer Derefernece](http://cwe.mitre.org/data/definitions/476.html).
+This service implements a simple protocol that lets the user call a couple 
+functions which implement the root64 and parcour schemes.
 
-## Notes
+The protocol requires the user to authenticate with a token in order to prevent 
+trivial DDOS attacks. The server will generate a random sesson token which the 
+user must pass back to the server in order to authenticate and access the 
+primary functionality.
 
-The CB itself doesn't actually check to make sure that the passwords stored in the database satisfy the constraint mentioned in the description.
+### Feature List
+
+This is a server that was roughly inspired by the Gopher protocol. It has a few 
+protocol commands that are used to authenticate and set up the environment, and 
+then the user can request pages which will perform computation and print the 
+output. There are three pages: a summary screen showing which pages have been 
+called, a root64 encoder and decoder, and a parcour obfuscator.
+
+## Vulnerability
+
+The vulnerability is triggered in the root64 encoding function (main.c:284). 
+The check to verify the length of the input is wrong and can result in writing 
+260 bytes to a 256 byte buffer. This 4-byte overwrite gives the attacker 
+limited control of the ebx register which is later used as a pointer when 
+incrementing the call count for the function (main.c:245). Gaining control of 
+eip from here is difficult, but causing a crash is trivial.
+
+### Generic class of vulnerability
+Stack-based Buffer Overflow
+
+### CWE classification
+CWE-121: Stack-based Buffer Overflow
+
+## Challenges
+
+This service uses many primitives that are found in real-world programs:
+
+* string processing (e.g. protocol messages, root64)
+* arrays of function pointers
+* dynamic memory allocation
+* unpredictable data (e.g. authorization token)
+
+In order to reach vulnerable code, the automated binary analysis tool must be 
+able to ingest data produced by random() and send it back to the service. The 
+rest of the logic is very simple in C, but much more difficult since it 
+requires understanding of the malloc implementation and following function 
+pointers.

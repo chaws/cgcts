@@ -1,64 +1,77 @@
-# Cromulence All Service
+# CGC Challenge Binary Template
 
 ## Author Information
 
-"Jason Williams" <jdw@cromulence.co>
-“Joe Rogers” <joe@cromulence.co>
-"Debbie Nuttall" <debbie@cromulence.co>
+"Maxwell Koo" <info@narfindustries.com>
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+
+Narf Industries (NRFIN)
 
 ## Description
 
-This service is a joint effort from multiple Cromulence developers. It includes a command line interface with a command handler and registered command.
+This is a RPN calculator which allows calculations on several types of
+mathematical objects (integers, doubles and matrices).
 
-The first command is a sort command and allows the user to enter a number of integers to be sorted. The user then enters each integer one line at a time and the sorted list is printed back to the user.
+Commands take the form of a 4-byte command identifier, followed by optional
+arguments. Commands may produce output but will always end in a 4-byte success
+code, 0 on success or -1 on failure.
 
-The second command provides basic addition, subtraction, and scalar multiplication matrix math operations.  Depending on the requested operation, the user is prompted to supply the matrices and/or the scalar multiplier.  The resulting matrix is printed out before returning to the matrix operation menu.
+When a command requires tagging the type of an operand, it will accept a 4-byte
+tag with 0 == integer, 1 == matrix, and 2 == double.
 
-The third command is a game similar to Simon says. The game outputs a sequence of colors and the user must generate a reply sequence that matches. After every correct answer, the sequence grows longer. 
+Internally, each type is represented using tagged values packed into a double,
+with integers and matrices represented by NaN values.
 
-The fourth command is a data encoding function similar to Base64.  Raw data is entered and the resulting encoded data is output.
 ### Feature List
 
-This service features an interactive command line, the ability to list commands, and numerous commands. The first command is the sort command which sorts integers entered by the user.  The second command provides basic matrix math operations. The third command is a simon says game. 
+The following commands are available:
+ - Push operand (integer, double or matrix)
+ - Pop result (integer, double or matrix)
+ - Clear stack
+ - Add top two operands and push result
+ - Subtract top two operands and push result
+ - Multiply top two operands and push result
+ - Divide top two operands and push result
+ - Invert matrix and push result
 
 ## Vulnerability
 
-This service has the following vulnerabilities.
+The system does not correctly check for floating point overflow in all cases,
+allowing crafted operands which will lead to type confusion. Due to the manner
+in which matrices are stored (pointers packed into a double), corrupting a
+rpnval to contain an arbitrary address may allow for read/write access to a
+significant portion of the process' memory space.
 
-The first vulnerability is in the sort command. A user can enter a negative number for the number of items to be sorted. Due to a sign/unsigned comparison bug it is possible for the user to enter a negative number and pass the max length check for the sort array. In doing so the user can then write outside of the array and corrupt the stack frame overwriting the return address.
-
-The second vulnerability is in the matrix command.  The program uses a fixed size array to store the matrices.  It incorrectly checks the necessary size of the array by multiplying the supplied dimension values together without properly handling the possibility of an integer overflow. 
-
-The third vulnerability is in the simon command. The user response is written to a stack buffer. If the user successfully plays past the first 236 rounds of play, the response will begin writing past the end of the stack buffer. If the game is successfully played up to the maximum number of 256 rounds, a 20 byte stack overwrite will occur before the simon function exits. 
+There is also an out of bounds read due to reversal of two array indices in
+multiply, which can be triggered by multiplying to matrices such that memory
+outside of the data buffer of the result matrix is accessed.
 
 ### Generic class of vulnerability
-
-sort command:
-Signed to Unsigned Conversion Error
-Stack-based Buffer Overflow
-
-matrix command:
-Integer overflow leading to an incorrect calculation of buffer size
-
-simon command:
-Stack-based Buffer Overflow
+Type confusion
+Divide by zero
+Integer overflow
 
 ### CWE classification
-
-sort command:
-CWE-195: Signed to Unsigned Conversion Error
-CWE-121: Stack-based Buffer Overflow
-
-CWE-190: Integer Overflow or Wraparound
-CWE-131: Incorrect Calculation of Buffer Size
-
-simon command:
-CWE-121: Stack-based Buffer Overflow
+CWE-125 Out of bound read
+CWE-190 Integer overflow or wraparound
+CWE-369 Divide by zero
+CWE-682 Incorrect calculation
+CWE-704 Incorrect type conversion or cast
+CWE-843 Access of resource using incompatible type
 
 ## Challenges
 
-This service presents the CRS with a number of possible commands that the CRS can select from. The service is designed to be simple in nature and have multiple bugs for the CRS to exploit. The only challenge is in determining the command table, entering the correct command, and setting the proper states for an exploitable command.
+This CB is designed to test the capabilities of a CRS in handling floating point
+arithmetic combined with bit-ops. The technique of packing values of different
+types into a floating point type is modeled after several real-world
+applications, notably the SpiderMonkey and JavaScriptCore (WebKit) Javascript
+engines. Modeling the interactions between floating point operations and
+bit-level operations requires a precise modeling of IEEE floating point math and
+implementation details specific to the target platform. These capabilities are
+necessary for analyzing attacks on commonly-targeted software, such as web
+browsers using these Javascript implementations. The out of bounds read models a
+copy-paste error which can appear in real-world code; it is relatively deep
+inside of the control flow of the CB and depends on the layout of the heap to
+cause a crash, increasing the challenge of triggering this vulnerability.
 

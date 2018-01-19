@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,10 +24,9 @@
 #ifndef READUNTIL_H
 #define READUNTIL_H
 
-#include "cgc_wrapper.h"
 #include "libcgc.h"
 
 int cgc_read_until(int fd, char *buf, cgc_size_t len, char delim);
-const char* cgc_readall_until(int fd, char delim);
+int cgc_read_n(int fd, char *buf, cgc_size_t len);
 
 #endif

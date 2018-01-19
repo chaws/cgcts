@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Copyright (c) 2015 Kaprica Security, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,20 +38,16 @@ int cgc_read_until(int fd, char *buf, cgc_size_t len, char delim)
   return c - buf;
 }
 
-const char *cgc_readall_until(int fd, char delim)
+int cgc_read_n(int fd, char *buf, cgc_size_t len)
 {
-  static char buf[512*1024];
   cgc_size_t i;
   char *c = buf;
-  for (i = 0; i < sizeof(buf); ++i)
+  for (i = 0; i < len; ++i)
   {
     cgc_size_t rx;
     if (cgc_receive(fd, c, 1, &rx) != 0 || rx == 0)
-      return NULL;
-    if (*(c++) == delim)
       break;
+    c++;
   }
-  *(c-1) = '\0';
-  return buf;
+  return c - buf;
 }
-

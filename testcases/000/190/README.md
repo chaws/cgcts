@@ -1,36 +1,38 @@
-# Stock_Exchange_Simulator
+# WhackJack
 
 ## Author Information
 
-"Narf Industries" <info@narfindustries.com>
+"Steve Wood" <swood@cromulence.com>
 
 ### DARPA performer group
-Narf Industries (NRFIN)
+Cromulence LLC (CROMU)
 
 ## Description
 
-An options exchange simulator that matches sell orders to buy attempts. 
+This program is a game of chance called WhackJack.  It might or might not bear a similarity to another game with a rhyming name.  It allows up to 8 players to play, with players being human or computer simulated according to various play algorithms.
 
 ### Feature List
 
-This service supports posting sell orders for options holdings and account controls. All options order requests must be checksummed with a super-secret formula and XORd with a super-secret account key. A client can perform: buy, sell, and quotation options. His holdings are automatically managed by the service.
+The service simulates a card game where the goal is to get a higher score than the dealer without going over 21.  Up to 8 players can play with the option of making some of those players computer simulated.  Five different algorithms are included that embody various schools of thought on how to play the game.  The game also includes a training mode whereby human players can get play hints from one of the algorithms. 
 
-The binary also performs book keeping functions to make sure clients don't oversell their holdings or balances.
-
-## Vulnerability 1
-When a holding is maxed out (0xFFFFFFFF shares) there is an opportunity to trigger an error message. Attacker controlled values are directly used in the read location and write location during error handling to set an error code. The contents of this error code are transmitted back to the client and the program terminates on error. 
+## Vulnerability
+Vulnerability 1 is a buffer overwrite due to the programmer inadvertently using the wrong #define constant in a bounds check of a read from STDIN.  The read buffer is adjacent to the data structures holding player data, including a function pointer to the simulation algorithm chosen for that player.  An overwrite of this pointer will allow the attacker to jump to arbitrary code.
 
 ### Generic class of vulnerability
-Untrusted pointer dereference.
+Stack buffer overwrite
 
 ### CWE classification
-CWE-388 (Error Handling)
-CWE-822 (Untrusted Pointer Deref)
+CWE-121 Stack-based Buffer Overflow
 
-### Challenges
-The two challenges in this binary are (1) understanding and replicating the checksum algortihm for order types that are never seen in the poll traffic and (2) identifying accounts which will have overflowing holdings that trigger the error condition.
+## Challenges
 
-### Difficulty
-- Discovering is easy
-- Proving is medium
-- Patching is easy
+Vulnerability 1 is able to overwrite the function pointer for the simulation module, but not much else in the player data.  Therefore proving this vulnerability requires multiple steps.  First, a player has to be entered and setup as a computer player.  This enables the deference of the function pointer later.  The buffer overwrite is not long enough to set the variable setting the player as a computer simulation.  Next the overwrite needs to happen and setup shellcode to establish the desired register values.  However, the available buffer space is quite small so some creativity is needed to write enough shellcode.  POV_1 enters three fake players, and spreads the shellcode between the name fields in all three players, with the first jumping to the second and the second to the third.  Only the the player 1 data actually uses the vulnerable overwrite to get the first stage shellcode into place.  Once the shellcode is setup and the function pointer overwritten to point to the start of the shellcode, the game must be instructed to play a round of the game to invoke the function poniter.
+
+An additional complexity is added in that a readline-type input function is used so the shellcode data, including the EIP and Register data from the framework, can't have 0x0a in the data.  A strcpy function is used to store the second and third stages of the shellcode, so it also must be null safe, including the values from the framework.  
+
+This vulnerability is easy to find and very easy to fix.  Exploitation is hard given the constraints on the shellcode and the multiple steps required to invoke the shellcode.
+
+	Finding Vulnerability 1: easy
+	Proving Vulnerability 1: hard
+	Fixing Vulnerability 1: easy
+

@@ -37,5 +37,5 @@ int cgc_strncmp(const char *s1, const char *s2, cgc_size_t n)
       else
         s1++, s2++;
 
-    return *s1 - *s2;
+    return *s2 - *s1;
 }

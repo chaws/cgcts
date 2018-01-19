@@ -1,84 +1,70 @@
-# KPRCA-00013
+# CGC Challenge Binary (KPRCA\_00033): Loud Square Instant Messaging Protocol (LSIMP)
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
 ## Description
 
-Accel is a spreadsheet program that enables a user to store information in a table and calculate numerical formulas based on cell data. Similar to other familiar spreadsheet programs, Accel is meant to assist in organizing large amounts of data that have interdependencies. The functions provided will enable a user to complete most simple financial and arithmetic needs.
+This service is an implementation of the LSIMP message parsing, which is used in
+White Phones. The protocol is very simple, but fast and secure by employing a binary data protocol and obfuscation techniques.
 
 ### Feature List
 
-Command Line Operations:
--------------------------
-**Literal Assignment
-A0=1
-A0=This is a string
+**Funtionality**
 
-**Formula Assignment
-A1==SQRT(9)
-A2==A1+97
-A3==SIN(A2/A1)
+- Secure mode through key'd XOR
+- Out-of-order data transmission for secure messages
+- Guard value for detecting packet corruption
+- Batch process for queued messages
 
-Supported String Commands:
-----------------------
-CLEAR - Clears a cell
-Accel:-$ CLEAR A3
+**Protocol**
 
-REPR - Show the representation of a cell (helpful with formulas)
-Accel:-$ REPR A2 --> =A1+97
+- Operation Types:
+  - QUEUE queues a message
+  - PROCESS processes the message queue
+  - QUIT closes connection
+- Message Types:
+  - HELO initializes the connection
+    - version: protocol version
+    - secure_mode: flag specifying obfuscated mode
+    - ttl: number of valid messages after this message
+  - KEYX exchanges the key; only used for secure messages
+    - key: variable length key
+    - key_len: length of the key
+    - option: flag specifying how the key should be used
+  - DATA only used for secure messages; should come after KEYX
+    - seq: sequence number
+    - data: variable length data
+    - data_len: length of the data
+  - TEXT used for clear text messages
+    - msg: variable length text message
+    - msg_len: length of the text message
 
-SHOW - Show the value of a cell, either literal or computer
-Accel:-S SHOW A2 --> 100
-Accel:-S SHOW A0 --> This is a string
+HELO message must come first. Then, following messages up to 'ttl' is parsed. If the number of messages reaches 'ttl', new HELO message needs to be processed. Only one 'mode' can be used for one HELO session.
 
-SHOW TABLE - Shows the contents of the entire table
-Accel:-S SHOW TABLE
+Option field in the key exchange message defines two modes:
 
-EXIT - Exits the program
-Accel:-S EXIT
-
-Supported Functions:
-------------------------------------------------
-AVG     - Calculate the average of a list
-COUNT   - Count the number of items in a list
-MAX     - Return the largest value in a list
-MEDIAN  - Calculate the median of a list
-MIN     - Return the smallest value in a list
-STDDEV  - Calculate the standard deviation of a list
-ABS     - Return the absolute value of a number
-COS     - Calculate the cosine function of a number
-LN      - Caclualte the natural log of a number
-LOG10   - Calculate a log base 10 of a number
-POWER   - Raise a number to a power
-SIN     - Calculate the sine function of a number
-SQRT    - Take the square root of a number
-SUM     - Return the summation of a list
-
-Supported Operators
-------------------------------------------------
-+   - Addition
-*   - Multiplication
-/   - Division
--   - Subtraction
+  - prepend/append: In order to make it more 'secure', 4 byte dummy data is either prepended or appended to the original data.
+  - inverted/as-is: The key used for secure mode is either (bit-wise) inverted or used as-is.
 
 ## Vulnerability
 
-In infixtorpn (accel.c:453), an attacker supplied string is parsed into its components. Every time a function name is encountered, it is stored in an array and the index (func_idx) is incremented. The check to test if the array needs to be enlarged is off by one, because the index is incremented between the check and the store. This results in an overflow of the heap buffer, which can allow the attacker to control the heap metadata (size) of the next heap block. Attacker control is limited because the memory is initially set to zero and then incremented every time a comma occurs, but an attacker only needs to get the value to greater than 32 or so to cause a segmentation fault. The fault occurs because the free method will try to split the memory even though it has wrong metadata and overwrite pointers on the heap.
-
-Also, there is an uninitialized variable vulnerability in handle_op_median, where sorted variable wasn't initialized before being cleared.
+- One operation 'packet' may contain multiple messages; Although, it results in one message (last seen).
+- When parsing a message, it updates the message object data, including the message type
+- With a different message type, different offset of the message object is set (with user-controlled data)
+- By making it back to the original type (but not supplying data), manipulation of field is possible
 
 ### Generic class of vulnerability
 
-Generic type: Heap-buffer overflow
-
-Uninitialized variable
+Type confusion error
 
 ### CWE classification
 
-CWE-193: Off-by-one Error
-CWE-457: Use of Uninitialized Variable
+CWE-843: Access of Resource Using Incompatible Type 'Type Confusion'
 
 ## Challenges
 
-This cb is meant to be difficult to analyze. The program should provide complexities that are will take some work to reason about. The bug is similar, in that it's difficult to detect what is or isn't a heap overflow especially when dealing with an off-by-one error.
+- Must figure out how to initiate and interact with the protocol
+- Must realize that modifying the type and data for the internal object is possible
+- Cause a type confusion to overwrite the pointer to a buffer
+- Trigger the bug by making it to process the message

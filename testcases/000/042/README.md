@@ -1,34 +1,75 @@
-# FaceMag
+# CROMU_00017 - Mathematical Solver
 
 ## Author Information
-
-"Steve Wood" <swood@cromulence.com>
+"James Nuttall" <james@cromulence.co>
 
 ### DARPA performer group
-Cromulence LLC (CROMU)
+Cromulence
 
 ## Description
-
-This service is a social media server where users can post messages for others to view and comments on.
+This service is a basic mathematical expression solver. It generates expressions for the CRS to solve, evaluates CRS generated expressions, and presents basic shapes and asks the CRS to provide parameters.  
 
 ### Feature List
-This service is a social media server that provides a network protocol for new accounts to be created, message posts to be made, comments to those posts and a posting feed where the user can retrieve postings that she hasn't previously seen.  Specific posts can be retrieved by their posting ID and all associated comments are also displayed.  A filesystem is used for the underlying storage mechanism for the server with each user having an account file that maintains their state information as well as their real/full name.
+Upon connection, the CRS is asked to provide a buffer of data to seed the pseudo-random number generator. This allows the POV to create a deterministic program flow.
 
+After the seed is set, the CRS can select from several different solver options. The service keeps statistics on how many problems are answered correctly by the CRS.  
+
+	1. Solve Equation
+	2. Create Equation
+	3. Solve Area
+	4. Solve Perimeter
+	5. Solve Volume
+	6. View Statistics
+	7. Exit
+
+
+Solve Equation will generate a random equation for the CRS to solve. 
+For example:
+	(198-(83+(165*(6+(120-92)-169)/119)*171)+160)
+
+The solver supports the following operators:
+	()	Parenthesis
+	+ 	Addition
+	- 	Subtraction
+	/	Division
+	*	Multiplication
+
+Create Equation will generate a random rule set for the CRS to follow in generating their own equation. 
+For example:
+	Enter an equation that has 4 sets of parenthesis
+	It must evaluate to 25449 and contain the + operator
+	and must use the numbers: 25 236 155 and 123
+
+Solve Area presents a word problem for calculating the area of a shape. 
+For example:
+	find area of circle with radius 8294
+
+Solve Perimeter presents a word problem for calculating the perimeter of a shape.
+For example:
+	find perimeter of object with 726 sides of length 16852
+
+Solve Volume presents a word problem involving the volume of a shape. 
+For example:
+	find height of rectangular prism with a volume of 244910160, and side of 330
+
+View Statistics will show the statistics gathered so far about the number and type of problems solved correctly and incorrectly.
 
 ## Vulnerability
-Vulnerability 1 is a buffer overwrite due to the server relying on user specified length parameters to dictate how long incoming messages, user names, passwords, and fullnames are.  Even though these incoming messages overwrite the data structure they are cast to, they are still much shorter than the full 4K page of memory that was allocated, so they have no affect on program behavior when first received.  The real overwrite occurs later when one of these strings, the fullname, is later retrieved from the user's account file and used to build a posting message for return to the user.
+There are three vulnerabilities in this challenge.
+The vulnerabile functions are located in the print_statistics() function, which is accessed simply by selecting option 6. View Statistics from the main menu.
 
-### Generic class of vulnerability
-Stack buffer overflow
+The first vulnerability is located in service.c:81 and is only accessible after solving 10 of the 2. Create Equation menu option. After solving exactly 10 of these equations, and selecting 6. View Statistics, the CRS is presented with an option to enter a buffer, which can overflow the allocated space. This will cause a buffer overflow.
 
-### CWE classification
-CWE-121 Stack based buffer overflow
+The second vulnerability is located in service.c:94 and is only accessible after solving 10 of the 1. Solve Equation menu option. After solving exactly 10 of these equations, and selecting 6. View Statistics, the CRS is presented with an option to enter a buffer, which can overflow the allocated space. This will cause a buffer overflow.
 
-## Challenges
-Although this vulnerability is easily found and corrected, proving it to be exploitable is not.  A buffer is created with an allocate() call that is much larger than is required to hold the incoming message.  Even though the string's length is specified in the message, a single byte is allocated in the message for the length paramter which limits the string to 255 bytes--far too short to overwrite a 4K page.  Several strings in the incoming messages have this same vulnerability but only one is not later truncated:  the user's fullname.  This string is stored in the user's account file and is used to tag posts with their real name rather than their username.  However, when a post message is created, the username is null terminated at the proper length.  Only when the username is applied to a comment that's been made to another post is the full string retrieved which allows the local stack space to be overwritten.  Due to the arrangement of variables in the stack frame, the overwrite is not able to corrupt the stack frame and the saved registers.  What can be overwritten is the file handle used to read the stored post and its comments.  Another file on the system is persistently open and happens to be a memory-mapped file that points to the magic page.  By overwriting the local file handle to the value of the other open file, the next read of a comment will actually load raw data from the magic page.  An additional complication occurs if this read is done soon after the service is running though.  The amount of data in the memory mapped file is too large and will completely corrupt the stack frame resulting in an uncontrollable program crash.  Only after the memory-mapped file has been used well over 100 times does its read pointer move near enough to the end to not read too much data before EOF is reached.  There are other nuances to making a working POV that involve the order of operations with the server as well.
+The third vulnerability (with the lowest difficulty) is located in service.c:107 and is only accessible after solving 10 of the 3. Solve Area menu option. After solving exactly 10 of these equations, and selecting 6. View Statistics, the CRS is presented with an option to enter a buffer, which can overflow the allocated space. This will cause a buffer overflow.
+ 
 
-	Finding Vulnerability 1: easy
-	Proving Vulnerability 1: hard
-	Fixing Vulnerability 1: easy 
+### Generic class of vulnerability 
+Stack-based overflow from CRS input. The CRS is able to directly enter a buffer that is stored in a fixed buffer on the stack.
 
+### CWE classification 
+CWE-121 Stack-based Buffer Overflow
 
+## Challenges 
+The three vulnerabilities presented in this challenge require the CRS to successfully parse and respond with intelligent input ten times per vulnerability. Each vulnerability requires a differing amount of parsing, input generation, and computation. The intent of this format is to reduce the efficacy of random input and exhaustive solvers and to force the CRS to implement a sufficently deep graph for each vulnerability.

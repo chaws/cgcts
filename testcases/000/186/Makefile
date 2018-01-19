@@ -1,4 +1,4 @@
-CHAL=electronictrading
+CHAL=Single-Sign-On
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,33 +20,21 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/pool.c.o -c lib/pool.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/stock.c.o -c src/stock.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o electronictrading_patched lib/pool.c.o lib/libc.c.o src/stock.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -fcommon -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Single-Sign-On_patched lib/libc.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/pool.c.o -c lib/pool.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/stock.c.o -c src/stock.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o electronictrading lib/pool.c.o lib/libc.c.o src/stock.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o Single-Sign-On lib/libc.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_4 -I include -I lib -I src -O0 -g -pedantic -o pov_4/pov.c.o -c pov_4/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_5 -I include -I lib -I src -O0 -g -pedantic -o pov_5/pov.c.o -c pov_5/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_3 -I include -I lib -I src -O0 -g -pedantic -o pov_3/pov.c.o -c pov_3/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(FLAGS) -o electronictrading_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o electronictrading_pov_3 pov_3/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o electronictrading_pov_2 pov_2/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o electronictrading_pov_5 pov_5/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o electronictrading_pov_4 pov_4/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o Single-Sign-On_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_4/pov.c.o pov_1/pov.c.o pov_5/pov.c.o lib/pool.c.o lib/libc.c.o src/stock.c.o src/service.c.o pov_3/pov.c.o pov_2/pov.c.o lib/pool.c.o lib/libc.c.o src/stock.c.o src/service.c.o electronictrading_pov_4 electronictrading_pov_1 electronictrading_pov_5 electronictrading_patched electronictrading_pov_3 electronictrading_pov_2 electronictrading
+	rm -f pov_1/pov.c.o lib/libc.c.o src/service.c.o lib/libc.c.o src/service.c.o Single-Sign-On_pov_1 Single-Sign-On_patched Single-Sign-On

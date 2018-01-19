@@ -1,4 +1,4 @@
-CHAL=Shipgame
+CHAL=SIGSEGV
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,47 +20,23 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/printf.c.o -c cb_3/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/string.c.o -c cb_3/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/mylibc.c.o -c cb_3/lib/mylibc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/newsletter.c.o -c cb_3/src/newsletter.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/printf.c.o -c cb_2/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/string.c.o -c cb_2/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/mylibc.c.o -c cb_2/lib/mylibc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/walkthrough.c.o -c cb_2/src/walkthrough.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/printf.c.o -c cb_1/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/string.c.o -c cb_1/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/mylibc.c.o -c cb_1/lib/mylibc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/router.c.o -c cb_1/src/router.c
-	$(CC) $(FLAGS) -o Shipgame_3_patched cb_3/lib/printf.c.o cb_3/lib/string.c.o cb_3/lib/mylibc.c.o cb_3/src/newsletter.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Shipgame_2_patched cb_2/lib/printf.c.o cb_2/lib/string.c.o cb_2/lib/mylibc.c.o cb_2/src/walkthrough.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Shipgame_1_patched cb_1/lib/printf.c.o cb_1/lib/string.c.o cb_1/lib/mylibc.c.o cb_1/src/router.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -DPATCHED_2 -I lib -I src -I include -O0 -g -fcommon -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o SIGSEGV_patched lib/libc.c.o src/service.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/printf.c.o -c cb_3/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/string.c.o -c cb_3/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/lib/mylibc.c.o -c cb_3/lib/mylibc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_3/lib -I cb_3/src -I cb_3/include -O0 -g -o cb_3/src/newsletter.c.o -c cb_3/src/newsletter.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/printf.c.o -c cb_2/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/string.c.o -c cb_2/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/lib/mylibc.c.o -c cb_2/lib/mylibc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_2/lib -I cb_2/src -I cb_2/include -O0 -g -o cb_2/src/walkthrough.c.o -c cb_2/src/walkthrough.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/printf.c.o -c cb_1/lib/printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/string.c.o -c cb_1/lib/string.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/lib/mylibc.c.o -c cb_1/lib/mylibc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I cb_1/lib -I cb_1/src -I cb_1/include -O0 -g -o cb_1/src/router.c.o -c cb_1/src/router.c
-	$(CC) $(FLAGS) -o Shipgame_3 cb_3/lib/printf.c.o cb_3/lib/string.c.o cb_3/lib/mylibc.c.o cb_3/src/newsletter.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Shipgame_2 cb_2/lib/printf.c.o cb_2/lib/string.c.o cb_2/lib/mylibc.c.o cb_2/src/walkthrough.c.o $(LCGC) 
-	$(CC) $(FLAGS) -o Shipgame_1 cb_1/lib/printf.c.o cb_1/lib/string.c.o cb_1/lib/mylibc.c.o cb_1/src/router.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o lib/libc.c.o -c lib/libc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -fcommon -o src/service.c.o -c src/service.c
+	$(CXX) $(FLAGS) -o SIGSEGV lib/libc.c.o src/service.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o Shipgame_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o Shipgame_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -fcommon -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
+	$(CXX) $(FLAGS) -o SIGSEGV_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o SIGSEGV_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o cb_3/lib/printf.c.o cb_3/lib/string.c.o cb_3/lib/mylibc.c.o cb_3/src/newsletter.c.o cb_3/lib/printf.c.o cb_3/lib/string.c.o cb_3/lib/mylibc.c.o cb_3/src/newsletter.c.o pov_1/pov.c.o cb_2/lib/printf.c.o cb_2/lib/string.c.o cb_2/lib/mylibc.c.o cb_2/src/walkthrough.c.o cb_2/lib/printf.c.o cb_2/lib/string.c.o cb_2/lib/mylibc.c.o cb_2/src/walkthrough.c.o cb_1/lib/printf.c.o cb_1/lib/string.c.o cb_1/lib/mylibc.c.o cb_1/src/router.c.o cb_1/lib/printf.c.o cb_1/lib/string.c.o cb_1/lib/mylibc.c.o cb_1/src/router.c.o Shipgame_pov_2 Shipgame_3_patched Shipgame_3 Shipgame_pov_1 Shipgame_2_patched Shipgame_2 Shipgame_1_patched Shipgame_1
+	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/libc.c.o src/service.c.o lib/libc.c.o src/service.c.o SIGSEGV_pov_2 SIGSEGV_pov_1 SIGSEGV_patched SIGSEGV

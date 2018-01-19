@@ -1,4 +1,4 @@
-CHAL=CNMP
+CHAL=yolodex
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,23 +20,27 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/joke.c.o -c src/joke.c
-	$(CC) $(FLAGS) -o CNMP_patched lib/libc.c.o src/service.c.o src/joke.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/yolodex.c.o -c src/yolodex.c
+	$(CXX) $(FLAGS) -o yolodex_patched lib/printf.c.o lib/malloc.c.o lib/mymath.c.o lib/stdlib.c.o src/yolodex.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/libc.c.o -c lib/libc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/joke.c.o -c src/joke.c
-	$(CC) $(FLAGS) -o CNMP lib/libc.c.o src/service.c.o src/joke.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/printf.c.o -c lib/printf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/yolodex.c.o -c src/yolodex.c
+	$(CXX) $(FLAGS) -o yolodex lib/printf.c.o lib/malloc.c.o lib/mymath.c.o lib/stdlib.c.o src/yolodex.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o CNMP_pov_1 pov_1/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o yolodex_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o lib/libc.c.o src/service.c.o src/joke.c.o lib/libc.c.o src/service.c.o src/joke.c.o CNMP_pov_1 CNMP_patched CNMP
+	rm -f pov_1/pov.c.o lib/printf.c.o lib/malloc.c.o lib/mymath.c.o lib/stdlib.c.o src/yolodex.c.o lib/printf.c.o lib/malloc.c.o lib/mymath.c.o lib/stdlib.c.o src/yolodex.c.o yolodex_pov_1 yolodex_patched yolodex

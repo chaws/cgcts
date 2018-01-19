@@ -1,50 +1,43 @@
-# INSULATR Challenge Binary
+# CROMU-00009: RAM-based filesystem
 
 ## Author Information
 
-"Narf Industries" <info@narfindustries.com>
+“Joe Rogers” <joe@cromulence.co>
 
 ### DARPA performer group
-
-Narf Industries (NRFIN)
+Cromulence (CROMU)
 
 ## Description
-
-The mice need more funding.  What better way than to cash in on all the #PoliceState #1984 business going on in the media?  
-
-The market can support at least one more secure messaging system, right?
+This service implements a RAM-based filesystem and provides a simple shell 
+to interact with the filesystem.  
 
 ### Feature List
+The shell supports the creation and deletion of folders.  It allows for files
+with both printable and non-printable data to be created, appended to, and deleted. 
+It also provides basic directory listing and filesystem utilization reporting commands.
 
-Well, OK, the rodent duo aren't quite at a viable product yet.  In fact, they're still writing their pseudo-JSON parser.
+The filesystem is defined by a superblock which contains a list of pointers
+to inode pages.  The inodes on these pages can point to directories or files
+made up of blocks.  The block size is 512 bytes.  
 
-This pseudo-JSON parser will deserialize blobs into the data types for ultimate use by INSULATR.
+## Vulnerability
+The directories of the filesystem were designed to support up to 128 subdirectories
+or files.  An overflow exists in the directory creation function which allows
+129 entries to be written.  Because the last entry overflows into another
+block of data, it is possible to craft a proof of vulnerability to gain control over 
+an inode definition and the data blocks to which that inode points.  With control 
+over those data block pointers, arbitrary writes are possible.
 
-Serialize, deserialize, you name it!
+The second vulnerability is due to a NULL pointer dref when indexing file system blocks.
 
-The pseudo-JSON language (but not code) is borrowed in part from GREATVIEW, another Challenge Binary.
-
-## Vulnerabilities
-
-INSULATR suffers from a type confusion vulnerability in its deserialization functionality.  This challenge is designed, loosely, after a real-world, unauthenticated, type confusion, RCE vulnerability in BlackPhone's SilentText application.  SilentText misused the YAJL (Yet Another JSON Library) library which ultimately lead to type confusion.  
-
-The vulnerability presented here emulates a different misuse of a quirk in YAJL.  Specifically, YAJL will return a string object when it attempts to parse a number object whose value cannot fit in the object's number field, conducting implicit promotion of the object type.
-
-Specifically, when parsing integers, if the integer exceeds MAX_UINT32, then it returns the value as a string instead.  INSULATR will get confused: its attribute struct will specify that the attribute in question is a NUMBER, when in reality it's actually a STRING.
-
-If you attempt to serialize a confused attribute, INSULATR will attempt to write the *number* field into the output stream, resulting in a NULL pointer dereference and a crash.
+### Generic class of vulnerability
+Incorrect array bounds check leading to buffer overflow and arbitrary writes.
 
 ### CWE classification
-
-843: Type Confusion
-824: Access of Uninitialized Pointer
-704: Incorrect Type Conversion or Cast
-476: Null Pointer Dereference
+CWE-787: Out-of-bounds Write
+CWE-476: NULL Pointer Dereference
 
 ## Challenges
-
-This CB is designed to be difficult to patch.  The *correct* way to patch alters promotion behavior in the vulnerable SET command to properly promote the affected object during deserialization.  This change only makes a difference on subsequent requests.
-
-Among other aspects, we expect the following CB characteristics to present difficulty to CRSs:
-* State must be tracked across disjoint requests.
-* Type inference / reconstruction will likely be required on some level.  This typing system must be malleable to allow for object promotion.
+After gaining an understanding of the data structures which make up the filesystem,
+the CGC competitor will need to identify the specific array bounds check overflow 
+and mitigate that bug.

@@ -1,4 +1,4 @@
-CHAL=HighFrequencyTradingAlgo
+CHAL=Packet_Analyzer
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,23 +20,29 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/lib.c.o -c lib/lib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o HighFrequencyTradingAlgo_patched lib/lib.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/packet_io.c.o -c src/packet_io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/packet_analysis.c.o -c src/packet_analysis.c
+	$(CXX) $(FLAGS) -o Packet_Analyzer_patched lib/stdlib.c.o src/io.c.o src/service.c.o src/packet_io.c.o src/packet_analysis.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/lib.c.o -c lib/lib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/io.c.o -c src/io.c
 	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(FLAGS) -o HighFrequencyTradingAlgo lib/lib.c.o src/service.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/packet_io.c.o -c src/packet_io.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/packet_analysis.c.o -c src/packet_analysis.c
+	$(CXX) $(FLAGS) -o Packet_Analyzer lib/stdlib.c.o src/io.c.o src/service.c.o src/packet_io.c.o src/packet_analysis.c.o $(LCGC) 
 
 pov: $(LIBPOV)
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
 	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(FLAGS) -o HighFrequencyTradingAlgo_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o HighFrequencyTradingAlgo_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Packet_Analyzer_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CXX) $(FLAGS) -o Packet_Analyzer_pov_1 pov_1/pov.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_1/pov.c.o pov_2/pov.c.o lib/lib.c.o src/service.c.o lib/lib.c.o src/service.c.o HighFrequencyTradingAlgo_pov_1 HighFrequencyTradingAlgo_pov_2 HighFrequencyTradingAlgo_patched HighFrequencyTradingAlgo
+	rm -f pov_1/pov.c.o lib/stdlib.c.o src/io.c.o src/service.c.o src/packet_io.c.o src/packet_analysis.c.o pov_2/pov.c.o lib/stdlib.c.o src/io.c.o src/service.c.o src/packet_io.c.o src/packet_analysis.c.o Packet_Analyzer_pov_1 Packet_Analyzer_patched Packet_Analyzer_pov_2 Packet_Analyzer

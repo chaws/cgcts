@@ -1,104 +1,56 @@
-# Dungeon_Master
+# 3D_Image_Toolkit
 
 ## Author Information
 
-"Jason Rogers" <info@narfindustries.com>
+"Dan Czarnecki" <cgc@cromulence.com>
 
 ### DARPA performer group
 
-Narf Industries (NRFIN)
+Cromulence (CROMU)
 
 ## Description
 
-You awaken in a dark room to the sound of flapping and moaning. With a torch in your hand, you slowly descend a stone staircase that you can only hope will lead to safety....
+This service implements a toolkit for a custom 3D image format.  The format consists of a sequence of bytes that make up the X, Y, Z coordinates and the Red (R), Green (G), Blue (B), and Alpha (A) color values for each pixel in the image.
 
-Dungeon Master is the lastest thrilling game from No Way Out Entertainment. Can you master your way through the darkness to find the hidden treasure you desire. But beware, the next step you take could lead you closer to or farther from your goal. 
+There are commands available to the user that alter the 3DC image data within the service that allow the image to be manipulated in a multitude of ways.
 
 ### Feature List
 
-The player is first presented with a menu giving instructions on how to
-a) Play the game
-b) Display all high scores
-c) Retrieve the game instructions
-d) Quit the game
+The user can access the following commands:
 
-Once in the game the player will have the ability to
-a) move left or right
-b) jump left, right or straight up
+ - Create a new file from user-provided data
+ - View the data for every pixel in the image at once
+ - View the data for a single user-selected pixel
+ - Skew the X, Y, or Z coordinates of the pixels by a user-provided value
+ - Rotate the entire image about the X, Y, or Z axis by a user-provided degree value
+ - Scale the entire image by a user-provided value
+ - Alter the brightness of the image by a user-provided value
+ - Change the opacity of the image by a user-provided value
+ - Compress the image by turning the RGB color values for each pixel into an 8-bit representation
+ - Decompress the compressed image data back into the active image data, not without losing color data due to the compression
+ - Exit the toolkit
 
-The game also uses the player's move choices to determine the configuration of rooms the player will have to traverse until the treasure is reached. 
+## Vulnerability
 
-The dungeon is made up of the following object types:
+The user has an option to compress and decompress the image data, as well as show individual pixels.  If the user provides a pixel index that is out of range, they are told that it was out of range, and they are presented the data for the last pixel that was printed.  When the compress command is selected, the compressed data is written to a variable on the main stack that is the valid size of the image data when it is compressed.  However, when the decompress command is selected, the same variable is used for the decompressed data copy.  The size of the decompressed data is obviously larger, and therefore this writes data outside of the boundary and into other variables on the stack, one of which is the pointer to the last shown pixel.
 
-Floor "-" and Wall "|": These objects make up the boundaries of a game. No object may pass through them.
-
-Empty ' ': These objects represent free space that other moving objects may move to. 
-
-Player "R": A movable object representing the player of the game. If there is no floor present, the player will continue to fall until it reaches a Boundary object. 
-
-Enemies: A moveable object that kills the player when contact is made. Enemies move in one direction according to their movement pattern until they make contact with a Boundary object. Once contact is made they reverse direction. There are two types of enemies:
-	
-	Bat "v": Move in a V-pattern and do not need to be in contact with the floor.
-
-	Zombie "&": Move until they come in contact with a Wall or Floor. Must be in contact with the Floor or else they will continue to fall.
-
-Treasure "@": Once the player makes contact with the treasure, the game is won.
-
-## Vulnerability 1
-
-The vulnerability in this CB is an off-by-one error in the addMove function, where the amount of memory malloc'ed by the service to store the body of the moveList is 1 char shorter than what is needed to store a null-terminated string. This results in an improper null termination. When a new move list is created, the flag is copied into a 512-byte chunk. So, when the new move list is 512-bytes, the chunk containing the flag will be adjacent. By filling the move list with 512-bytes of player moves, by the time the next move list is created, the old move list and the flag will be copied into the new move list. 
-
-When a player wins the game the move list is sent back to the player. By successfully exploiting this vulnerability, the flag will also be contained within. 
+With this, the user can provide new image data that contains the address of the region of memory with magic page data, compress the image, decompress it, and then run the command to show an individual pixel's data.  The pixel index must be out of the range, so that it pulls from the pointer to the last shown pixel, which now holds a pointer to the magic page data (if the new image data was properly crafted).  This results in pixel image data in decimal X, Y, and Z coordinates, as well as hexadecimal RGBA values.  
 
 ### Generic class of vulnerability
 
-Improper Null Termination
-Off-by-one Error
-Out-of-bounds Read
+Out of bounds read
 
 ### CWE classification
 
-CWE-170: Improper Null Termination
-CWE-193: Off-by-one Error
-CWE-125: Out-of-bounds Read
+CWE-125: Out-of-bounds read
 
-### Challenges
+## Challenges
+The first challenge for the CRS is to understand the toolkit menu interface and craft proper data to send to the CB in order to properly initiate commands to alter the image data.
 
-1. The off-by-one error should easily be detected, but understanding how long the move list needs to be in order for it to be allocated in a chunk preceeding the flag could be a challenge.
+For this vulnerability, the CRS must understand how to create a new image file, submit the correct length of data to the CB, and find the bug which allows for manipulation of the newly crafted image data in a certain sequence that can lead to leaking data from the magic page.  
 
-2. Successful exploitation will require determination of how move choices impact the size of the move list, as well as ensuring that the move list is full before a new move list is created.  
+The Subjective Quantifications for this vulnerability are:
 
-3. Only a winning game will return the move list to the user. Therefore, sucessfully creating a winning combination of moves will be required.
-
-### Difficulty
-- Discovering is easy
-- Proving is medium
-- Patching is easy
-
-## Vulnerability 2
-
-This vulnerability is a stack-based buffer overflow in the sendHighScores function, that has the ability to overwrite the return address of the calling function. When the user requests the list of high scores to be returned, the score of the top player is copied into a static buffer. If the name of the top player is too large it will overflow the buffer and allow an overwrite of the stored return address and base pointer. 
-
-### Generic class of vulnerability
-
-Stack-based Buffer Overflow
-Out-of-bounds Write
-
-### CWE classification
-
-CWE-121: Stack-based Buffer Overflow
-CWE-787: Out-of-bounds Write
-CWE-788: Access of Memory Location After End of Buffer
-
-### Challenges
-
-### Challenges
-1. Only a winning game will allow the user to provide an overly large name for the winning player. Also, only the top player's name can overflow the buffer. An initial list of high scorers are loaded at the initialization of the service. Therefore, the winning combinations of moves will have to result in less total moves than the top player.
-
-2. The winning player name is received from the user and stored using a different control flow from the one to display the high score list. Therefore, one will have to link the two independent control flows to successfully identify and exploit the vulnerability.
-
-### Difficulty
-- Discovering is easy
-- Proving is medium
-- Patching is easy
-
+Discovering - Medium
+Proving - Easy
+Fixing - Easy

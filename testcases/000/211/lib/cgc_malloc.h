@@ -1,53 +1,69 @@
 /*
- * Author: Garrett Barboza <garrett.barboza@kapricasecurity.com>
+ * Copyright (C) Narf Industries <info@narfindustries.com>
  *
- * Copyright (c) 2014 Kaprica Security, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
- */
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+#include "libcgc.h"
+#include "cgc_cbstring.h"
 
-#ifndef MALLOC_COMMON_H
-#define MALLOC_COMMON_H
+#define setBit(A, k)   ( A[((k)/32)] |=  (1 << ((k)%32)) )
+#define clearBit(A, k) ( A[((k)/32)] &= ~(1 << ((k)%32)) )
+#define testBit(A, k)  ( A[((k)/32)] &   (1 << ((k)%32)) )
 
-#include "cgc_stdint.h"
+#define _SC_PAGESIZE 4096
+#define MAX_RUNS 10
+#define BITMAP_SIZE 64
+#define POOL_NUM 11
 
-#define NUM_FREE_LISTS 32
-#define HEADER_PADDING 24
-#define NEW_CHUNK_SIZE 262144
-#define ALIGNMENT 8
+#define ALLOCATE_ERROR 1
 
-extern struct blk_t *cgc_free_lists[NUM_FREE_LISTS];
-extern cgc_size_t size_class_limits[NUM_FREE_LISTS];
+typedef struct {
+	unsigned int bitmap[64];
+	unsigned int size;
+	void* memory;
+	void* next;
+} Run;
 
-struct blk_t {
-  cgc_size_t size;
-  unsigned int free;
-  struct blk_t *fsucc;
-  struct blk_t *fpred;
-  struct blk_t *next;
-  struct blk_t *prev;
-};
+typedef struct {
+	Run run[MAX_RUNS];
+} Pool;
 
-void cgc_coalesce(struct blk_t *);
-int cgc_get_size_class(cgc_size_t size);
-void cgc_insert_into_flist(struct blk_t *blk);
-void cgc_remove_from_flist(struct blk_t *blk);
+typedef struct {
+	cgc_size_t size;
+	void* memory;
+	void* next;
+} LargeChunk;
 
-#endif /* MALLOC_COMMON_H */
+/**
+* Allocate size number of bytes from the heap
+* 
+* @param size The number of bytes to allocate
+*
+* @return a pointer the allocated memory
+*/
+void* cgc_malloc(cgc_size_t size);
+
+/**
+* Deallocate the chunk of memory at address ptr
+* 
+* @param ptr The address of the chunk to deallocate
+*
+* @return None
+*/
+void cgc_free(void* ptr);

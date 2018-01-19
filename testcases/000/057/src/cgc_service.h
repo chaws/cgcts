@@ -19,12 +19,20 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+#define TRANSMIT_ERROR 1
+#define RECEIVE_ERROR 2
+#define ALLOCATE_ERROR 3
+#define DEALLOCATE_ERROR 4
+#define RANDOM_ERROR 5
+#define CONVERSION_ERROR 6
 
+#define REPORT_INSTR 7
+#define DELETE_BUDGET_INSTR 6
+#define QUIT_INSTR 8
+#define GET_BUDGET_INSTR 3
+#define TRANSACTION_INSTR 2
+#define NEW_BUDGET_INSTR 1
 
-#ifndef SERVICE_H
-#define SERVICE_H 1
-
-
-
-
-#endif
+#define OVERBUDGET_STR " is over budget!\n"
+#define NEW_BUDGET_STR "New budget created!\n"
+#define BUDGET_FULL_STR "No more entries\n"

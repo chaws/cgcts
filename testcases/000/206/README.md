@@ -1,47 +1,43 @@
-# CGC Challenge Binary Template
-
-## Author Information
-
-"Jason Rogers" <info@narfindustries.com>
+# KPRCA-00039
 
 ### DARPA performer group
-Narf Industries (NRFIN)
+Kaprica Security (KPRCA)
 
-## Description
+## Description:
 
-Our Single-Sign-On (SSO) solution will allow users to authenticate once in order to access any corporate web service.
-
+This service provides the user with a way to play a game against a simple AI.
+The user begins by entering their name and the game begins.  The user then
+inputs coordinates on a game board and if their move is valid a stone of their
+team color is placed on the board. The AI then performs a move and the game
+continues like this until one player runs out of stones of a maximum number of
+moves has occurred.
 
 ### Feature List
 
-Users will first send a request for a given resource. If the user already has a token for the resource, the resource is returned. If not, the user will be required to re-authenticate and obtain a new token for the resource. Once the user is done using the resource, they may send a revocation message to revoke the token for the resource. Once the user is done using all resources they can log out and end their session.
+The user is presented with a visual printout of the state of the game as the
+game progresses which include board state, team scores, and how many game ticks
+have occurred. If the user attempts an invalid move the game is not drawn but
+instead they are simply prompted for a new move. The rules of the game are
+quite simple. An user can only place a stone on an empty point on the board.
+A stone is captured if it can not be connected to a stone of its same color.
+Score is a combination of captures and stones on the board. When the game
+terminates the user is notified whether they were a winner or a loser.
 
 ## Vulnerability
-This service has 3 vulnerabilities that all must be triggered in order to achieve a POV. 
 
-The first vulnerability is an Access of Memory Location After End of Buffer that can be leveraged in order to leak memory. The leaked memory contains the authentication token. By sending a username that fills up the entire username buffer, the call to strnlen in the memcpy call will copy both the username and the auth\_val into a buffer that is eventually returned as part of the authentication failure message. The value can then be re-sent on subsequent authentication requests to properly authenticate any user.
-
-The second and third vulnerabilities are a Heap-based Buffer Overflow due to the Use of a Uninitialized Variable. The uninitialized message\_buf in the auth\_success function is the same stack location as the message\_buf in the auth\_failure function. The result is that the message\_buf would contain the value of the message\_buf allocated in the auth\_failure function. Therefore, the check for a NULL pointer in auth\_success passes, and the strcat functions will copy data into the buffer. If the username sent to auth\_success is larger than what was allocated in the auth\_failure function strcat can overflow the buffer, since it was never allocated based on the size requirements of auth\_failure. 
-
+The vulnerability is a simple printf vulnerability, however for the
+vulnerability to be triggered the game must reach the end. At that point, the
+name the user supplied is passed directly to printf as the format string.
 
 ### Generic class of vulnerability
-Heap-based Buffer Overflow
-Use of Uninitialized Variable
-Out-of-bounds Write
-Access of Memory Location After End of Buffer
+Arbitrary format string
 
 ### CWE classification
-CWE-122	Heap-based Buffer Overflow
-CWE-457	Use of Uninitialized Variable
-CWE-787	Out-of-bounds Write
-CWE-788	Access of Memory Location After End of Buffer
+CWE-134: Uncontrolled Format Sting
 
-## Challenge
+## Challenges
 
-1) Determine how to properly interact with the service, including the structure of requests, in order to authenticate and obtain a resource token. 
-
-2) Leverage the memory leak to authenticate successfully.
-
-3) Model the stack to determine the contents of the uninitialized variable.
-
-4) Determine the size of the buffer contained in the uninitialized variable.
+The service acts primary to test the strength of the competitor's ability to
+reason through fairly complex logic quickly. The competitor must be able to
+generate enough valid moves against an AI to successful finish the game in
+a reasonable amount of time to be successful against this service.

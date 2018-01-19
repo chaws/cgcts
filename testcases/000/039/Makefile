@@ -1,4 +1,4 @@
-CHAL=SCUBA_Dive_Logging
+CHAL=Resort_Modeller
 
 CC=/usr/bin/gcc
 CXX=/usr/bin/g++
@@ -20,47 +20,59 @@ LPOV=$(LCGC) -lpov
 all: $(LIBCGC) patched vulnerable pov
 
 patched:
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/log_dive.c.o -c src/log_dive.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/edit_dives.c.o -c src/edit_dives.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/dates.c.o -c src/dates.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/print_dives.c.o -c src/print_dives.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/remove_dives.c.o -c src/remove_dives.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/download_dive.c.o -c src/download_dive.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/edit_diver.c.o -c src/edit_diver.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/menu.c.o -c src/menu.c
-	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -I lib -I src -I include -O0 -g -o src/dive_statistics.c.o -c src/dive_statistics.c
-	$(CC) $(FLAGS) -o SCUBA_Dive_Logging_patched lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/log_dive.c.o src/edit_dives.c.o src/dates.c.o src/print_dives.c.o src/remove_dives.c.o src/service.c.o src/download_dive.c.o src/edit_diver.c.o src/menu.c.o src/dive_statistics.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/send.c.o -c lib/send.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/xxprintf.c.o -c lib/xxprintf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/recv_all.c.o -c lib/recv_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/sendall.c.o -c lib/sendall.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/char.c.o -c lib/char.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/int2str.c.o -c lib/int2str.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/read_all.c.o -c lib/read_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/hex.c.o -c lib/hex.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o src/resort.c.o -c src/resort.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o src/decider.c.o -c src/decider.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o src/trail.c.o -c src/trail.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o src/rider.c.o -c src/rider.c
+	$(CC) $(CFLAGS) $(INCLUDE) -DPATCHED -DPATCHED_1 -I lib -I src -I include -g -o src/lift.c.o -c src/lift.c
+	$(CXX) $(FLAGS) -o Resort_Modeller_patched lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/resort.c.o src/decider.c.o src/service.c.o src/trail.c.o src/rider.c.o src/lift.c.o $(LCGC) 
 
 vulnerable:
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/malloc.c.o -c lib/malloc.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/mymath.c.o -c lib/mymath.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/new_printf.c.o -c lib/new_printf.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o lib/stdlib.c.o -c lib/stdlib.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/log_dive.c.o -c src/log_dive.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/edit_dives.c.o -c src/edit_dives.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/dates.c.o -c src/dates.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/print_dives.c.o -c src/print_dives.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/remove_dives.c.o -c src/remove_dives.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/service.c.o -c src/service.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/download_dive.c.o -c src/download_dive.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/edit_diver.c.o -c src/edit_diver.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/menu.c.o -c src/menu.c
-	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -O0 -g -o src/dive_statistics.c.o -c src/dive_statistics.c
-	$(CC) $(FLAGS) -o SCUBA_Dive_Logging lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/log_dive.c.o src/edit_dives.c.o src/dates.c.o src/print_dives.c.o src/remove_dives.c.o src/service.c.o src/download_dive.c.o src/edit_diver.c.o src/menu.c.o src/dive_statistics.c.o $(LCGC) 
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/send.c.o -c lib/send.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/malloc.c.o -c lib/malloc.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcpy.c.o -c lib/memcpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memcmp.c.o -c lib/memcmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/xxprintf.c.o -c lib/xxprintf.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/recv_all.c.o -c lib/recv_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/sendall.c.o -c lib/sendall.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/char.c.o -c lib/char.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/int2str.c.o -c lib/int2str.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strncpy.c.o -c lib/strncpy.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strncmp.c.o -c lib/strncmp.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/read_all.c.o -c lib/read_all.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/hex.c.o -c lib/hex.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/memset.c.o -c lib/memset.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o lib/strlen.c.o -c lib/strlen.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/resort.c.o -c src/resort.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/decider.c.o -c src/decider.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/service.c.o -c src/service.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/trail.c.o -c src/trail.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/rider.c.o -c src/rider.c
+	$(CC) $(CFLAGS) $(INCLUDE) -I lib -I src -I include -g -o src/lift.c.o -c src/lift.c
+	$(CXX) $(FLAGS) -o Resort_Modeller lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/resort.c.o src/decider.c.o src/service.c.o src/trail.c.o src/rider.c.o src/lift.c.o $(LCGC) 
 
 pov: $(LIBPOV)
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_2 -I include -I lib -I src -O0 -g -pedantic -o pov_2/pov.c.o -c pov_2/pov.c
-	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -O0 -g -pedantic -o pov_1/pov.c.o -c pov_1/pov.c
-	$(CC) $(FLAGS) -o SCUBA_Dive_Logging_pov_1 pov_1/pov.c.o $(LPOV) 
-	$(CC) $(FLAGS) -o SCUBA_Dive_Logging_pov_2 pov_2/pov.c.o $(LPOV) 
+	$(CC) $(CFLAGS) $(POV_INCLUDE) -DNPATCHED -I pov_1 -I include -I lib -I src -g -pedantic -O0 -o pov_1/pov_1.c.o -c pov_1/pov_1.c
+	$(CXX) $(FLAGS) -o Resort_Modeller_pov_1 pov_1/pov_1.c.o $(LPOV) 
 
 $(LIBS):
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 clean:
-	rm -f pov_2/pov.c.o pov_1/pov.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/log_dive.c.o src/edit_dives.c.o src/dates.c.o src/print_dives.c.o src/remove_dives.c.o src/service.c.o src/download_dive.c.o src/edit_diver.c.o src/menu.c.o src/dive_statistics.c.o lib/malloc.c.o lib/mymath.c.o lib/new_printf.c.o lib/stdlib.c.o src/log_dive.c.o src/edit_dives.c.o src/dates.c.o src/print_dives.c.o src/remove_dives.c.o src/service.c.o src/download_dive.c.o src/edit_diver.c.o src/menu.c.o src/dive_statistics.c.o SCUBA_Dive_Logging_pov_2 SCUBA_Dive_Logging_pov_1 SCUBA_Dive_Logging_patched SCUBA_Dive_Logging
+	rm -f pov_1/pov_1.c.o lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/resort.c.o src/decider.c.o src/service.c.o src/trail.c.o src/rider.c.o src/lift.c.o lib/send.c.o lib/malloc.c.o lib/memcpy.c.o lib/memcmp.c.o lib/xxprintf.c.o lib/recv_all.c.o lib/sendall.c.o lib/char.c.o lib/int2str.c.o lib/strncpy.c.o lib/strncmp.c.o lib/read_all.c.o lib/hex.c.o lib/memset.c.o lib/strlen.c.o src/resort.c.o src/decider.c.o src/service.c.o src/trail.c.o src/rider.c.o src/lift.c.o Resort_Modeller_pov_1 Resort_Modeller_patched Resort_Modeller

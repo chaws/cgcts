@@ -1,72 +1,16 @@
-# CGC Challenge Binary (KPRCA\_00054): FileSys
+# WordCompletion
 
-### DARPA performer group
-Kaprica Security (KPRCA)
+@Author: Lok Yan <Lok.Yan@us.af.mil>
+@Group: AFRL
 
-## Description
+## Description:
 
-Simple shell-like file management system.
-
-### Feature List
-
-
-```
-list [file ..]
- - Lists files and directories.
+This is a word completion game with 10 initial rounds and a final round. During each round, the user is given an occluded word. The user then needs to provide the full word in order to pass. Once the user completes 10 of these word completion tasks, they will be presented with a final word that must also be solved.
  
-create <filename>
- - Creates a file.
- 
-open <filename>
- - Opens a file.
- 
-close <fileno>
- - Closes an open file.
- 
-close_all
- - Closes all open files.
- 
-read <fileno> [pos] [len]
- - Reads a file.
- 
-modify <fileno> [pos]
- - Modifies a file.
- 
-delete <filename>
- - Deletes a file.
- 
-mkdir <dirname>
- - Creates a directory.
- 
-rmdir <dirname>
- - Deletes a directory.
- 
-chdir <dirname>
- - Changes the working directory.
- 
-quit
- - Quits the program.
- 
-help [command]
- - Displays the help message.
- ```
- 
+## Vulnerability Class: 
 
-## Vulnerability
+The vulnerability is an [CWE-125: Out of Bounds Read](http://cwe.mitre.org/data/definitions/125.html) on an array.
 
-- When deleting a file, the file object pointer is not removed from the list that keeps track of currently opened files.
-- This yields a dangling pointer when a file is deleted while it's opened.
-- By allocating similar-sized buffer by writing into another file, it is possible to take over the memory for the dangling pointer -- allowing Use-After-Free condition.
-- Arbitrary code execution can be achieved by triggering a virtual function in the file object after carefully setting up the payload.
+## Additional Notes:
 
-### Generic class of vulnerability
-
-Use After Free
-
-### CWE classification
-
-CWE-416: Use After Free
-
-## Challenges
-
-- C++
+This CB is designed to help CRSes determine how well they handle dynamically generated data. That is the word completion list is created dynamically using a static list of words that are provided as part of the program itself. 

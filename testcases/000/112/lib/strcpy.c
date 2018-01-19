@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  *
  */
-
 #include "cgc_string.h"
 
 char *cgc_strcpy(char *dest, const char *src)

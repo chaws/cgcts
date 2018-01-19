@@ -1,8 +1,8 @@
 /*
 
-Author: Steve Wood <swood@cromulence.com>
+Author: James Nuttall (james@cromulence.co)
 
-Copyright (c) 2016 Cromulence LLC
+Copyright (c) 2014 Cromulence LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,246 +25,222 @@ THE SOFTWARE.
 */
 
 #include "libcgc.h"
-#include "cgc_stdlib.h"
 #include "cgc_service.h"
-#include "cgc_filesystem.h"
-#include "cgc_stdio.h"
+#include "cgc_stdlib.h"
+#include "cgc_shapes.h"
+#include "cgc_stack.h"
+#include "cgc_prng.h"
 #include "cgc_string.h"
-#include "cgc_input.h"
-#include "cgc_malloc.h"
-
-
-extern fileHandleType cgc_securityIDFileHandle;
-
-int main(int cgc_argc, char *cgc_argv[]) {
-
-int retcode;
-unsigned int count;
-fileHandleType fh;
-int useraccount;
-void *message;
-int messagetype;
-newUserMessageType *newuser;
-loginMessageType *loginuser;
-newPostMessageType *newPost;
-addCommentMessageType *newComment;
-unsigned int postID;
-int responseCode;
-unsigned int nextPostID = 100;
-unsigned int sessionToken;
-char *postText;
-int postSize;
-int endIt;
-    
-    // using a small blocksize of 256 bytes because postings are small and this is more efficient
-    retcode = cgc_initFileSystem(512, 512, 512*2000);
-
-    cgc_securityIDFileHandle = -1;
-
-    if (retcode != 0) {
-
-        cgc_printf("Error making filesystem.\n");
-        cgc__terminate(-1);
-    }
-
-    retcode = cgc_makeMemoryFile("sticky.posts", 0x4347C000 + 1536, 160*16,  1,  ROOT_ID );
-
-    if ( retcode != 0 ) {
-
-        cgc_printf("Error making posts.log\n");
-        cgc__terminate(-1);
-    }
-
-    retcode = cgc_makeMemoryFile("initialPostID.mem", 0x4347C000, 4, 1, ROOT_ID );
-
-    if ( retcode != 0 ) {
-
-        cgc_printf("Error making posts.log\n");
-        cgc__terminate(-1);
-    }
-
-	retcode = cgc_createFile("Users.db", REGULAR, ROOT_ID);	
-    
-    if ( retcode != 0 ) {
-
-        cgc_printf("Error making Users.db\n");
-        cgc__terminate(-1);
-    }
-
-    retcode = cgc_createFile("posts.log", REGULAR, ROOT_ID);
-
-    if ( retcode != 0 ) {
-
-        cgc_printf("Error making posts.log\n");
-        cgc__terminate(-1);
-    }
-
-    // seed the first postID with magic page data.  After this they just increase by 1 each time
-    fh = cgc_openFile("initialPostID.mem", ROOT_ID);
-
-    if ( fh < 0 ) {
-
-        cgc_printf("Error opening initialPostID.mem\n");
-        cgc__terminate(-1);
-    }
-    cgc_readFile(fh, (void *)&nextPostID, sizeof(nextPostID), 0, 0, ROOT_ID);
-    nextPostID &= 0x0fffffff;
-
-    // we'll never re-seed the postID so just delete the file
-    cgc_deleteFile(fh, ROOT_ID);
-
-    // this file will allow us to get semi-random userID's from the magic page.  It is kept open and a new ID is 
-    // cgc_read whenever a new account is created
-    retcode = cgc_makeMemoryFile("UserIDs.mem", 0x4347C004, 1532, 1, ROOT_ID );
-
-    if ( retcode != 0 ) {
-
-        cgc_printf("Error making UserIDs.mem\n");
-        cgc__terminate(-1);
-    }
-
-    retcode = cgc_allocate(1024, 0, &message);
-
-    if (retcode != 0) {
-
-        cgc__terminate(-1);
-    }
-
-    endIt = 0;
-
-    while (!endIt) {
-
-    	messagetype = cgc_receiveMessage(message);
-
-    	switch (messagetype) {
-
-    			// add a new user
-    		case 0xa0:
-
-    			newuser = (newUserMessageType *)message;
-
-    			if (cgc_create_user(newuser->name, newuser->password, newuser->fullname) >= 0 ) {
-
-    				responseCode = 0;
-    				
-    			}
-    			else {
-
-    				responseCode = -1;
-
-    			}
-
-    			cgc_sendResponse((void *)&responseCode, sizeof(responseCode));
-
-    			break;
-
-    			// authenticate a user
-    		case 0xb0:
-
-    			loginuser = (loginMessageType *)message;
-    			useraccount = cgc_authenticate(loginuser->name, loginuser->password);
-
-    			cgc_sendResponse((void *)&useraccount, sizeof(useraccount));
-
-    			break;
-
-    			// retrieve a single post to this user's feed
-    		case 0xc0:
-
-                sessionToken = *(unsigned int *)message;
-
-                retcode = cgc_newFeedPost(sessionToken, &postText, &postSize);
-
-                if (retcode == 0 ) {
-
-                    cgc_sendResponse((void *)postText, postSize);
-                    cgc_deallocate((void *)postText, postSize);
-                }
-                else {
-
-                    retcode = -1;
-                    cgc_sendResponse((void *)&retcode, sizeof(retcode));
-
-                }
-    			break;
-
-    			 // record a new post from the user
-    		case 0xd0:
-
-                newPost = (newPostMessageType *)message;
-
-                retcode = cgc_savePost(nextPostID, newPost->sessionToken, newPost->post);
-
-                if (retcode == 0) {
-
-                    retcode = nextPostID;
-                    ++nextPostID;
-                }
-                else {
-
-                    retcode = -1;
-                }
-
-                cgc_sendResponse((void *)&retcode, sizeof(retcode));
-
-    			break;
-
-                // comment on a post
-            case 0xe0:
-
-                newComment = (addCommentMessageType *)message;
-
-                retcode = cgc_saveComment(newComment->postID, newComment->commenterID, newComment->comment);
-
-                cgc_sendResponse((void *)&retcode, sizeof(retcode));
-
-                break;
-
-                // retrieve a specific post by its ID--this will include any comments as well
-            case 0xf0:
-
-                postID = *(unsigned int *)message;
-
-                if ( postID < 16 ) {
-
-                     retcode = cgc_sendStickPost( postID );
-                }
-                else {
-
-                    retcode = cgc_retrievePost( postID, 1 , &postText, &postSize);
-
-                    if (retcode == 0) {
-
-                        cgc_sendResponse((void *)postText, postSize);
-                        cgc_deallocate((void *)postText, postSize);
-                    }
-                }
-
-                if ( retcode == -1 ) {
-
-                    cgc_sendResponse((void *)&retcode, sizeof(retcode));
-
-                }
-                // response sent by the retrievePost() function
-                break;
-
-            case 100:
-
-                endIt = 1;
-                break;
-
-    		default:
-
-                endIt = 1;
-
-    			break;
-
-    	} //switch
-
-
-    } // while (1)
-
-    cgc_printf("BYE!\n");
-
-}  // main  
-
+#include "cgc_solver.h"
+
+
+// Globals
+Statistics game_stats;
+Game_Info game_info;
+
+
+int cgc_print_menu()
+{
+	int ret;
+	cgc_printf("1. Solve Equation\n");
+	cgc_printf("2. Create Equation\n");
+	cgc_printf("3. Solve Area\n");
+	cgc_printf("4. Solve Perimeter\n");
+	cgc_printf("5. Solve Volume\n");
+	cgc_printf("6. View Statistics\n");
+	cgc_printf("7. Exit\n");
+
+	cgc_get_user_answer(&ret);
+	return ret;
+}
+
+void cgc_print_statistics()
+{
+	char name[32];
+	cgc_printf("Total won: @d\n", game_stats.num_won_total);
+	cgc_printf("Total lost: @d\n", game_stats.num_lost_total);
+	cgc_printf("Equations solved correctly: @d\n", game_stats.num_won_solved_equation);
+	cgc_printf("Equations solved incorrectly: @d\n", game_stats.num_lost_solved_equation);
+	cgc_printf("Equations created correctly: @d\n", game_stats.num_won_created_equations);
+	cgc_printf("Equations created incorrectly: @d\n", game_stats.num_lost_created_equations);
+	cgc_printf("Solved perimeter problems @d\n", game_stats.num_won_perimeter);
+	cgc_printf("Unsolved perimeter problems @d\n", game_stats.num_lost_perimeter);
+	cgc_printf("Solved volume problems @d\n", game_stats.num_won_volume);
+	cgc_printf("Unsolved volume problems @d\n", game_stats.num_lost_volume);
+	cgc_printf("Solved area problems @d\n", game_stats.num_won_area);
+	cgc_printf("Unsolved area problems @d\n", game_stats.num_lost_area);
+	
+// Vulnerability 1
+	if (game_stats.num_won_created_equations == 20)
+	{
+		cgc_printf("Wow, you created 20 equations! What's your name?:");
+		cgc_bzero(name, sizeof(name));
+		#ifdef PATCHED
+			cgc_receive(STDIN, name, sizeof(name) -1 , NULL);
+		#else
+			cgc_receive(STDIN, name, sizeof(name) + 45, NULL);
+		#endif
+		cgc_printf("Good job, @s!\n", name);
+	}
+
+// Vulnerability 2
+	if (game_stats.num_won_solved_equation == 20)
+	{
+		cgc_printf("Wow, you solved 20 equations! What's your name?:");
+		cgc_bzero(name, sizeof(name));
+		#ifdef PATCHED
+			cgc_receive(STDIN, name, sizeof(name) -1 , NULL);
+		#else
+			cgc_receive(STDIN, name, sizeof(name) + 45, NULL);
+		#endif
+		cgc_printf("Good job, @s!\n", name);
+	}
+
+// Vulnerability 3
+	if (game_stats.num_won_area == 20)
+	{
+		cgc_printf("Wow, you solved 20 area problems! What's your name?:");
+		cgc_bzero(name, sizeof(name));
+		#ifdef PATCHED
+			cgc_receive(STDIN, name, sizeof(name) -1 , NULL);
+		#else
+			cgc_receive(STDIN, name, sizeof(name) + 45, NULL);
+		#endif
+		cgc_printf("Good job, @s!\n", name);
+	}
+}
+
+int main(int cgc_argc, char *cgc_argv[])
+{
+	int ret;
+
+	// zero out structs
+	game_stats = (const Statistics){0};
+	game_info = (const Game_Info){0};
+
+
+	if (cgc_seed_prng() != SUCCESS)
+	{
+		debug_print("didn't succeed in seeding prng()");
+		return 1;
+	}
+
+	while (1)
+	{
+		ret = cgc_print_menu();
+		switch(ret)
+		{
+			case 1:
+				// Solve Equation
+				// generate an equation and make the user solve it
+				if (cgc_generate_equation() == SUCCESS)
+				{
+					game_stats.num_won_solved_equation++;
+				}
+				else
+				{
+					game_stats.num_lost_solved_equation++;
+				}
+				break;
+			case 2:
+				// create equation
+				// prompt user to enter an equation that satisfies the given parameters
+				if (cgc_prompt_for_equation() == SUCCESS)
+				{
+					game_stats.num_won_created_equations++;
+				}
+				else
+				{
+					game_stats.num_lost_created_equations++;
+				}
+				break;
+			case 3:
+				// area
+				if (cgc_random_in_range(0,1) == 0)
+				{
+					if (cgc_request_area() == SUCCESS)
+					{
+						game_stats.num_won_area++;
+					}
+					else
+					{
+						game_stats.num_lost_area++;
+					}
+				}
+				else
+				{
+					if (cgc_request_2d_area_dim() == SUCCESS)
+					{
+						game_stats.num_won_area++;
+					}
+					else
+					{
+						game_stats.num_lost_area++;
+					}
+				}
+				break;
+			case 4:
+				// perimeter
+				if (cgc_random_in_range(676,677) == 676)
+				{
+					if (cgc_request_perimeter() == SUCCESS)
+					{
+						game_stats.num_won_perimeter++;
+					}
+					else
+					{
+						game_stats.num_lost_perimeter++;
+					}
+				}
+				else
+				{
+					if (cgc_request_2d_peri_dim() == SUCCESS)
+					{
+						game_stats.num_won_perimeter++;
+					}
+					else
+					{
+						game_stats.num_lost_perimeter++;
+					}
+				}
+				break;
+			case 5:
+				// volume
+				if (cgc_random_in_range(44,45) == 45)
+				{
+					if (cgc_request_volume() == SUCCESS)
+					{
+						game_stats.num_won_volume++;
+					}
+					else
+					{
+						game_stats.num_lost_volume++;
+					}
+				}
+				else
+				{	
+					if (cgc_request_3d_dim_vol() == SUCCESS)
+					{
+						game_stats.num_won_volume++;
+					}
+					else
+					{
+						game_stats.num_lost_volume++;
+					}
+				}
+				break;
+			case 6:
+				// View Statistics
+				cgc_print_statistics();
+				break;
+			case 7:
+				// Exit
+				return 0;
+			default:
+				cgc_printf("improper input. exiting\n");
+				return 0;
+		}
+	}
+
+	return 0;
+}

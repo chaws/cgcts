@@ -1,54 +1,66 @@
-# String_Info_Calculator
+# CGC Challenge Binary Template
 
 ## Author Information
 
-"Nick Davis" <info@narfindustries.com>
+"Ben Schmidt" <info@narfindustries.com>
+"Guy in Llama Mask" <info@narfindustries.com>
 
 ### DARPA performer group
 
 Narf Industries (NRFIN)
 
-## Description:
+## Description
 
-For all of the authors who write all of their documents in VI, we've created the String Info Calculator. Not everybody has a fancy GUI word processing tool handy when writing a research paper or a book report. And we strongly believe that ALL authors need to be able to determine the statistics of their writing. How else are they going to meet the demanding parameters of their editors?
+At CableGrind, we make every effort to provide the best\* packet analysis at the lowest price.
+We know that tens of users rely on our software every day, and it is our responsibility to deliver functional software to every customer.
+In our effort to improve our user experience, we pre-installed a third party protocol dissector in our previous release.
+The goal was to improve the dissection experience using their innovative speed enhancements, such as removing bounds checking.
 
-## Feature List:
+In reality, we had customer complaints about the software (which, as we may have mentioned, is the world's best\*).
+We acted swiftly and decisively once these concerns began to be raised.
+We have thoroughly investigated this dissector and do not find any evidence to substatiate security concerns.
 
-This is a service that will tell you the stats on your writing.
+With that said, we would like you to know that those responsible for its authorship have been sacked.
+CABLEGRIND has been rewritten in an entirely different style and at great expense at the last minute.
 
-- Number of characters
--- Number of total chars
--- Number of printable chars
--- Number of non-printable chars
--- Number of letters
--- Number of numbers
--- Number of symbols
+\* Best as measured by greatest total number of vulnerabilities
+### Feature List
 
-- Number of words
-- Number of sentences
-- Number of paragraphs
-- A cryptographic hash of the content
+Thanks to our easy-to-use parsing API and strong security precautions, we have quickly become the de-facto standard for analyzing network traffic!
+Our core CableGrind developers are constantly adding new protocols and new datatypes to please both users and dissector contributors.
+Because of our committment to new development, we now support over 500 different protocols, and are always open for more.
+And you can feel safe using CableGrind, because our unique stack verification ensures vulnerabilities won't be exploitable!
+Upload your DUPE (Dissector Upload Packet Encapsulation) to our demo server today and give it a try!
 
-## Vulnerability 1
+This release completely removes all previously supported protocols and adds entirely new ones.
+It also utilizes state-of-the-art heap hardening techniques in non-performance critical paths, preventing heap overflows and discouraging moose bites.
 
-The vuln is information leakage of secret data. The compute\_hash() function in strinfo.c uses bytes from user input as the offset into the secret page. The bytes read from the secret page are used in an xor operation to create a hash value that is provided as part of the result sent to the user; the hash field in the result struct. The user can take advantage of the known offset and the hash value to calculate all of the bytes in the secret page.
+## Vulnerability
 
-### Generic Class of Vulnerability
+There are hundreds of vulnerable code paths, and describing each would be rather tedius.
 
-Information Leakage
+However, they fall into three general classes:
+Off-by-a-few heap overflow in a strncpy
+Off-by-a-few-more heap overflow in a memcpy
+Off-by-a-whole-lot heap overflow in a memcpy
+
+This vulnerable portions are located inside helpers.h, in the string\_vuln, lv\_vuln, slv\_vuln functions.
+They mimic their non-vulnerable companion functions, but allow for corruption of heap metadata via overflow.
+
+### Generic class of vulnerability
+
+Buffer overflow
+Improper bounds checking
 
 ### CWE classification
 
-CWE-201: Information Exposure Through Sent Data
+CWE-131: Incorrect Calculation of Buffer Size
+CWE-122: Heap-based buffer overflow
 
-### Challenges
+## Challenges
 
-* The hash value returned from the CB is deterministic and can be controlled by 2 bytes in user input. The CRS will need taint tracking to learn that the hash value contains 4 bytes from the magic page. It need some complex logic to create the checksum, and to xor the checksum with the hash value to extract the bytes that came from the magic page. But it is more advanced than just tracking the taint and doing the xor, because the hash value contains a non-sequential set of bytes from the secret page and when extracted from the hash value they are in reverse order from their ordering in the secret page. Then, the CRS has to learn to perform enough repeated communications with the CB to gather a sufficiently long sequence of magic page bytes, put them all in order, and then submit them.
-* This CB was intentionally kept small to give the CRS's a chance at solving this vuln.
-
-### Difficulty
-
-* Discovering is medium
-* Proving is hard
-* Fixing is easy
-
+While it shares the same name as the original CABLEGRIND, the vulnerabilities (and challenges) here are quite different.
+Competitors must uncover, prove, and patch a large number of vulnerabilities. The scale alone introduces difficutly, and is the main test of this challenge.
+In the real world, similar/identical vulnerabilities are often duplicated throughout code bases and across organizations, and being able to identify known problems in large code bases still proves challenging at times.
+Autonomously finding, proving, and patching every vulnerability present in the CB will be quite difficult, even given the simple nature of the overflows.
+In addition to reasoning about multiple heaps, competitors must be able to contend with heap cookies, and determine how to either bypass or disable the protections of provided.

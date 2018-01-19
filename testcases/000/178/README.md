@@ -1,63 +1,40 @@
-# CGC Challenge Binary (KPRCA_00057): Glue
+# KPRCA-00021
 
-### DARPA performer group
+## DARPA performer group
 Kaprica Security (KPRCA)
 
-## Description
-Glue is a custom file format meant to be used as an archiving mechanism for
-system administrators who desire to store large collections of files as
-a single file. This service is command line parser for glue files desired to
-allow system administrators to easily examine and validate the contents of
-their glue files.
+## Description:
+
+This CB emulates an online job application form. An applicant moves through several pages of grouped questions (Candiate Info, Education, Address, etc etc) and is forced to enter each question on the form before continuing to the next page. The pages are seqential and, once completed, can be revisited using the "prev" command. Completed pages can have indivial questions updated with new answers or an applicant can simply review his or her answers. 
+
+Once the form is completed the user can "submit" the form by exiting, or "discard" by using ctrl-c. The two are functionally equivalent, but we would hate to feel like someone didn't have a chance to throw their application away.
+
+The code attempts to model a web interface. Each input has a textfield, a buffer to hold the response, and a verification function that makes sure the input is valid. 
 
 ### Feature List
 
- * Print the follow attributes about each object contained within the archive
+And applicant can enter input when asked a question, or navigate accross the application with the following commands:
 
- * Name
- * Mode
- * UID
- * GID
- * User Code
- * Size
- * Modification Time
- * Type
- * Link Name
- * Magic Value
- * Version
- * Owner Name
- * Group Name
- * Device Major Number
- * Device Minor Number
- * Prefix
+All commands begin with '**' and may be entered at any time during the CB
+**prev 
+    <Return to the previous page>\n);
+**next 
+    <Move to the next page>\n);
+**update [id] 
+    <Update field, ex: \Update First Name\>
+**help 
+    <Print this dialogue>
+**exit 
+    <Exit application>
 
 ## Vulnerability
-The vulnerability for this service exists within the fetching of the user's
-user_code for a object in the glue file. user_codes are contained within
-a global string in the binary that is indexed into using the product of the
-user ID and group ID on the current object being processed. If this computed
-index is specially crafted it can be used to cause the service to print out
-contents of values in the secret page thus resulting in a type 2 vulnerability.
 
-### Generic class of vulnerability
-
-Invalid Array Index
+Certain questions have predefined allowed responses. For example when asking an applicant to enter a Suffix for his or her name, valid options include "Jr, Sr, III" etc etc. For entering address information, 2 letter postal codes are used for states "AK, VA, IA" etc etc. The function that verifies these choices has a bug where it doesn't compare the length of the two strings, but instead compares the user inputted string against a valid choice. Because it never checks the user's inputted string you can overflow the buffer by entering the appropriate string and then appending whatever input you want to overflow. Ex: JrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA will be accepted as a valid input in the vulnerable version.
 
 ### CWE classification
 
-CWE-125: Out-of-bounds Read
-CWE-129: Improper Validation of Array Index
+CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
 
 ## Challenges
-This is a relatively simple vulnerability to prove. By realizing that the
-index into the global user_codes array could result into a type
-2 vulnerability, the CRS will then need to identify that the index is based off
-of the GID and UID which taken from input provided to the service. Difficulty
-does however lie in accurately encoding the desired GID and UID as character
-encoded octal numbers which is the format in which the challenge binary expects
-them to be encoded.
 
-## Subjective Quantification
-Discovering: Easy
-Proving: Easy
-Fixing: Easy
+This problem is meant to allow competitors to test their capabilities to systematically check bounding contraints and determine vulnerable input a little smarter than just utilizing random fuzzing, but instead utizling the static strings available in the binary.

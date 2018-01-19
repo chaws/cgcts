@@ -22,7 +22,7 @@
 
 #ifndef STRNCMP_H
 #define STRNCMP_H 1
-#include "cgc_libc.h"
+
 /**
  * Check to see if the first N bytes of str1 match those of str2.
  *
@@ -31,6 +31,6 @@
  * @param n Number of bytes to test.
  * @return 0 if equal, 1 if str1 > str2, -1 if str1 < str2.
  */
-int cgc_strncmp(const char *str1, const char *str2, cgc_size_t n);
+int cgc_strncmp(const char *str1, const char *str2, unsigned int n);
 
 #endif

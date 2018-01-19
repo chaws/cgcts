@@ -12,6 +12,5 @@ int cgc_isspace(int c);
 int cgc_ispunct(int c);
 int cgc_tolower(int c);
 int cgc_toupper(int c);
-int cgc_isxdigit(int c);
 
 #endif /* !CTYPE_H_ */

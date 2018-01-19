@@ -1,6 +1,6 @@
 /*
 
-Author: Joe Rogers <joe@cromulence.com>
+Author: Jason Williams <jdw@cromulence.com>
 
 Copyright (c) 2014 Cromulence LLC
 
@@ -25,167 +25,75 @@ THE SOFTWARE.
 */
 #include "libcgc.h"
 #include "cgc_stdlib.h"
-#include "cgc_fs.h"
-#include "cgc_cmd.h"
+#include "cgc_io.h"
+#include "cgc_vgf.h"
+#include "cgc_pixelmap.h"
 
-char *cgc_ARGV[MAX_ARGS];
-uint32_t cgc_ARGC;
-extern ShellCmds cgc_cmds[];
-char cgc_CWD[MAX_CMD];
+#define INPUT_FILE_SIZE_MAXIMUM     (20000)
 
-int cgc_FreeArgs() {
-	int i = 0;
+int main(int cgc_argc, char *cgc_argv[])
+{
+    cgc_setup_io( STDIN, STDOUT );
 
-	while (cgc_ARGV[i]) {
-		cgc_deallocate(cgc_ARGV[i], cgc_strlen(cgc_ARGV[i]));
-		cgc_ARGV[i] = NULL;
-		i++;
-	}
+    tVGFParsedFile *pFile;
 
-	return(0);
-}
+#ifdef PATCHED
+    uint16_t fileSize = cgc_read_u16();
+#else
+    int16_t fileSize = cgc_read_u16();
+#endif
 
-int cgc_ParseArgs(char *cmd) {
-	char *tok;
-	char *t;
-	int new_len;
-	int open_quote = 0;
+    if ( fileSize > INPUT_FILE_SIZE_MAXIMUM )
+        cgc__terminate( -3 );
 
-	// start with a clean slate
-	cgc_bzero(cgc_ARGV, MAX_ARGS*sizeof(char*));
-	cgc_ARGC = 0;
+    // Read in file data
+    uint8_t *pFileData = (uint8_t*)cgc_malloc( INPUT_FILE_SIZE_MAXIMUM );
 
-	// look for spaces
-	if ((tok = cgc_strtok(cmd, " ")) == NULL) {
-		cgc_ARGC = 0;
-		return(0);
-	}
-	cgc_ARGV[cgc_ARGC++] = cgc_strdup(tok);
+    // Read loop for file data
+    uint32_t readCount = 0;
+    for ( readCount = 0; readCount < fileSize; readCount++ )
+        pFileData[readCount] = cgc_read_u8();
 
-	while ((tok = cgc_strtok(NULL, " ")) != NULL && cgc_ARGC < MAX_ARGS-1) {
-		// handle closing quote made up of multiple " "-separated tokens
-		if (open_quote && tok[cgc_strlen(tok)-1] == '"') {
-			new_len = cgc_strlen(cgc_ARGV[cgc_ARGC]) + cgc_strlen(tok) + 1;
-			if (cgc_allocate(new_len, 0, (void *)&t)) {
-				cgc_FreeArgs();
-				cgc_ARGC = 0;
-				return(0);
-			}
-			cgc_strcpy(t, cgc_ARGV[cgc_ARGC]+1);
-			cgc_strcat(t, " ");
-			tok[cgc_strlen(tok)-1] = '\0';
-			cgc_strcat(t, tok);
-			cgc_deallocate(cgc_ARGV[cgc_ARGC], cgc_strlen(cgc_ARGV[cgc_ARGC]));
-			cgc_ARGV[cgc_ARGC++] = t;
-			open_quote = 0;
+    if ( readCount != fileSize )
+        cgc__terminate( -3 );
 
-		// handle middle tokens for quoted string
-		} else if (open_quote) {
-			new_len = cgc_strlen(cgc_ARGV[cgc_ARGC]) + cgc_strlen(tok) + 2;
-			if (cgc_allocate(new_len, 0, (void *)&t)) {
-				cgc_FreeArgs();
-				cgc_ARGC = 0;
-				return(0);
-			}
-			cgc_strcpy(t, cgc_ARGV[cgc_ARGC]);
-			cgc_strcat(t, " ");
-			cgc_strcat(t, tok);
-			cgc_deallocate(cgc_ARGV[cgc_ARGC], cgc_strlen(cgc_ARGV[cgc_ARGC]));
-			cgc_ARGV[cgc_ARGC] = t;
+    if ( cgc_vgf_parse_data( pFileData, fileSize, &pFile ) != VGF_PARSE_SUCCESS )
+        cgc__terminate( -3 );
 
-		// handle token delimited by quotes
-		} else if (tok[0] == '"' & tok[cgc_strlen(tok)-1] == '"') {
-			tok[cgc_strlen(tok)-1] = '\0';
-			cgc_ARGV[cgc_ARGC++] = cgc_strdup(tok+1);
+    // Free memory
+    cgc_free( pFileData );
 
-		// handle starting quote 
-		} else if (tok[0] == '"') {
-			open_quote = 1;
-			cgc_ARGV[cgc_ARGC] = cgc_strdup(tok);
+    int32_t renderSize;
+    uint8_t *pRenderData;
 
-		// not a quoted token
-		} else {
-			cgc_ARGV[cgc_ARGC++] = cgc_strdup(tok);
-		}
-	}
+    if ( (renderSize = cgc_vgf_get_render_size( pFile )) <= 0 )
+        cgc__terminate( -3 );
 
-	// found a starting, but no ending quote, abort processing
-	if (open_quote) {
-		cgc_puts("missing quote");
-		cgc_FreeArgs();
-		cgc_ARGC = 0;
-		return(0);
-	}
+    // Allocate render buffer
+    uint32_t destLen = renderSize;
+    pRenderData = (uint8_t*)cgc_malloc( destLen );
 
-	// too many args, abort processing
-	if (cgc_ARGC == MAX_ARGS-1) {
-		cgc_puts("too many args");
-		cgc_FreeArgs();
-		cgc_ARGC = 0;
-		return(0);
-	}
+    if ( cgc_vgf_render_file( pFile, pRenderData, &destLen ) != 0 )
+        cgc__terminate( -3 );
 
-	return(cgc_ARGC);
+    uint32_t pmSize;
+    uint8_t *pPMFileData;
 
-}
+    if ( cgc_pixelmap_write_file( &pPMFileData, &pmSize, pRenderData, cgc_vgf_get_width( pFile ), cgc_vgf_get_height( pFile ) ) <= 0 )
+        cgc__terminate( -3 );
 
-int main(int cgc_argc, char *cgc_argv[]) {
-	char cmd[MAX_CMD];
-	ShellCmds *c;
+    // Free the render buffer
+    cgc_free( pRenderData );
 
-	cgc_bzero(cgc_CWD, MAX_CMD);
-	cgc_strcpy(cgc_CWD, "/");
+    // Send the complete file
+    cgc_size_t tx_bytes = pmSize;
+    cgc_size_t writeCur;
+    for ( writeCur = 0; writeCur < tx_bytes; writeCur++ )
+        cgc_write_u8( pPMFileData[writeCur] );
 
-	if (cgc_InitFS(512*1024)) {
-		cgc_puts("Failed to initialize the RAM file system\n");
-		return(-1);
-	}
+    cgc_free( pPMFileData );
 
-	cgc_puts("Welcome to the cgcfs shell!");
-	cgc_puts("Type help for a list of available commands.");
-	cgc_printf("% ");
-	cgc_bzero(cmd, MAX_CMD);
-	while (cgc_readUntil(cmd, MAX_CMD-1, '\n') != -1) {
-		cgc_ParseArgs(cmd);
+    cgc_vgf_destroy_file( pFile );
 
-		// parse failure
-		if (cgc_ARGC == 0) {
-			cgc_FreeArgs();
-			cgc_bzero(cmd, MAX_CMD);
-			cgc_printf("% ");
-			continue;
-		}
-
-		// find the command being requested
-		if (cgc_ARGV[0] != NULL) {
-			c = cgc_cmds;
-			while (c->command != NULL) {
-				if (!cgc_strcmp(c->command, cgc_ARGV[0])) {
-					// run the command
-					c->handler();
-
-					break;
-				}
-				c++;
-			}
-		}
-		if (c == NULL) {
-			cgc_puts("Invalid command");
-		}
-		if (c->command == NULL) {
-			cgc_puts("Invalid command");
-		}
-
-		cgc_FreeArgs();
-		cgc_bzero(cmd, MAX_CMD);
-		cgc_printf("% ");
-	}
-
-	if (cgc_DestroyFS()) {
-		cgc_puts("Failed to destroy the RAM file system\n");
-		return(-1); 
-	}
-
-	return(0);
-
+    return 0;
 }

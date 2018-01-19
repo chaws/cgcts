@@ -1,40 +1,58 @@
-# CGC Challenge Binary (KPRCA\_00017): HackMan
+# CGC Challenge Binary (KPRCA\_00042): Movie Rental Service Redux
 
 ### DARPA performer group
 Kaprica Security (KPRCA)
 
 ## Description
 
-HackMan is a game that the player needs to guess the word correctly. The word list is pre-populated with 20 dictionary words of various length. Unlike its sister game, Hangman, HackMan allows the player to try as many times as possible until he or she gets the answer. The word is picked based on the seed value the user provides. When a player wins, he or she can leave a comment to brag. However, this comment is immediately discarded. It's just there for making players feel good about themselves. The game even keeps track of how many tries a player tried for each word. This is a solid game for all ages.
+This is a simple movie rental service where the user can list available movies in the inventory and rent the ones that are not rented already. The user is also able to return the movie. There is also an interface for privileged user (admin) when successfully logged in. This interface allows the admin to add, remove, or update movies in the inventory. The movie rental service also allows a debug mode for allowing an admin to test adding genres and movie ratings.
 
 ### Feature List
 
-It's a game. That's the only feature.
+This service supports the following "documented" features:
 
-There are some control characters to access limited menu:
+In normal mode,
 
-  - '+' starts a new challenge word
-  - '?' resets the current challenge (# tries & progress)
-  - '/' quits the game
+  1. **List movies**: lists a full movie list as well as a rental list (i.e. the movies that are currently rented).
+  2. **Rent movie**: allows the user to rent a movie from the list (movies that are not currently rented can be rented).
+  3. **Return movie**: allows the user to return the movie that was rented.
+  4. **Admin mode (login)**: verifies username and password to provide privileged menus.
+  5. **Exit**: quits the program.
+
+In admin mode,
+
+  1. **Add movie**: adds a new movie to the list.
+  2. **Remove movie**: removes a movie from the list.
+  3. **Update movie**: updates information about a movie.
+  4. **Quit admin mode**: quits the admin mode and goes back to the normal mode.
+
+The service supports the following "undocumented" features:
+
+In admin mode,
+    Send byte array \x29\x78\x31\x16\x00\x29\x78\x31\x16\x00 to enter debug mode
+
+In debug mode,
+   1. **Debug Add Genre**: Send integer 1294579383 appended with a string, 
+                            adds appended string to the list of Genres
+   2. **Debug Add Rating**: Send integer 388502 appended with a string, 
+                            adds appended string to the list of Movie Ratings
 
 ## Vulnerability
 
-When the game starts (*play_game* function), the internal state for the game (*h_state*) is set up on the stack. However, this struct is not initialized always. It is only set to the sane value (pointers to the correct functions) when the pointer members inside of the struct are NULL.
+The vulnerability is a format string vulnerability triggered by a special debug function. Once in debug mode if the user sends the integer: 1294579383 (sent as a little endian byte array: \x4D\x29\xB6\xB7) The user can append a genre title to the integer. Since the user has complete control over the string they can trivially crash the program.
 
-In general, those function pointers will be NULL due to the side-effect of *banner* function, where allocates a large stack space and initializes with NULL bytes. Initialized stack area coincides with where *h_state* is located on the stack.
-
-However, one can attack this uninitialized stack variable (struct) by leveraging *record_winner* function after winning a round of the game. Since *record_winner* also uses a large stack buffer, it is possible to control the contents of the stack  area that coincides with where *h_state* will be located. Note that *banner* does not get invoked when *record_winner* is executed, therefore **not** initializing the stack with NULL bytes. And since the function pointers in *h_state_* is not initialized if they are not NULL, the attacker can make the program to call an arbitrary address (EIP control).
+Getting to the vulenrable state requires -> logging in as admin -> passing the debug sequence \x29\x78\x31\x16\x00\x29\x78\x31\x16\x00 to enable debug mode -> passing the debug code \x4D\x29\xB6\xB7<VULNERABLE STRING> -> exit debug mode -> add/update a movie
 
 ### Generic class of vulnerability
 
-Unitialized stack variable usage
-
-Function pointer overwrite
+Format String
 
 ### CWE classification
 
-Use of Uninitialized Variable (CWE-457)
+CWE-134: Uncontrolled Format String
 
 ## Challenges
 
-This CB tests if the competitors can detect uninitialized stack variable and its insecure usage. This requires a good understanding and reasoning of the stack throughout interprocedural control flows. The CB also tests the ability to analyze unusual control-flow introduced by *goto* statements. 
+The CB generates a small random password stored in the heap which is meant to be bruce forceable. The more challenging part is determining the "undocumented" byte sequence (hardcoded in the binary) that enables debug mode. Once in debug mode a user must send the "undocumented" integer codes that call the debug functions, dag (debug add genre) and dar (debug add rating). Specifically the vulnerability is enabled by calling dag with a vulnerable string.
+
+Once a competitor determines how to call the dag function and add a vulnerable string to the movie genre list, crashing the program requires the competitor use the admin mode function to add or update a movie. When it gets to the part that lists the "genres" the bug can be triggered.

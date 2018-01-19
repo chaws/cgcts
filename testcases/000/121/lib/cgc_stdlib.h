@@ -31,10 +31,6 @@ THE SOFTWARE.
 
 int cgc_isspace( int c );
 int cgc_isdigit( int c );
-int cgc_islower( int c );
-int cgc_isupper( int c );
-int cgc_isalpha( int c );
-int cgc_isascii( int c );
 int cgc_isnan( double val );
 int cgc_isinf( double val );
 int cgc_tolower( int c );
@@ -48,6 +44,10 @@ char *cgc_strcpy( char *dest, char *src );
 char *cgc_strncpy( char *dest, const char *src, cgc_size_t num );
 cgc_size_t cgc_strlen( const char *str );
 int cgc_printf( const char *fmt, ... );
+int cgc_sprintf( char *str, const char *fmt, ... );
+cgc_size_t cgc_getline( char *buffer, cgc_size_t len );
+cgc_size_t cgc_receive_until( char *, char, cgc_size_t );
+int cgc_flush_input( int );
 
 void* cgc_memcpy( void *dest, void *src, cgc_size_t numbytes );
 void* cgc_memset( void *dest, int value, cgc_size_t num );

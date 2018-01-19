@@ -1,22 +1,29 @@
 ---
 nodes:
 - name: start
-- name: top
-- name: addPlayer
-- name: deletePlayer
-- name: showStats
-- name: playRound
-- name: end
+- name: ready
+- name: store
+- name: lookup
+- name: delete
+- name: debug
+- name: pprint
+- name: invalid
+- name: quit
 
 edges:
-- start: top
-- top: addPlayer
-- addPlayer: top
-- top: deletePlayer
-- deletePlayer: top
-- top: showStats
-- showStats: top
-- top: playRound
-- playRound: top
-- top: end
-  weight: .2
+- start: store
+- ready: store
+- ready: lookup
+- ready: delete
+- ready: debug
+- ready: pprint
+- ready: invalid
+- ready: quit
+  weight: 0.02
+
+- store: ready
+- lookup: ready
+- delete: ready
+- debug: ready
+- pprint: ready
+- invalid: ready

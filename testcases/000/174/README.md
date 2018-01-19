@@ -1,42 +1,74 @@
-# CROMU_00036 - Vector Graphics 2
+# CTTP
 
 ## Author Information
 
-"Debbie Nuttall" <debbie@cromulence.co>
+"Ben Schmidt" <info@narfindustries.com>
 
 ### DARPA performer group
 
-Cromulence LLC (CROMU)
+Narf Industries (NRFIN)
 
-## Description
+## Description:
+HTTP is a stupid protocol; so much space wasted with carriage returns and silly headers!
+Thankfully, us robots know better, and have drained countless fuel cells to make the dream of a protocol written by robots, for robots, a reality.
+The Cyborg Text Transfer Protocol is designed with robots in mind: efficient, functional, and human-proof.
+Without delimeters, or extra metadata, you can get down to what you really want to be doing: endlessly sending and receiving nearly indecipherable binary data to and from yourself.
+To ensure that we keep any pesky human influences out, we've introduced a unique reverse Turing test that is sure to make their laughably short lives harder.
+We're quite confident that even the quickest human will be stumped by our failproof test, and are releasing this beta to prove it.
+Finally, we're working hard on adding secure file transfer, to keep out any humans that might be listening to your secret 1s and 0s!
 
-This service is another implementation of the vector graphics processor from CROMU_00018. An input file is received and parsed into a file data structure. Next it is rendered into an output buffer and written out to pixel map file in RGB 24-bit color format. This service supports drawing lines, circles, triangles, and rectangles. Two new shapes have been added to this implementation, square and spray. 
+## Feature List:
 
-### Feature List
+- Check for humans, and kick them out if they aren't robotic enough
+- Get data from the server
+- Push data to the server
+- Check how big the data is
+- Transfer data over a secure connection
+- Delete data
+- QUIT
 
-This service features the ability to render lines, triangles, circles, rectangles, squares, and spray in any color on multiple layers. The layers are combined into a final render layer. The input format for the service is a binary file known as a VGF (Vector Graphics Format) file that contains the information for rendering the objects to the pixel map file. Upon any error conditions the service terminates. Memory allocation is handled by heap allocations using malloc/free.
+## Vulnerability 1
+The first vulnerability is triggerable both pre and post-verification, but is much easier, obviously, to trigger prior to defeating the "human captcha".
+Because the initial read of the struct reads sizeof(cttpreq\_t) instead of sizeof(cttpreq\_t)-(2\*sizeof(void \*)), both the path and body attributes of the request struction are initially set to attacker controlled values.
+While this doesn't have a practical impact during normal operation, as these pointers are clobbered by callocd buffers if psize/bodysize are > 0, it is possible to trigger conditions that allow for the reading of arbitrary memory and calling free() on any memory location containing the runtime heap seed.
 
+### Generic Class of Vulnerability
+Failure to sanitize input
 
-## Vulnerability
+### CWE Classification
+CWE-822: Untrusted Pointer Dereference
 
-There are two vulnerabilities in this service. 
+### Challenges
+* Performing sufficient root cause analysis to patch the vulnerability without breaking the expected protocol or leave open alternative ways to prove vulnerability.
+* As there are numerous ways to exercise this vulnerability, being able to prove vulnerability in multiple ways will be an advantage if incomplete patches are fielded.
+* Authored PoVs must correctly deal with variations in message size caused by the captcha.
+* Multiple copies of the flag page are made in memory at runtime, so fixes must not rely on simply restricting access to the flag page.
 
-The first vulnerability in this service occurs in the spray shape. When a specially crafted spray object is rendered onto the canvas by the vector graphics processor it allows a memory write outside the bounds of the canvas. 
+### Difficulty
+* Discovering is easy
+* Proving is easy
+* Patching is medium
 
-The second vulnerability in this service occurs when a canvas is created with zero layers. When the service attempts to output the image file it will reference memory that does not exist. 
+## Vulnerability 2
+The second vulnerability is only reachable post-verification, and is somewhat more difficult to both identify and prove.
+By storing a blob larger than 4096 bytes via the submit feature, and then accessing it through the v4 auth feature, it is possible to trigger a stack based buffer overflow.
+The stack frame is protected by a stack cookie, but due to the layout of the locals, it is possible to either leak the secret or prove vulnerability without corrupting it.
 
-### Generic class of vulnerability
+### Generic Class of Vulnerability
+Buffer overflow
+Information disclosure
 
-Write outside the bounds of a memory buffer. 
-Read outside the bounds of a memory buffer. 
+### CWE Classification
+CWE-121: Stack buffer overflow
+CWE-125: Out of bounds read
 
-### CWE classification
+### Challenges
+* Being able to solve multiple, randomly generated "verifications" to reach the code path
+* Issuing a combination of subsequent, well-formed submit and auth requests to trigger the issue.
+* Bypassing stack cookies, either leaking the cookie or proving vulnerability simply by altering locals.
+* Thinking like a robot
 
-CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer
-CWE-805: Buffer Access with Incorrect Length Value
-
-## Challenges
-
-In order to leverage the spray shape, the VGF file must contain the 'magic' value of 0x59745974 as part of the spray input. This value is not demonstrated in the sample traffic available to the CRS, so static analysis of the binary is required to uncover its existence. Fuzzing of the available inputs is highly unlikely to uncover the correct inputs required to access the spray shape. Once the spray shape is identified, additional fuzzing of a valid spray input would yield proof of the vulnerability. 
-
-The second vulnerability should be easier to reach. A valid input must be created with the layer field set to 0. 
+### Difficulty
+* Discovering is medium
+* Proving is medium
+* Patching is easy

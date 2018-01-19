@@ -1,0 +1,2 @@
+This is an instant messaging platform that allows users to sign up, log in, send and receive messages. There are two parts: server and client. The client provides the interface for users to interact with the system, and it talks to the server with a custom protocol. The client and the server communicate through IPC, and thus the server side interface isn't directly exposed. LulzChat supports 'protected' mode that uses Coffee algorithm for obfuscated communication.
+

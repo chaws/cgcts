@@ -1,39 +1,34 @@
-# CGC Challenge Binary 00024 - String Storage and Retrieval
+# Packet Receiver
 
 ## Author Information
 
-Steve Wood <swood@cromulence.co>
+"Jason Williams" <jdw@cromulence.co>
 
 ### DARPA performer group
-
-Cromulence
+Cromulence LLC (CROMU)
 
 ## Description
 
-The program is an application for the storage and quick retrieval of string data.  Internally, a token is created for each string and the token is used as the key for a Binary Search Tree where the data is stored.  This allows for very quick retrieval of strings, provided that data is not stored in such a sequence that the tree degenerates into a linked list.  Most BST's do not allow for duplicate keys, but this implimentation does, storing the data common to one key in a linked list that must be sequentially searched.  However, key collisions should be rare and therefore sequential searches very short.  In addition, identical string data is not allowed, further limiting the possibility of key overlap.  
+This service is an fictional implementation of a radio receiver after demodulation. The service reads in raw data bits, acquires preamble lock, bit/byte synchronization and begins decoding packets and rendering them as they are received to cgc_stdout.
 
 ### Feature List
 
-The program allows for strings to be a)dded, d)eleted, f)ound, the entire tree to be w)alked, and tree s)tatistics to be printed. Strings are added by the command a/<string to be added> for example.  Strings to be added must be at least 10 characters in width.
+The service features preamble locking (0101010101 or 1010101010 sequence), bit/byte synchronization using 16-bits to acquire byte pattern lock, and checksums for packet integrity checking. Packets support 32-bit and 16-bit checksums as well as fragmentation. Fragmentation is optional and up to 16 fragments can be assembled into a full message packet. Fragmentation uses a fragmentation list to assemble packets with the same sequence numbers into a completed message. After reassembly a message is rendered using a combination of text markup (underline, bold, italics) and formatting characters (tabstop, break, paragraph, and newline) to standard output.
 
 ## Vulnerability
 
-The vulnerability occurs in the processing of how data for duplicate keys is handled.  If more than one data element resolves to the same key, the data items are stored in a linked list attached to that that BST node.  During find or delete operations, they key is used to rapidly find the node and the attached linked list is sequentially walked and the string data compared to that being searched for.  If a match is found, the operation completes.  The vulnerability lies in an improper update of a pointer during a delete operation.  If there is a linked list, and the last node of the list is being deleted, the current pointer is updated to the "next" pointer before the memory is released with free().  At the end of the list, this causes a null pointer to be passed to free(), resulting in a SEGFAULT.
-
+There are two vulnerabilities present in this service. The first vulnerability is in the packet fragmentation code. It is possible to send a packet outside of the maximum fragment number (a last packet bit signifies the maximum number of fragments to the reassembler). An invalid calculation of length occurs when the assembled size of the full message is calculated up all of the sub packets within range but during assembly all the packets are concatenated together resulting in a heap overwrite. The last bug is in the message renderer a stack overflow can occur when a message is assembled that exceeds the render buffer. This is possible becomes the render buffer naively assumes that full messages cannot exceed the number of bytes in a maximum fully assembled packet. The error exists due to the special formatting codes that result in writing data to the render buffer that exceeds 1-byte in length, therefore allowing a stack overflow to occur.
 
 ### Generic class of vulnerability
 
-NULL Pointer Dereference.
+Improper calculation of Buffer Size
+Out of bounds write
 
 ### CWE classification
-
-CWE-476
+CWE-131: Improper Calculation of Buffer Size
+CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer
+CWE-121: Stack-based Buffer Overflow
 
 ## Challenges
 
-This vulnerability requires two steps to demonstrate it crashing the program.  First two values with the same resulting token must be found, and then the second and only the second one being deleted will result in a SEGFAULT.  It is certainly an "edge case" condition for the program that would not readily show up with purely random fuzzing.
-
-
-
-
-
+This CB has two vulnerabilities. These vulnerabilities will require a CRS system to reason at the bit level to generate properly formatted packets. Proper state machine tracking is required in both cases as both vulnerabilities are accessible via packet fragmentation. As this service mimics an RF front-end (which is always subjected to noise) fuzzing will be statistically improbable to yield any results (unlikely to ever pass bit/byte synchronization let alone checksum verification of the packet).

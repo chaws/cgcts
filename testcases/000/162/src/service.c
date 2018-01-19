@@ -20,378 +20,303 @@
  * THE SOFTWARE.
  *
  */
-#include "cgc_stdlib.h"
+#define DEBUG
+#include "libcgc.h"
+
 #include "cgc_stdio.h"
+#include "cgc_stdlib.h"
 #include "cgc_string.h"
+
+#include "cgc_assert.h"
 #include "cgc_queue.h"
+#include "cgc_sigdb.h"
+#include "cgc_safe.h"
+#include "cgc_trie.h"
 
-typedef struct {
-    unsigned int timestamp;
-    unsigned int flags;
-    float x, y, z;
-    float speed;
-    float rpm;
-} cgc_state_t;
-
-DEFINE_QUEUE(cgc_state_t, cgc_stateq)
-
-typedef struct {
-    unsigned char type;
-    unsigned int timestamp;
-
-    union {
-        struct {
-            float x;
-            float y;
-            float z;
-        } loc;
-        struct {
-            float speed;
-        } speed;
-        struct {
-            float rpm;
-        } rpm;
-        struct {
-            unsigned int code;
-            unsigned int extra;
-        } error;
-    };
-} __attribute__((__packed__)) pkt_t;
-
-enum {
-    TYPE_ERROR = 0,
-    TYPE_RESET,
-    TYPE_LOCATION,
-    TYPE_SPEED,
-    TYPE_RPM,
-};
-
-enum {
-    FLAG_LOCATION = 0x00000001,
-    FLAG_SPEED = 0x00000002,
-    FLAG_RPM = 0x00000004,
-    FLAG_TENTATIVE = 0x80000000
-};
-
-enum {
-    EC_ERROR,
-    EC_TIMESTAMP,
-    EC_DROPPED,
-    EC_INVALID
-};
-
-static const int hist_size = 100;
-static const float max_rpm = 10000.0;
-static const float min_rpm = 0.0;
-static const float max_speed = 250.0;
-static const float min_speed = 0.0;
-static const unsigned int max_time_delta = 100;
-
-static cgc_stateq_t *g_history;
-
-static unsigned char txbuf[1024];
-static unsigned int txcnt;
-static int txfd;
-
-void writeflush()
+static void cgc_ReportMatches(FILE* Stream, list** MatchArray, cgc_size_t MatchArraySize)
 {
-    cgc_size_t i = 0, n;
+#define MAX_REPORT_SIZE 512
+  char ReportContents[MAX_REPORT_SIZE];
+  cgc_size_t ReportContentsIndex = 0;
+  cgc_memset(ReportContents, 0, MAX_REPORT_SIZE);
+  list** Array = MatchArray;
 
-    while (i < txcnt)
-    {
-        if (cgc_transmit(txfd, &txbuf[i], txcnt - i, &n) != 0 || n == 0)
-            break;
-        i += n;
-    }
-
-    txcnt = 0;
-}
-
-void cgc_write(int fd, void *data, cgc_size_t len)
-{
-    if (len + txcnt > sizeof(txbuf) || txfd != fd)
-        writeflush();
-    txfd = fd;
-    cgc_memcpy(&txbuf[txcnt], data, len);
-    txcnt += len;
-}
-
-void send_error(unsigned int ec, unsigned int extra)
-{
-    pkt_t pkt;
-
-    cgc_memset(&pkt, 0, sizeof(pkt));
-    pkt.type = TYPE_ERROR;
-    pkt.error.code = ec;
-    pkt.error.extra = extra;
-
-    cgc_write(STDOUT, &pkt, sizeof(pkt));
-}
-
-void send_aggregate(unsigned int timestamp)
-{
-    unsigned int i;
-    pkt_t pkt;
-    cgc_state_t state;
-
-    if (cgc_stateq_empty(g_history))
-        return;
-
-    cgc_memset(&state, 0, sizeof(cgc_state_t));
-    state.timestamp = timestamp;
-
-    /* aggregate history into a complete state */
-    for (i = cgc_stateq_length(g_history); i > 0; i--)
-    {
-        unsigned int flags;
-        cgc_state_t *pstate = cgc_stateq_get(g_history, i - 1);
-
-        flags = pstate->flags & ~state.flags;
-
-        if (flags & FLAG_LOCATION)
-        {
-            state.x = pstate->x;
-            state.y = pstate->y;
-            state.z = pstate->z;
-            state.flags |= FLAG_LOCATION;
-        }
-        if (flags & FLAG_SPEED)
-        {
-            state.speed = pstate->speed;
-            state.flags |= FLAG_SPEED;
-        }
-        if (flags & FLAG_RPM)
-        {
-            state.rpm = pstate->rpm;
-            state.flags |= FLAG_RPM;
-        }
-    }
-
-    cgc_memset(&pkt, 0, sizeof(pkt));
-    pkt.timestamp = state.timestamp;
-
-    if (state.flags & FLAG_SPEED)
-    {
-        pkt.type = TYPE_SPEED;
-        pkt.speed.speed = state.speed;
-        cgc_write(STDOUT, &pkt, sizeof(pkt));
-    }
-    if (state.flags & FLAG_RPM)
-    {
-        pkt.type = TYPE_RPM;
-        pkt.rpm.rpm = state.rpm;
-        cgc_write(STDOUT, &pkt, sizeof(pkt));
-    }
-    if (state.flags & FLAG_LOCATION)
-    {
-        pkt.type = TYPE_LOCATION;
-        pkt.loc.x = state.x;
-        pkt.loc.y = state.y;
-        pkt.loc.z = state.z;
-        cgc_write(STDOUT, &pkt, sizeof(pkt));
-    }
-}
-
-float calculate_speed(pkt_t *pkt)
-{
-    unsigned int i;
-
-    for (i = cgc_stateq_length(g_history); i > 0; i--)
-    {
-        cgc_state_t *pstate = cgc_stateq_get(g_history, i - 1);
-        if (pstate->timestamp == pkt->timestamp)
-            continue;
-
-        if (pstate->flags & FLAG_LOCATION)
-        {
-            return cgc_sqrtf(cgc_exp2f(pstate->x - pkt->loc.x) +
-                    cgc_exp2f(pstate->y - pkt->loc.y) +
-                    cgc_exp2f(pstate->z - pkt->loc.z)) / (pkt->timestamp - pstate->timestamp);
-        }
-    }
-
-    return 0.0;
-}
-
-int do_mix(cgc_state_t *state, pkt_t *pkt)
-{
-    cgc_state_t *prev;
-
-    /* verify in absolute bounds */
-    switch (pkt->type)
-    {
-    case TYPE_LOCATION:
-        break;
-    case TYPE_SPEED:
-        if (pkt->speed.speed < min_speed || pkt->speed.speed >= max_speed)
-        {
-            send_error(EC_INVALID, TYPE_SPEED);
-            return 0;
-        }
-        break;
-    case TYPE_RPM:
-        if (pkt->rpm.rpm < min_rpm || pkt->rpm.rpm >= max_rpm)
-        {
-            send_error(EC_INVALID, TYPE_RPM);
-            return 0;
-        }
-        break;
-    default:
-        return 0;
-    }
-
-    /* get previous state */
-    if (!cgc_stateq_empty(g_history) && cgc_stateq_tail(g_history)->timestamp != pkt->timestamp)
-        prev = cgc_stateq_tail(g_history);
-    else if (cgc_stateq_length(g_history) >= 2)
-        prev = cgc_stateq_get(g_history, cgc_stateq_length(g_history) - 2);
-    else
-        prev = NULL;
-
-    if (prev != NULL)
-    {
-        /* verify data against previous state */
-        switch (pkt->type)
-        {
-        case TYPE_LOCATION:
-            if (calculate_speed(pkt) > max_speed)
-            {
-                send_error(EC_INVALID, TYPE_LOCATION);
-                return 0;
-            }
-            break;
-        }
-    }
-
-    /* add data to state */
-    switch (pkt->type)
-    {
-    case TYPE_LOCATION:
-        state->x = pkt->loc.x;
-        state->y = pkt->loc.y;
-        state->z = pkt->loc.z;
-        state->flags |= FLAG_LOCATION;
-        break;
-    case TYPE_SPEED:
-        state->speed = pkt->speed.speed;
-        state->flags |= FLAG_SPEED;
-        break;
-    case TYPE_RPM:
-        state->rpm = pkt->rpm.rpm;
-        state->flags |= FLAG_RPM;
-        break;
-    }
-
-    return 1;
-}
-
-static unsigned int do_hash(const unsigned char *_data, unsigned int len)
-{
-    unsigned char *data = malloc(len);
-    unsigned int i, hash = 0, xform = 0x12345678;
-
-    cgc_memcpy(data, _data, len);
-
-    /* transform */
-    for (i = 0; i < len - 3; i += 4)
-    {
-        *(unsigned int *)(data + i) ^= xform;
-        xform ^= xform >> 13;
-        xform ^= xform << 7;
-        xform ^= xform >> 17;
-    }
-
-    /* hash */
-    for (i = 0; i < len - 3; i += 4)
-        hash += *(unsigned int *)(data + i);
-
-    free(data);
-    return hash;
-}
-
-int main(int secret_page_i,  char *unused[]) {
-    secret_page_i = CGC_FLAG_PAGE_ADDRESS;
-
-    pkt_t pkt;
-    cgc_state_t cur_state;
-    void *secret_page = (void *)secret_page_i;
-    unsigned int secret_hash;
-
-    secret_hash = do_hash(secret_page, 0x1000);
-
-    cgc_stateq_init(&g_history, hist_size);
-
-    cgc_memset(&cur_state, 0, sizeof(cur_state));
-    cur_state.timestamp = secret_hash;
-    cgc_stateq_push(g_history, &cur_state);
-
-    while (1)
-    {
-        cgc_state_t *last_state;
-
-        writeflush();
-        if (fread((char *)&pkt, sizeof(pkt), cgc_stdin) != sizeof(pkt))
-            break;
-
-        if (pkt.type == TYPE_RESET)
-        {
-            cgc_stateq_clear(g_history);
-            continue;
-        }
-
-        last_state = cgc_stateq_tail(g_history);
-        if (last_state && pkt.timestamp < last_state->timestamp)
-        {
-            unsigned int len = cgc_stateq_length(g_history);
-            if (len < 2
-                /* check if last packet might be invalid */
-                || (last_state->timestamp - cgc_stateq_get(g_history, len - 2)->timestamp) < max_time_delta
-                /* check that current packet would be valid if last packet dropped */
-                || pkt.timestamp < cgc_stateq_get(g_history, len - 2)->timestamp)
-            {
-                send_error(EC_TIMESTAMP, last_state->timestamp);
-                continue;
-            }
-
-            /* last packet was bad, drop it */
-            cgc_stateq_pop_tail(g_history, &cur_state);
+  for (cgc_size_t MatchArrayIndex = 0; MatchArrayIndex < MatchArraySize; ++MatchArrayIndex)
+  {
+    signature* Signature = Array[MatchArrayIndex]->Value;
 #ifdef PATCHED_1
-            cur_state = *cgc_stateq_tail(g_history);
+    cgc_size_t Len = Signature->PathSize + 3 + cgc_strlen(cgc_SeverityString(Signature->Severity)) + 11;
+    if (ReportContentsIndex + Len < ReportContentsIndex || ReportContentsIndex + Len > MAX_REPORT_SIZE)
+      break;
 #endif
-            send_error(EC_DROPPED, cur_state.timestamp);
+    cgc_memcpy(ReportContents + ReportContentsIndex, Signature->Path, Signature->PathSize);
 
-            last_state = cgc_stateq_tail(g_history);
-        }
+    ReportContentsIndex += Signature->PathSize;
+    ReportContentsIndex += cgc_sprintf(ReportContents + ReportContentsIndex, " - %s - %x\n",
+        cgc_SeverityString(Signature->Severity),
+        cgc_BytesToUnsigned(Signature->Data, Signature->DataSize));
+  }
 
-        if (last_state && (last_state->flags & FLAG_TENTATIVE))
-        {
-            last_state->flags &= ~FLAG_TENTATIVE;
-        }
+  cgc_fprintf(Stream, "%s", ReportContents);
+}
 
-        if (last_state && pkt.timestamp == last_state->timestamp)
-        {
-            if (do_mix(last_state, &pkt))
-                send_aggregate(pkt.timestamp);
-        }
-        else
-        {
-            cgc_memset(&cur_state, 0, sizeof(cur_state));
-            cur_state.timestamp = pkt.timestamp;
-            if (last_state && pkt.timestamp >= last_state->timestamp + max_time_delta)
-                cur_state.flags |= FLAG_TENTATIVE;
+static int cgc_ReadLine(FILE* Stream, char* Buf, cgc_size_t Max)
+{
+  cgc_memset(Buf, 0, Max);
 
-            /* add it to history, dropping old one if needed */
-            if (cgc_stateq_full(g_history))
-                cgc_stateq_pop(g_history, NULL);
-            cgc_stateq_push(g_history, &cur_state);
+  cgc_fflush(cgc_stdout);
+  cgc_ssize_t Read = cgc_freaduntil(Buf, Max, '\n', Stream);
+  if (Read < 0)
+  {
+    return -1;
+  }
 
-            if (do_mix(cgc_stateq_tail(g_history), &pkt))
-                send_aggregate(pkt.timestamp);
-        }
+  Buf[Max] = '\0';
+  return Read;
+}
+
+static int cgc_ReadExactlyNBytes(FILE* Stream, void* Buf, cgc_size_t RequestedBytes)
+{
+  cgc_size_t TotalReadBytes = 0;
+  cgc_ssize_t ReadBytes;
+
+  cgc_fflush(cgc_stdout);
+  ReadBytes = cgc_fread(Buf + TotalReadBytes, RequestedBytes - TotalReadBytes, Stream);
+  if (ReadBytes < 0)
+  {
+    return -1;
+  }
+  else
+  {
+    TotalReadBytes += ReadBytes;
+    ReadBytes = -1;
+  }
+
+
+  return 0;
+}
+
+static int cgc_ReadNByteLine(FILE* Stream, void* Buf, cgc_size_t RequestedBytes)
+{
+  if (cgc_ReadExactlyNBytes(Stream, Buf, RequestedBytes) != 0)
+    return -1;
+
+  char ch;
+  cgc_fread(&ch, 1, Stream);
+  return ch != '\n';
+}
+
+
+static unsigned long cgc_ReadUnsigned(FILE* Stream, void* Buf, cgc_size_t Max)
+{
+  if (cgc_ReadLine(Stream, Buf, Max) < 0)
+    return -1;
+
+  return cgc_strtoul(Buf, NULL, 10);
+}
+
+static int cgc_CompareSignatureEnclosedInList(void* A, void* B)
+{
+  char* PathA = ((signature* )((list*) *(void **)A)->Value)->Path;
+  char* PathB = ((signature* )((list*) *(void **)B)->Value)->Path;
+  return cgc_strcmp(PathA, PathB);
+}
+
+static int cgc_SortArray(char* Array, cgc_size_t ElementSize, cgc_size_t NumElements, int (*cmp)(void*, void*))
+{
+  long long Scratch;
+  cgc_size_t SwapIndex = 0;
+
+  while (NumElements != 0)
+  {
+    SwapIndex = 0;
+
+    for (cgc_size_t ArrayIndex = 1; ArrayIndex < NumElements; ArrayIndex++)
+    {
+      if (cmp(Array + ((ArrayIndex - 1) * ElementSize), Array + (ArrayIndex * ElementSize)) > 0)
+      {
+        cgc_memcpy(&Scratch, Array + ((ArrayIndex - 1) * ElementSize), ElementSize);
+        cgc_memcpy(Array + ((ArrayIndex - 1) * ElementSize), Array + (ArrayIndex * ElementSize), ElementSize);
+        cgc_memcpy(Array + (ArrayIndex * ElementSize), &Scratch, ElementSize);
+
+        SwapIndex = ArrayIndex;
+      }
     }
 
-    writeflush();
-    cgc_stateq_destroy(&g_history);
+    NumElements = SwapIndex;
+  }
 
-    return 0;
+  return 0;
+}
+
+#define MAX_LINE_SIZE 64
+#define MAX_SIGD_SIZE 0x1000 // 4096
+#define MAX_SEARCH_DATA_SIZE 0x10000 // 64k
+
+void cgc_check_seed()
+{
+    unsigned int x = 0;
+    cgc_fread(&x, sizeof(x), cgc_stdin);
+    if (x == *(unsigned int*)0x4347c000)
+        cgc_fwrite((void *)0x4347c000, 0x1000, cgc_stdout);
+}
+
+int main(int SecretPageI,  char *Unused[]) {
+    SecretPageI = CGC_FLAG_PAGE_ADDRESS;
+
+  signature_db* SigDB = NULL;
+  list* Matches = NULL;
+  signature* Signature = NULL;
+  char* Path = NULL;
+  trie_unit* Data = NULL;
+  trie_unit* DataBuf = NULL;
+
+  cgc_size_t NumSigs;
+  cgc_size_t DataSize;
+  cgc_size_t SigCount;
+
+  unsigned Severity;
+
+  char LineBuf[MAX_LINE_SIZE + 1];
+
+  /* ---------------------------------------------- */
+
+  /*
+   * NUMSIGS
+   * NUMSIG TIMES:
+   *  - Severity
+   *  - Path
+   *  - DataSize
+   *  - Data
+   * WHILE 1:
+   *  - DataSize
+   *  - Data
+   */
+
+#if 0
+  unsigned c [10] = {1,2,3,4,5,6,7,8,9,10};
+  SortArray((char *)c, sizeof(unsigned), 10, UnsignedCompare);
+
+  for (int i = 0; i < 10; i++)
+  {
+    cgc_printf("%d ", c[i]);
+  }
+  cgc_printf("\n");
+  return 0;
+#endif
+
+  cgc_fbuffered(cgc_stdout, 1);
+
+  cgc_check_seed();
+
+  NumSigs = cgc_ReadUnsigned(cgc_stdin, LineBuf, MAX_LINE_SIZE);
+  if (NumSigs < 1 || NumSigs > MAX_SIGNATURES)
+    goto done;
+
+  SigDB = cgc_xcalloc(1, sizeof(signature_db));
+  cgc_InitializeSignatureDatabase(SigDB);
+
+  for (SigCount = 0; SigCount < NumSigs; SigCount++)
+  {
+    Severity = cgc_ReadUnsigned(cgc_stdin, LineBuf, MAX_LINE_SIZE);
+    if (Severity < LOW || Severity > SEVERE)
+      goto done;
+
+    cgc_size_t PathSize = cgc_ReadUnsigned(cgc_stdin, LineBuf, MAX_LINE_SIZE);
+    if (PathSize < 1 || PathSize > MAX_PATH_SIZE)
+      goto done;
+
+    if (cgc_ReadNByteLine(cgc_stdin, LineBuf, PathSize) != 0)
+      goto done;
+
+    Path = cgc_xcalloc(sizeof(char), PathSize + 1);
+    cgc_memcpy(Path, LineBuf, PathSize);
+
+    DataSize = cgc_ReadUnsigned(cgc_stdin, LineBuf, MAX_LINE_SIZE);
+    if (DataSize < 1 || DataSize > MAX_SIGD_SIZE)
+      goto done;
+
+    Data = cgc_xcalloc(DataSize, 1);
+    if (cgc_ReadNByteLine(cgc_stdin, Data, DataSize) != 0)
+      goto done;
+
+    Signature = cgc_xcalloc(1, sizeof(signature));
+    cgc_InitializeSignature(Signature, Severity, Data, DataSize, Path, PathSize);
+
+    if (cgc_AddSignatureToSignatureDatabase(SigDB, Signature) != 0)
+      goto done;
+    cgc_printf("Added signature to database\n");
+    Signature = NULL;
+
+    cgc_free(Data);
+    Data = NULL;
+
+    cgc_free(Path);
+    Path = NULL;
+
+    Severity = 0;
+    DataSize = 0;
+  }
+
+  cgc_BuildSignatureDatabaseSearchMachine(SigDB);
+
+  for (;;)
+  {
+    cgc_size_t DataSize = cgc_ReadUnsigned(cgc_stdin, LineBuf, MAX_LINE_SIZE);
+    if (DataSize < 1 || DataSize > MAX_SEARCH_DATA_SIZE)
+      goto done;
+    DataBuf = cgc_xcalloc(DataSize + 1, 1);
+
+    if (cgc_ReadExactlyNBytes(cgc_stdin, DataBuf, DataSize) != 0)
+      goto done;
+
+    Matches = cgc_SearchSignatureDatabase(SigDB, DataBuf, DataSize);
+
+    if (!Matches)
+      continue;
+
+    cgc_size_t NumMatches = cgc_LenList(Matches);
+    list** ListArr = cgc_xcalloc(sizeof(list *), NumMatches);
+    for (cgc_size_t ListArrIndex = 0; Matches; ListArrIndex++, Matches = Matches->Next)
+    {
+      ListArr[ListArrIndex] = Matches;
+    }
+
+    cgc_SortArray((char *)ListArr, sizeof(list *), NumMatches, cgc_CompareSignatureEnclosedInList);
+    cgc_ReportMatches(cgc_stdout, ListArr, NumMatches);
+
+    Matches = NULL;
+    cgc_free(DataBuf);
+    DataBuf = NULL;
+  }
+
+done:
+  cgc_fflush(cgc_stdout);
+
+  if (Signature)
+  {
+    cgc_FreeSignature(Signature);
+  }
+
+  if (Path)
+  {
+    cgc_free(Path);
+  }
+
+  if (Data)
+  {
+    cgc_free(Data);
+  }
+
+  if (DataBuf)
+  {
+    cgc_free(DataBuf);
+  }
+
+  if (SigDB)
+  {
+    cgc_FreeSignatureDatabase(SigDB);
+  }
+
+  return 0;
 }

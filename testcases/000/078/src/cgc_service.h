@@ -1,6 +1,6 @@
 /*
 
-Author: Joe Rogers <joe@cromulence.co>
+Author: James Connor <jymbo@cromulence.com>
 
 Copyright (c) 2014 Cromulence LLC
 
@@ -23,3 +23,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
+
+
+#ifndef PAGESIZE
+#define PAGESIZE 4096
+#endif
+
+#ifndef service_h
+#define service_h
+
+#include "cgc_llist.h"
+
+#endif 

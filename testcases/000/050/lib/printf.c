@@ -26,9 +26,6 @@
 #include "cgc_stdarg.h"
 #include "cgc_string.h"
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
 #define OUTPUT_BYTE(x) do { \
     cgc_size_t bytes; \
     char _c = x; \
@@ -262,4 +259,3 @@ int cgc_sprintf(char *str, const char *fmt, ...)
     return n;
 }
 
-#pragma GCC diagnostic pop

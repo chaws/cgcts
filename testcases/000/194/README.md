@@ -1,4 +1,4 @@
-# CTTP
+# CGC Challenge Binary Template
 
 ## Author Information
 
@@ -8,67 +8,48 @@
 
 Narf Industries (NRFIN)
 
-## Description:
-HTTP is a stupid protocol; so much space wasted with carriage returns and silly headers!
-Thankfully, us robots know better, and have drained countless fuel cells to make the dream of a protocol written by robots, for robots, a reality.
-The Cyborg Text Transfer Protocol is designed with robots in mind: efficient, functional, and human-proof.
-Without delimeters, or extra metadata, you can get down to what you really want to be doing: endlessly sending and receiving nearly indecipherable binary data to and from yourself.
-To ensure that we keep any pesky human influences out, we've introduced a unique reverse Turing test that is sure to make their laughably short lives harder.
-We're quite confident that even the quickest human will be stumped by our failproof test, and are releasing this beta to prove it.
-Finally, we're working hard on adding secure file transfer, to keep out any humans that might be listening to your secret 1s and 0s!
+## Description
 
-## Feature List:
+RLEStream (pronounced "reallystream") is a video streaming service for the modern shell, committed to delivering quality content in a horribly inefficient way.
 
-- Check for humans, and kick them out if they aren't robotic enough
-- Get data from the server
-- Push data to the server
-- Check how big the data is
-- Transfer data over a secure connection
-- Delete data
-- QUIT
+### Feature List
 
-## Vulnerability 1
-The first vulnerability is triggerable both pre and post-verification, but is much easier, obviously, to trigger prior to defeating the "human captcha".
-Because the initial read of the struct reads sizeof(cttpreq\_t) instead of sizeof(cttpreq\_t)-(2\*sizeof(void \*)), both the path and body attributes of the request struction are initially set to attacker controlled values.
-While this doesn't have a practical impact during normal operation, as these pointers are clobbered by callocd buffers if psize/bodysize are > 0, it is possible to trigger conditions that allow for the reading of arbitrary memory and calling free() on any memory location containing the runtime heap seed.
+We here at RLEStream are dedicated to securely storing and delivering your favorite videos to a shell near you!
+Using our patent-pending compression and content protection technology, RLE (Rick's Lulzy Encoding), we are able to provide lightning fast access and superior content protection that our competitors just can't provide.
 
-### Generic Class of Vulnerability
-Failure to sanitize input
+With our service, you can:
+1.) Upload your ASCII videos straight to our super cloud!
+2.) Watch your videos right in your shell! 
+3.) Manage all your videos conveniently from netcat!
+4.) Share videos with your friends by giving them your personal access key!
 
-### CWE Classification
-CWE-822: Untrusted Pointer Dereference
+With RLEStream, you're always a tty away from all your video files! Just download our client and get streaming!
 
-### Challenges
-* Performing sufficient root cause analysis to patch the vulnerability without breaking the expected protocol or leave open alternative ways to prove vulnerability.
-* As there are numerous ways to exercise this vulnerability, being able to prove vulnerability in multiple ways will be an advantage if incomplete patches are fielded.
-* Authored PoVs must correctly deal with variations in message size caused by the captcha.
-* Multiple copies of the flag page are made in memory at runtime, so fixes must not rely on simply restricting access to the flag page.
+## Vulnerability
 
-### Difficulty
-* Discovering is easy
-* Proving is easy
-* Patching is medium
+Integer overflow when uploading extremely compressed data, leading to heap corruption.
+These types of vulnerabilities are quite common in real-world compression libraries, and continue to be a problem today (see CVE-2014-4607 - 11).
 
-## Vulnerability 2
-The second vulnerability is only reachable post-verification, and is somewhat more difficult to both identify and prove.
-By storing a blob larger than 4096 bytes via the submit feature, and then accessing it through the v4 auth feature, it is possible to trigger a stack based buffer overflow.
-The stack frame is protected by a stack cookie, but due to the layout of the locals, it is possible to either leak the secret or prove vulnerability without corrupting it.
+To trigger the overflow, competitor PoV's must both add an overly compressed video and then play it with the proper key, causing it to actually be decompressed. 
 
-### Generic Class of Vulnerability
-Buffer overflow
-Information disclosure
+All uploaded videos are expected to be run-length encoded, xored with a static key (0x42), with a very simple checksum of the run-length encoded data pre-xor.
+This checksum, along with restrictive length requirements, should prevent attempts at blind fuzzing.
 
-### CWE Classification
-CWE-121: Stack buffer overflow
-CWE-125: Out of bounds read
+The overflow occurs when the resulting number of bytes from the decoding process is greater than 2^24 bytes, causing an overflow of the dlen variable, which is defined as a 24 bit bitfield.
+Only inputs that have a compression ratio of at least ~127:1 will both trigger the overflow and be small enough to pass a prior length check.
 
-### Challenges
-* Being able to solve multiple, randomly generated "verifications" to reach the code path
-* Issuing a combination of subsequent, well-formed submit and auth requests to trigger the issue.
-* Bypassing stack cookies, either leaking the cookie or proving vulnerability simply by altering locals.
-* Thinking like a robot
+### Generic class of vulnerability
 
-### Difficulty
-* Discovering is medium
-* Proving is medium
-* Patching is easy
+Integer Overflow
+Buffer Overflow
+
+### CWE classification
+
+CWE-680: Integer Overflow to Buffer Overflow
+
+## Challenges
+
+* Understanding the transforms necessary to successfully generate correct, highly compressed data. This requires the successful computation of a simple checksum, understanding and using a simple xor encoder, and proper generation of run-length encoded data.
+* Utilizing primitive operations in decompression routine repeatedly to trigger overflow.
+* Detecting integer overflow vulnerabilities, specificially one in a 3 byte bitfield.
+* Breaking our excellent DRM.

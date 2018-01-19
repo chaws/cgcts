@@ -23,6 +23,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
+#ifndef printf_c
+#define printf_c
 #include "libcgc.h"
 #include "cgc_stdarg.h"
 #include "cgc_stdlib.h"
@@ -63,37 +65,6 @@ void cgc_int_to_str( int val, char *buf )
     {
         *c = (val % 10) + '0';
         val /= 10;
-
-        c++;
-        count++;
-    } while ( val != 0 );
-
-    while ( count-- > 0 )
-    {
-        c--;
-        *buf = *c;
-        buf++;
-    }
-
-    *buf = '\0';
-}
-
-void cgc_int_to_hex( unsigned int val, char *buf )
-{
-    char temp_buf[32];
-    char *c = temp_buf;
-    int count = 0;
-
-    if ( buf == NULL )
-        return;
-
-    do
-    {
-        *c = (val % 16) + '0';
-	if (*c > '9') {
-		*c += 7;
-	}
-        val /= 16;
 
         c++;
         count++;
@@ -212,15 +183,21 @@ int cgc_vprintf( const char *fmt, va_list arg )
                 cgc_putc( '@' );
                 break;
 
-            case 'c':
-                // single charß
+            case 's':
+                //string
                 {
+                    char *c = va_arg( arg, char* );
 
-                    char c = (char )va_arg(arg, int);
-                    cgc_putc(c);
+                    while ( *c )
+                    {
+                        cgc_putc( *c );
+                        character_count++;
+                        c++;
+                    }
+
                 }
                 break;
-                
+
             case 'd':
                 // Integer
                 {
@@ -228,24 +205,6 @@ int cgc_vprintf( const char *fmt, va_list arg )
                     char *c;
 
                     cgc_int_to_str( int_arg, temp_buf );
-
-                    c = temp_buf;
-                    while ( *c )
-                    {
-                        cgc_putc( *c );
-                        character_count++;
-                        c++;
-                    }
-                }
-                break;
-
-            case 'x':
-                // hex
-                {
-                    unsigned int int_arg = va_arg( arg, unsigned int );
-                    char *c;
-
-                    cgc_int_to_hex( int_arg, temp_buf );
 
                     c = temp_buf;
                     while ( *c )
@@ -272,21 +231,6 @@ int cgc_vprintf( const char *fmt, va_list arg )
                         character_count++;
                         c++;
                     }
-                }
-                break;
-
-            case 's':
-                // String
-                {
-                    char *string_arg = va_arg( arg, char * );
-
-                    while ( *string_arg )
-                    {
-                        cgc_putc( *string_arg );
-                        character_count++;
-                        string_arg++;
-                    }
-
                 }
                 break;
 
@@ -323,3 +267,5 @@ int cgc_printf( const char *fmt, ... )
 
     return done;
 }
+
+#endif

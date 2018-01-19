@@ -78,18 +78,24 @@ int cgc_WRAPPER_BUFFER_PUTC( void *ctx, int c, cgc_size_t pos )
 {
 	tBufferPutcData *pBufferData = (tBufferPutcData *)ctx;
 
-	while ( pBufferData->bufferPos >= BUFFER_PUTC_MAXLEN )
+	if ( pBufferData->bufferPos >= BUFFER_PUTC_MAXLEN )
 	{
-        	cgc_size_t tx_bytes;
+		char *pBufferPos = pBufferData->szBuffer;
 
-        	if ( cgc_transmit( STDOUT, (const void *)pBufferData->szBuffer, pBufferData->bufferPos, &tx_bytes ) != 0 )
-                	return (-1);
+		while ( pBufferData->bufferPos > 0 )
+		{
+			cgc_size_t tx_bytes;
 
-		if ( tx_bytes == 0 )
-			return (-1);
+			if ( cgc_transmit( STDOUT, (const void *)pBufferPos, pBufferData->bufferPos, &tx_bytes ) != 0 )
+				return (-1);
 
-		pBufferData->bufferPos -= tx_bytes;
-	}		
+			if ( tx_bytes == 0 )
+				return (-1);
+
+			pBufferData->bufferPos -= tx_bytes;
+			pBufferPos += tx_bytes;
+		}		
+	}
 
 	pBufferData->szBuffer[pBufferData->bufferPos++] = (char)c;
 
@@ -142,17 +148,19 @@ int cgc_vprintf_buffered( const char *format, va_list args )
 	int iReturn = cgc_wrapper_output( ctx, wrapper_putc_buffered, pos, format, args );
 
 	// Cleanup buffer
+	char *pBufferPos = g_putcBuffer.szBuffer;
 	while ( g_putcBuffer.bufferPos > 0 )
 	{
         	cgc_size_t tx_bytes;
 
-        	if ( cgc_transmit( STDOUT, (const void *)g_putcBuffer.szBuffer, g_putcBuffer.bufferPos, &tx_bytes ) != 0 )
+        	if ( cgc_transmit( STDOUT, (const void *)pBufferPos, g_putcBuffer.bufferPos, &tx_bytes ) != 0 )
                 	return (-1);
 
 		if ( tx_bytes == 0 )
 			return (-1);
 
 		g_putcBuffer.bufferPos -= tx_bytes;
+		pBufferPos += tx_bytes;
 	}
 
 	return iReturn;

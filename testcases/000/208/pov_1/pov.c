@@ -4,11 +4,15 @@ int main(int cgc_argc, char *cgc_argv[]) {
    do {
       //*** writing data
       static unsigned char write_00000_00000[] = 
-         "\x45\x4e\x44\x20\x7b\x0a\x20\x20\x20\x20\x70\x72\x69\x6e\x74\x66"
-         "\x20\x22\x23\x73\x22\x2c\x20\x2d\x35\x35\x39\x30\x33\x38\x37\x33"
-         "\x37\x3b\x0a\x20\x20\x20\x20\x70\x72\x69\x6e\x74\x3b\x0a\x7d\x72"
-         "\x65\x63\x6f\x72\x64\x31\x0a";
-      static unsigned int write_00000_00000_len = 55;
+         "\x6e\x65\x77\x20\x6e\x75\x6d\x20\x62\x6c\x61\x68\x20\x30\x0a\x6e"
+         "\x65\x77\x20\x61\x72\x72\x20\x62\x6c\x61\x68\x32\x20\x31\x0a\x6e"
+         "\x65\x77\x20\x76\x69\x65\x77\x20\x62\x6c\x61\x68\x33\x20\x62\x6c"
+         "\x61\x68\x32\x20\x62\x79\x74\x65\x0a\x73\x65\x74\x20\x62\x6c\x61"
+         "\x68\x33\x20\x62\x79\x74\x65\x53\x69\x7a\x65\x20\x62\x6c\x61\x68"
+         "\x0a\x73\x65\x74\x20\x62\x6c\x61\x68\x20\x34\x32\x39\x34\x39\x36"
+         "\x37\x32\x39\x35\x0a\x67\x65\x74\x20\x62\x6c\x61\x68\x33\x20\x31"
+         "\x32\x30\x37\x39\x36\x33\x36\x34\x38\x0a\x00";
+      static unsigned int write_00000_00000_len = 123;
       unsigned char *write_00000 = NULL;
       unsigned int write_00000_len = 0;
       write_00000 = cgc_append_buf(write_00000, &write_00000_len, write_00000_00000, write_00000_00000_len);
@@ -30,8 +34,8 @@ int main(int cgc_argc, char *cgc_argv[]) {
       if (read_00000_res) {} //silence unused variable warning
       //**** read match data
       static unsigned char match_00000_00000[] = 
-         "\x52\x55\x4e\x54\x49\x4d\x45\x20\x45\x52\x52\x4f\x52\x0a";
-      read_00000_ptr += cgc_data_match(read_00000 + read_00000_ptr, read_00000_len - read_00000_ptr, match_00000_00000, 14);
+         "\x44\x6f\x6e\x65\x2e";
+      read_00000_ptr += cgc_data_match(read_00000 + read_00000_ptr, read_00000_len - read_00000_ptr, match_00000_00000, 5);
       cgc_free(read_00000);
       if (read_00000_ptr) {}  //silence unused variable warning if any
    } while (0);

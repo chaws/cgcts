@@ -21,160 +21,151 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from generator.actions import Actions, Variable
+from generator.actions import Actions
 from random import choice, randint
 from os.path import dirname, abspath, join
+import string
+import struct
 import sys
 
 sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-import support as sp
-from common import DEBUG, CONFIG
-from dealer import Dealer
+from support import Support
 
-class TemplatePoller(Actions):
+def random_alpha(a, b):
+    return ''.join(choice(string.letters) for _ in range(randint(a, b)))
+
+class FalseProfits(Actions):
+    SUCCESS = '\x00' * 4
+    FAILURE = '\xff' * 4
 
     def start(self):
-        #self.delay(100)
-        if DEBUG:
-            print "------- start -----------"
-        self.state['e'] = Dealer(self.magic_page)
-        self.state['e'].add_players(CONFIG['PLAYER_COUNT'])
-        self.state['e'].gen_ok()
+        self.state['model'] = Support()
+        self.state['uaf'] = False
 
+    def cmd(self):
+        pass
 
-    def new_deck(self, deck=[], allow_bad=True):
-        '''
-        Give the dealer a new deck.
-        '''
-        if DEBUG:
-            print "cmd: new deck -----------"
+    def list_stocks(self):
+        stocks = self.state['model'].list_stocks()
 
-        # cmd
-        byte_str = self.state['e'].make_trigger_buf('DECK')
+        self.write(self.state['model'].make_list_stocks_cmd())
 
-        bad_cards = False
-        if True == allow_bad and self.chance(0.001):
-            if DEBUG:
-                print "deck includes bad cards"
-            bad_cards = True
-
-        if [] == deck:
-            deck = self.state['e'].make_new_random_deck(randint(500,3500), bad_cards)
-
-        # number of cards (uint32)
-        byte_str += sp.pack_single_uint32(len(deck))
-        # cards (array of uint8)
-        byte_str += sp.pack_single_string(''.join(deck))
-        self.write(byte_str)
-
-        # self.state['e'].ok
-        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
-
-        if False == bad_cards:
-            self.state['e'].deck = deck
-            return 0
+        # After UAF, this list will be corrupted, so expect failure
+        if self.state['uaf']:
+            self.read(length=4, expect=self.FAILURE)
         else:
-            return -1
+            for s in stocks:
+                self.read(delim='\n', expect=s)
+            self.read(length=4, expect=self.SUCCESS)
 
-    def deal_one_round(self):
-        '''
-        Instruct dealer to deal one round to players
-        '''
-        if DEBUG:
-            print "cmd: deal one round -----------"
+    def list_orders(self):
+        pass
 
-        self.write(self.state['e'].make_trigger_buf('DEAL'))
+    def list_orders_valid(self):
+        stocks = self.state['model'].list_stocks()
+        if not stocks:
+            return
 
-        enough_cards = self.state['e'].enough_cards_for_round()
+        stock = choice(stocks)
+        orders = self.state['model'].list_orders(stock)
 
-        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
-        if False == enough_cards:
-            if DEBUG:
-                print "not enough cards for a round"
-            return -1
-        else:
-            if DEBUG:
-                print "enough cards for a round"
-            self.state['e'].play_one_round()
-            if DEBUG:
-                mpiu = self.state['e'].total_magic_page_indices_used()
-                print "## fp indices testing ##"
-                self.state['e'].check_magic_bytes_usage()
+        self.write(self.state['model'].make_list_orders_cmd(stock))
 
-            return 0
+        self.read(delim='\n', expect='Order book for %s' % stock)
+        self.read(delim='\n', expect='ID\tSIDE\tQTY\tPRICE\tQTY\tSIDE') 
+        for o in orders:
+            self.read(delim='\n', expect=str(o))
+        self.read(length=4, expect=self.SUCCESS)
 
-    def get_round_data(self):
-        '''
-        Ask dealer for round data
-        '''
-        if DEBUG:
-            print "cmd: get round data -----------"
+    def list_orders_invalid(self):
+        stocks = self.state['model'].list_stocks()
+        stock = random_alpha(1, 4)
+        while stock in stocks:
+            stock = random_alpha(1, 4)
 
-        self.write(self.state['e'].make_trigger_buf('DATA'))
+        self.write(self.state['model'].make_list_orders_cmd(stock))
 
-        pw = self.state['e'].get_packed_wagers()
-        pr = self.state['e'].get_packed_results()
+        self.read(length=4, expect=self.FAILURE)
 
-        self.read(length=len(pw)+len(pr))
+    def add_order(self):
+        pass
 
-        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
+    def add_order_existing(self):
+        stocks = self.state['model'].list_stocks()
+        if not stocks:
+            return
 
-    def get_balance(self):
-        '''
-        Ask dealer for house balance per player
-        '''
-        if DEBUG:
-            print "cmd: get balances -----------"
+        stock = choice(list(stocks))
+        price = randint(1, 20) * 100
+        quantity = randint(1, 100)
+        is_buy = choice((True, False))
+        order, removed = self.state['model'].place_order(stock, price, quantity, is_buy)
 
-        self.write(self.state['e'].make_trigger_buf('BALANCE'))
+        self.write(self.state['model'].make_place_order_cmd(stock, price, quantity, is_buy))
 
-        balances = self.state['e'].get_packed_balances()
+        self.read(length=4, expect=struct.pack('I', order))
 
-        self.read(length=len(balances))
+        # Prevent hitting UAF by force-allocating new stock, only corrupting one list
+        if removed:
+            self.state['uaf'] = True
+            self.add_order_new()
 
-        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
+    def add_order_new(self):
+        stocks = self.state['model'].list_stocks()
+        stock = random_alpha(1, 4)
+        while stock in stocks:
+            stock = random_alpha(1, 4)
 
-    def get_player_count(self):
-        '''
-        Ask dealer for the number of players
-        '''
-        if DEBUG:
-            print "cmd: get player count -----------"
+        price = randint(1, 20) * 100
+        quantity = randint(1, 100)
+        is_buy = choice((True, False))
+        order, removed = self.state['model'].place_order(stock, price, quantity, is_buy)
+        assert(not removed)
 
-        self.write(self.state['e'].make_trigger_buf('COUNT'))
+        self.write(self.state['model'].make_place_order_cmd(stock, price, quantity, is_buy))
 
-        self.read(length=4, expect=sp.pack_single_uint32(CONFIG['PLAYER_COUNT']))
+        self.read(length=4, expect=struct.pack('I', order))
 
-        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
+    def check_order(self):
+        stocks = self.state['model'].list_stocks()
+        if not stocks:
+            return
 
-    def quit(self):
-        '''
-        Quit cleanly
-        '''
-        if DEBUG:
-            print "cmd: quit -----------"
+        stock = self.state['model'].stock_dict[choice(stocks)]
+        orders = stock.buy_orders + stock.sell_orders
+        if not orders:
+            return
 
-        self.write(self.state['e'].make_trigger_buf('QUIT'))
+        order = choice(orders).id_
 
-        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
+        self.write(self.state['model'].make_check_order_cmd(order))
 
-        return -1
+        self.read(delim='\n', expect=self.state['model'].check_order(order))
+        self.read(length=4, expect=self.SUCCESS)
 
-    def bogus(self):
-        '''
-        Send a bogus command
-        '''
-        if DEBUG:
-            print "cmd: bogus -----------"
+    def cancel_order(self):
+        stocks = self.state['model'].list_stocks()
+        if not stocks:
+            return
 
-        self.write(self.state['e'].make_trigger_buf('BOGUS'))
+        stock = self.state['model'].stock_dict[choice(stocks)]
+        orders = stock.buy_orders + stock.sell_orders
+        if not orders:
+            return
 
-        self.read(length=len(self.state['e'].ok), expect=self.state['e'].ok)
+        order = choice(orders).id_
 
-        return -1
+        removed = self.state['model'].cancel_order(order)
 
-    def broker(self):
-        '''
-        Branching node for all nodes
-        '''
-        return 0
+        self.write(self.state['model'].make_cancel_order_cmd(order))
+
+        self.read(length=4, expect=self.SUCCESS)
+
+        # Prevent hitting UAF by force-allocating new stock
+        if removed:
+            self.state['uaf'] = True
+            self.add_order_new()
+
+    def finish(self):
+        self.write(self.state['model'].make_quit_cmd())
+

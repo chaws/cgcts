@@ -1,36 +1,35 @@
-# Hug_Game
+# PRU
 
 ## Author Information
 
-"Dustin Fraze" <df@cromulence.com>
+"Cromulence" <cgc@cromulence.com>
 
 ### DARPA performer group
-Cromulence (CROMU)
+Cromulence LLC (CROMU)
 
 ## Description
 
-This is a challenge modelled after one of the author's favorite DEF CON Capture The Flag challenges - perudo, from the Kenshoto group.
+This is an emulator of an instruction set inspired by the TI ARM PRU. The PRU is featured on the BeagleBone black, and was used to provide high performance I/O on a board at the DEF CON 2015 Capture The Flag.
 
 ### Feature List
 
-This service is a simple gambling parlor for the user. Upon connecting, the user is asked for a name and then given a selection of four games to play. The name is used to seed a PRNG. The games are:
-
-* Coin Flip
-* Hangman
-* Dice Roll
-* War
+This service features an ALU and pieces of a branch unit. A user can do a variety of arithmetic operations on 32 registers, and conditional branching as well.
 
 ## Vulnerability
 
-The dice roll game stores the results of the rolls into a staticly sized array. If the player decides to play more than 16 rounds of dice, stack corruption occurs.
+SCAN instruction allows the user to scan bytes within the code segment of the emulator. This would allow for a constant table to be placed within the instruction stream. The SCAN instruction validates that the register+immediate offset are within the confines of the code section, but it doesn't do the same check for register+register form of the instruction.
 
 ### Generic class of vulnerability
-Unbounded memory write
+Insufficient bounds checking
 
 ### CWE classification
-Improper Restriction of Operations within the Bounds of a Memory Buffer
-CWE-119
+Insufficient bounds checking
+CWE-125: Out-of-bounds Read
 
 ## Challenges
-
-This CB takes a "less is more" approach to proving vulnerability. The CRS will have very little control over the state of the application at crash - namely, the output from the PRNG is what is used to determine EIP and any other corrupted registers. Because of this, type1 proofs of vulnerability should be less straight forward than typical - instead of being able to use the function epilogue to pop corrupted values into preserved registers, a CRS will have to generate a payload which sets EIP to a sequence of instructions that points the stack into the name buffer, and then pops, for example.
+### Discovery
+Medium - many instructions modify state. May not be obvious how much control the CRS has over the pieces which make the vulnerability occur.
+### Proving
+Medium/Hard - A CRS will have to understand the emulator and use that to feed and transform values in the register states to prove vulnerability.
+### Fixing
+Easy - a contraint needs to be applied on the register arg2 form of SCAN in much same way it is applied on the immediate form.

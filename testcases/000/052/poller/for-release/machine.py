@@ -1,269 +1,172 @@
-#!/usr/bin/env python
-#
-# Copyright (C) 2014 Narf Industries <info@narfindustries.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
+from generator.actions import Actions
+import random
+import string
 
-from generator.actions import Actions, Variable
-from random import choice, randint
-from os.path import dirname, abspath, join
-import sys
+def random_alphanum(max_size, min_size=2):
+    alphanum = string.letters + string.digits
+    max_size = max_size if max_size >= min_size else min_size
+    return ''.join(random.choice(alphanum) for c in range(max_size))
 
-sys.path.append(join(dirname(dirname(dirname(abspath(__file__)))), "support"))
-import support as sp
-from common import DEBUG, CONFIG
-from snailmail import SnailMail
+def ip_to_string(ip):
+    return '%d.%d.%d.%d' % ((ip >> 24) & 0xff,(ip >> 16) & 0xff,(ip >> 8) & 0xff,(ip >> 0) & 0xff)
 
-class SnailMailPoller(Actions):
+def random_ip(length):
+    ip = random.randint(0, 0xFFFFFFFF)
+    mask = (0xFFFFFFFF << (32 - length)) & 0xFFFFFFFF
+    ip = ip & mask
+    return ip_to_string(ip), ip_to_string(mask)
 
-    CMD_BUY_POSTAGE             = '\x03\x03\x03\x03'
-    CMD_ADD_ADDRESS             = '\x05\x05\x05\x05'
-    CMD_RECEIVE_MAIL            = '\x10\x10\x10\x10'
-    CMD_SORT_MAIL               = '\x11\x11\x11\x11'
-    CMD_LIST_ADDRESSES          = '\x12\x12\x12\x12'
-    CMD_LIST_UNDELIVERABLE_MAIL = '\x13\x13\x13\x13'
-    CMD_DELIVER_MAIL            = '\x14\x14\x14\x14'
-    CMD_RETURN_TO_SENDER        = '\x15\x15\x15\x15'
-    CMD_LIST_LOST_MAIL          = '\x16\x16\x16\x16'
-    CMD_DESTROY_LOST_MAIL       = '\x17\x17\x17\x17'
-    CMD_QUIT                    = '\x00\x0F\xF0\xFF'
-
-    BAD_STAMP                   = '\xbb\xaa\xdd'
-
-    STATUS_OK                   = '\x04\x04'
-    STATUS_ERR                  = '\x1E\x44'
-    STATUS_QUIT                 = '\x04\x17'
-
-    def send_cmd(self, cmd):
-        self.write(cmd)
-
-    def recv_status(self, status):
-        self.read(length=2, expect=sp.pack_single_string(status))
-
-    def recv_uint16(self, uint16_val, match=True):
-        if True == match:
-            self.read(length=2, expect=sp.pack_single_uint16(uint16_val))
-        else:
-            self.read(length=2)
-
-    def recv_hash(self, hash_val, match=True):
-        if True == match:
-            self.read(length=8, expect=hash_val)
-        else:
-            self.read(length=8)
-
+class Router(Actions):
     def start(self):
-        #self.delay(100)
-        self.state['e'] = SnailMail()
-        if DEBUG:
-            print "------- start -----------"
+        self.state['routers'] = {}
+        self.state['routes'] = {}
 
-    def add_address(self):
-        '''
-        Add one new address to the mail system
-        '''
-        self.send_cmd(self.CMD_ADD_ADDRESS)
-        if DEBUG:
-            print "cmd: add addresses"
+    def menu(self):
+        self.read(length=2, expect='> ')
 
-        invalid = False
-        if self.chance(.2):
-            invalid = True
-        addr = self.state['e'].get_new_address(invalid)
-        p_addr = sp.pack_single_uint16(addr)
-        self.write(p_addr)
-
-        if True == invalid:
-            self.recv_status(self.STATUS_ERR)
+    def add(self):
+        length = random.randint(0, 32)
+        ip, mask = random_ip(length)
+        valid_asn = len(self.state['routers']) > 0 and self.chance(0.95)
+        if valid_asn:
+            asn = random.choice(self.state['routers'].keys())
+            self.write('add %s %s %d\n' % (ip, mask, asn))
+            self.state['routes'][(ip, mask)] = asn
         else:
-            self.recv_status(self.STATUS_OK)
-            self.state['e'].add_mailbox(addr)
+            asn = random.randint(-1000000, 1000000)
+            while asn in self.state['routers']:
+                asn = random.randint(-1000000, 1000000)
+            self.write('add %s %s %d\n' % (ip, mask, asn))
+            self.read(delim='\n', expect='BAD ARGUMENTS\n')
 
-        return 0
-
-    def list_addresses(self):
-        '''
-        Get list of all valid addresses.
-        '''
-        self.send_cmd(self.CMD_LIST_ADDRESSES)
-        if DEBUG:
-            print "cmd: list addresses"
-
-        addr_list = self.state['e'].get_all_addresses() # sorted list of addrs
-        if [] != addr_list:
-            for addr in addr_list:
-                self.recv_uint16(addr)
-            self.recv_status(self.STATUS_OK)
+    def delete(self):
+        valid_route = len(self.state['routes']) > 0 and self.chance(0.8)
+        if valid_route:
+            route = random.choice(self.state['routes'].keys())
+            del self.state['routes'][route]
+            self.write('delete %s %s\n' % (route[0], route[1]))
         else:
-            self.recv_status(self.STATUS_ERR)
-        return 0
+            length = random.randint(1, 32)
+            ip, mask = random_ip(length)
+            while (ip, mask) in self.state['routes']:
+                length = random.randint(1, 32)
+                ip, mask = random_ip(length)
+            self.write('delete %s %s\n' % (ip, mask))
+            self.read(delim='\n', expect='ROUTE NOT FOUND\n')
 
-    def receive_mail(self):
-        '''
-        Add a piece of mail into the system.
-        '''
-        self.send_cmd(self.CMD_RECEIVE_MAIL)
-        if DEBUG:
-            print "cmd: receive mail"
+    def query(self):
+        ip = random.randint(0, 0xFFFFFFFF)
+        self.write('query %s\n' % ip_to_string(ip))
 
-        stamp = self.state['e'].get_stamp()
-        if stamp is None:
-            self.write(self.BAD_STAMP)
-            self.recv_status(self.STATUS_ERR)
+        for length in range(32, -1, -1):
+            mask = (0xFFFFFFFF << (32 - length)) & 0xFFFFFFFF
+            route = self.state['routes'].get((ip_to_string(ip & mask), ip_to_string(mask)))
+            if route:
+                router_name, router_ip = self.state['routers'][route]
+                self.read(delim='\n', expect='Next hop for %s is %s, AS %d (%s)\n' % (
+                    ip_to_string(ip),
+                    router_ip,
+                    route,
+                    router_name))
+                break
         else:
-            self.write(stamp)
+            self.read(delim='\n', expect='Next hop for %s is BLACKHOLE.\n' % ip_to_string(ip))
 
-            if self.chance(.2):
-                m = self.state['e'].make_mail_item(s_invalid=True)
-            elif self.chance(.2):
-                m = self.state['e'].make_mail_item(r_invalid=True)
+    def enable(self):
+        self.write('enable racoiaws\n')
+
+    def enable_error(self):
+        self.write('enable %s\n' % random_alphanum(80))
+        self.read(delim='\n', expect='BAD PASSWORD\n')
+
+    def enable_menu(self):
+        self.read(length=2, expect='$ ')
+
+    def enable_quit(self):
+        self.write('quit\n')
+
+    def enable_add(self):
+        asn = random.randint(1, 0xFFFF)
+        name = random_alphanum(100)
+        ip, mask = random_ip(32) # mask is unused
+        self.write('add %d\n' % asn)
+        if asn in self.state['routers']:
+            self.read(delim='\n', expect='BAD ARGUMENTS\n')
+        else:
+            self.read(delim='\n', expect='AS %d\n' % asn)
+            self.read(delim='\n', expect=' Name: \n')
+            self.read(delim='\n', expect=' IP: 0.0.0.0\n')
+            self.read(length=13, expect='Modify name? ')
+            self.write('y\n')
+            self.read(length=10,expect='New name? ')
+            self.write(name + '\n')
+            self.read(length=11, expect='Modify IP? ')
+            self.write('y\n')
+            self.read(length=8,expect='New IP? ')
+            self.write(ip + '\n')
+            self.state['routers'][asn] = (name, ip)
+
+    def enable_delete(self):
+        valid_asn = len(self.state['routers']) > 0 and self.chance(0.8)
+        if valid_asn:
+            asn = random.choice(self.state['routers'].keys())
+            self.write('delete %d\n' % asn)
+            del self.state['routers'][asn]
+
+            to_delete = []
+            for k, v in self.state['routes'].iteritems():
+                if v == asn:
+                    to_delete.append(k)
+            for k in to_delete:
+                del self.state['routes'][k]
+        else:
+            asn = random.randint(-1000000, 1000000)
+            while asn in self.state['routers']:
+                asn = random.randint(-1000000, 1000000)
+            self.write('delete %d\n' % asn)
+            self.read(delim='\n', expect='BAD ARGUMENTS\n')
+
+    def enable_edit(self):
+        valid_asn = len(self.state['routers']) > 0 and self.chance(0.8)
+        if valid_asn:
+            asn = random.choice(self.state['routers'].keys())
+            name, ip = self.state['routers'][asn]
+            self.write('edit %d\n' % asn)
+            self.read(delim='\n', expect='AS %d\n' % asn)
+            self.read(delim='\n', expect=' Name: %s\n' % name)
+            self.read(delim='\n', expect=' IP: %s\n' % ip)
+            self.read(length=13, expect='Modify name? ')
+            if self.chance(0.5):
+                name = random_alphanum(100)
+                self.write('y\n')
+                self.read(length=10,expect='New name? ')
+                self.write(name + '\n')
             else:
-                m = self.state['e'].make_mail_item()
-
-            self.write(m.pack())
-            self.recv_status(self.STATUS_OK)
-            self.state['e'].receive_mail(m)
-
-        return 0
-
-    def sort_mail(self):
-        '''
-        Sort received mail and filter undeliverable mail.
-        '''
-        self.send_cmd(self.CMD_SORT_MAIL)
-        if DEBUG:
-            print "cmd: sort mail"
-
-        if 0 == self.state['e'].sort_mail():
-            self.recv_status(self.STATUS_OK)
+                self.write('n\n')
+            self.read(length=11, expect='Modify IP? ')
+            if self.chance(0.5):
+                ip, mask = random_ip(32)
+                self.write('y\n')
+                self.read(length=8,expect='New IP? ')
+                self.write(ip + '\n')
+            else:
+                self.write('n\n')
+            self.state['routers'][asn] = (name, ip)
         else:
-            self.recv_status(self.STATUS_ERR)
+            asn = random.randint(1, 1000000)
+            while asn in self.state['routers']:
+                asn = random.randint(1, 1000000)
+            self.write('edit %d\n' % asn)
+            self.read(delim='\n', expect='BAD ARGUMENTS\n')
 
-    def list_undeliverable_mail(self):
-        '''
-        Get a list of all undeliverable mail.
-        '''
-        self.send_cmd(self.CMD_LIST_UNDELIVERABLE_MAIL)
-        if DEBUG:
-            print "cmd: list undeliverable mail"
-
-        u_d_mail = self.state['e'].get_undeliverable_mail() # list of mail sorted increasing by recipient
-        if [] != u_d_mail:
-            for mail in u_d_mail:
-                self.recv_uint16(mail.recipient)
-                self.recv_uint16(mail.sender)
-            self.recv_status(self.STATUS_OK)
-        else:
-            self.recv_status(self.STATUS_ERR)
-        return 0
-
-    def deliver_mail(self):
-        '''
-        Deliver sorted mail to recipients
-        '''
-        self.send_cmd(self.CMD_DELIVER_MAIL)
-        if DEBUG:
-            print "cmd: deliver mail"
-
-        if 0 == self.state['e'].deliver_mail():
-            self.recv_status(self.STATUS_OK)
-        else:
-            self.recv_status(self.STATUS_ERR)
-
-    def return_to_sender(self):
-        '''
-        Process undeliverable mail to return to sender or file in lost box.
-        '''
-        self.send_cmd(self.CMD_RETURN_TO_SENDER)
-        if DEBUG:
-            print "cmd: return to sender"
-
-        if 0 == self.state['e'].return_to_sender():
-            self.recv_status(self.STATUS_OK)
-        else:
-            self.recv_status(self.STATUS_ERR)
-
-    def list_lost_mail(self):
-        '''
-        Get a list of all lost mail.
-        '''
-        self.send_cmd(self.CMD_LIST_LOST_MAIL)
-        if DEBUG:
-            print "cmd: list lost mail"
-
-        l_mail = self.state['e'].get_lost_mail() # list of mail sorted increasing by sb_hash
-        if [] != l_mail:
-            for mail in l_mail:
-                self.recv_hash(mail.sb_hash)
-            self.recv_status(self.STATUS_OK)
-        else:
-            self.recv_status(self.STATUS_ERR)
-        return 0
-
-    def destroy_lost_mail(self):
-        '''
-        Destroy all mail in the lost mail box.
-        '''
-        self.send_cmd(self.CMD_DESTROY_LOST_MAIL)
-        if DEBUG:
-            print "cmd: destroy lost mail"
-
-        res = self.state['e'].destroy_lost_mail()
-        if 0 == res:
-            self.recv_status(self.STATUS_OK)
-        else:
-            self.recv_status(self.STATUS_ERR)
-        return 0
-
-    def buy_postage(self):
-        '''
-        Sell postage to customer.
-        '''
-        self.send_cmd(self.CMD_BUY_POSTAGE)
-        if DEBUG:
-            print "cmd: buy postage"
-
-        stamp = Variable('stamp{0}'.format(self.state['e'].stamp_id()))
-        stamp.set_slice(0,3)
-        self.read(length=3, assign=stamp)
-        self.state['e'].add_stamp(stamp)
-
-        self.recv_status(self.STATUS_OK)
-
-        return 0
+    def enable_list(self):
+        self.write('list\n')
+        for asn in sorted(self.state['routers'].keys()):
+            (name, ip) = self.state['routers'][asn]
+            self.read(delim='\n', expect='AS %d\n' % asn)
+            self.read(delim='\n', expect=' Name: %s\n' % name)
+            self.read(delim='\n', expect=' IP: %s\n' % ip)
 
     def quit(self):
-        '''
-        Quit cleanly
-        '''
-        self.send_cmd(self.CMD_QUIT)
-        if DEBUG:
-            print "cmd: quit -----------"
-
-        self.recv_status(self.STATUS_QUIT)
-        return -1
-
-    def broker(self):
-        '''
-        Branching node for all nodes
-        '''
-        return 0
-
-
+        self.write('quit\n')
+        self.read('GOOD-BYE\n')

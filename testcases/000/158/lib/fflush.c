@@ -38,7 +38,7 @@ int cgc_fflush(FILE *stream)
         int ret = 0;
 
         /* flush to fd */
-        xlat(stream->xlat_map, stream->buffer + stream->idx, stream->length - stream->idx);
+        cgc_xlat(stream->xlat_map, stream->buffer + stream->idx, stream->length - stream->idx);
         if (cgc_transmit_all(stream->fd, stream->buffer + stream->idx, stream->length - stream->idx) != 0)
             ret = -1;
 

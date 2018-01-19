@@ -1,5 +1,0 @@
-cb_1/src/main.cc: In function ‘int main(int, char**)’:
-cb_1/src/main.cc:229:19: error: invalid conversion from ‘void*’ to ‘int’ [-fpermissive]
-     secret_page_i = CGC_FLAG_PAGE_ADDRESS;
-                   ^
-make: *** [patched] Error 1

@@ -1,89 +1,53 @@
-# COLLIDEOSCOPE
+# CGC File System
 
 ## Author Information
-"Maxwell Koo" <info@narfindustries.com>
+
+"John Berry" <hj@cromulence.co>
 
 ### DARPA performer group
-Narf Industries (NRFIN)
+Cromulence
 
 ## Description
-COLLIDEOSCOPE brings convenient four-function signed 32-bit integer math to your
-fingertips! Now supporting pointer types and variables. Enter in arbitrary
-algebraic expressions and let us do the hard math for you!
+
+Server similar to FTP.
 
 ### Feature List
-- Parses algebraic expressions containing integer values and common arithmatic
-  functions
-- Create variables consisting of up to 4 lowercase characters for storing past
-  results
-- Convenient workbook functionality by storing past results in a special
-  variable
-- Reference variables by taking and dereferencing pointers
-- Operator precedence and parenthesis supported
-- Supports addition, subtraction, multiplication, division and negation
 
-## Vulnerability 1
-This program differentiates between pointer variables and integer variables
-who's values are stored in a hash table. Upon assigning the incorrect typed
-value to an existing variable, a new variable with that name will be created
-with the new type, and the old variable will have its type field clobbered while
-persisting its old value. As lookups will prefer the first created variable,
-this can be used to gain arbitrary read and write access to the processes'
-memory space.
 
-### Generic class of vulnerability
-Type confusion
+SEND <1 byte name length> <name> <2 bytes file size> <file>
+    Maximum length that can be sent is 0x400
+    This is how a user can send a new file to the server.
+    The name must be the full path
 
-### CWE classification
-CWE-119 Improper restriction of operations within the bounds of a memory buffer
-CWE-703 Improper check or handling of exceptional conditions
-CWE-704 Incorrect type conversion or cast
-CWE-843 Access of resource using incompatible type
+NDIR <1 byte name length> <name>
+    Create a new directory under root
 
-### Challenges
-- The tool requires well-formed algebraic expressions in order to provide
-  meaningful results, requiring passing a tokenization stage and parsing stage
-  prior to reaching the vulnerability in the evaluation stage, increasing the
-  difficulty of random fuzzing.
-- Successfully exercising the vulnerability requires manipulation of the
-  calculator's variable space over several successful operations with a
-  particular structure.
-- Bounds checks inserted around the variable dereferencing logic may be
-  effective in fixing this vulnerability, once the proper patching location is
-  identified by overcoming the above challenges.
+RECV <1 byte name length> <name>
+    Retrieve a file from under root.
+    This must be the full path
 
-### Difficulty
-- Discovering is hard
-- Proving is medium 
-- Fixing is easy
+STOP
+    Terminate the session
+    
+PRNT 
+    List files and type/length
+    
+REPO <1 byte name length> <name>
+    Removes the file specified by name.
+    Does not remove directories.
 
-## Vulnerability 2
-The negation operator of this program does not correctly update the type of its
-destination argument field, allowing an attacker to negate an integer and assign
-the resulting value to a pointer variable, allowing arbitrary read and write
-access to the processes memory space.
+
+## Vulnerability
+
+When the PRNT command is called the files are bubble sorted by name and any gaps due to files being deleted are filled in. However, the file count is not updated when a file is deleted which allows the PRNT command to later access beyond the valid list of files.
 
 ### Generic class of vulnerability
-Type confusion
+
+Insufficent bounds checking of an array.
 
 ### CWE classification
-CWE-119 Improper restriction of operations within the bounds of a memory buffer
-CWE-703 Improper check or handling of exceptional conditions
-CWE-704 Incorrect type conversion or cast
-CWE-843 Access of resource using incompatible type
 
-### Challenges
-- All of the challenges for vulnerability 1 also apply to this vulnerability
-- Control over the pointer value is limited by the range of signed integer
-  types, would need to nest negations in order to dereference a pointer in the
-  flag page for instance
-- A very specific set of operations is needed to exercise this vulnerability,
-  namely negating a value at the top level then dereferencing the result
-  variable before its type field is clobbered.
-- Bounds checks in the proper locations could also address this vulnerability.
+CWE-125 Out-of-bounds Read
 
-### Difficulty
-- Discovering is hard
-- Proving is medium
-- Fixing is easy
-
+## Challenges
+The tool authors must deal with the difficulties of bubble sort as well as combine the PRNT command with a prior use of the REPO command.

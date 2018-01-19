@@ -67,7 +67,6 @@ int cgc_fdprintf(int fd, const char *fmt, ...)
     char achar;
     int aint, i, n = 0, flags = 0, min = 0;
     unsigned int auint;
-    int *apint;
     va_list ap;
     va_start(ap, fmt);
 
@@ -131,10 +130,6 @@ int cgc_fdprintf(int fd, const char *fmt, ...)
                 achar = (signed char) va_arg(ap, int);
                 OUTPUT_BYTE(achar);
                 break;
-            case 'P':
-                apint = va_arg(ap, int *);
-                *apint = n;
-                break;
             default:
                 OUTPUT_BYTE(c)
                 break;
@@ -190,7 +185,6 @@ int cgc_sprintf(char *str, const char *fmt, ...)
 {
     char *astring;
     int aint, i, n = 0, flags = 0, min = 0;
-    int *apint;
     unsigned int auint;
     va_list ap;
     va_start(ap, fmt);
@@ -246,10 +240,6 @@ int cgc_sprintf(char *str, const char *fmt, ...)
             case 'x':
                 auint = va_arg(ap, unsigned int);
                 cgc_output_number_sprintf(&n, &str, auint, 16, min, flags);
-                break;
-            case 'P':
-                apint = va_arg(ap, int *);
-                *apint = n;
                 break;
             default:
                 OUTPUT_BYTE(&n, &str, c)

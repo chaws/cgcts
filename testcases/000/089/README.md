@@ -1,45 +1,54 @@
-# Azurad
+# String_Info_Calculator
+
+## Author Information
+
+"Nick Davis" <info@narfindustries.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
 
-## Description
+Narf Industries (NRFIN)
 
-A custom language interpreter implementing a simple calculator service. The service lets a user insert and retrieve numbers, perform arithmetic on the numbers, and access a RNG.
+## Description:
 
-### Feature List
+For all of the authors who write all of their documents in VI, we've created the String Info Calculator. Not everybody has a fancy GUI word processing tool handy when writing a research paper or a book report. And we strongly believe that ALL authors need to be able to determine the statistics of their writing. How else are they going to meet the demanding parameters of their editors?
 
-While the service is very simple, the language it is implemented in is very featureful. The language includes support for dynamic types, arrays, while loops, conditionals, scoping, and procedures. The library can be easily extended by adding additional external functions written in C, or by creating whole new types similiar to the current array support.
+## Feature List:
 
-Current library functions:
+This is a service that will tell you the stats on your writing.
 
- - chr
- - ord
- - rand
- - read
- - echo
+- Number of characters
+-- Number of total chars
+-- Number of printable chars
+-- Number of non-printable chars
+-- Number of letters
+-- Number of numbers
+-- Number of symbols
 
-## Vulnerability
-### Vuln 1
-In Array::set and Array::get, the library does not properly handle INT32_MIN (0x80000000). This results in some integer overflows which will lead to a trivial heap overflow.
+- Number of words
+- Number of sentences
+- Number of paragraphs
+- A cryptographic hash of the content
 
-In the POV, we utilize the bug in Array::set to cause the allocated buffer to be small but the number of allocated items to be large. Then we use Array::get to read the *password* variable that is on the heap. This results in a type 2 exploit.
+## Vulnerability 1
 
-#### Generic class of vulnerability
+The vuln is information leakage of secret data. The compute\_hash() function in strinfo.c uses bytes from user input as the offset into the secret page. The bytes read from the secret page are used in an xor operation to create a hash value that is provided as part of the result sent to the user; the hash field in the result struct. The user can take advantage of the known offset and the hash value to calculate all of the bytes in the secret page.
 
-Heap Corruption
+### Generic Class of Vulnerability
 
-#### CWE classification
+Information Leakage
 
-CWE-680: Integer Overflow to Buffer Overflow
+### CWE classification
 
-#### Challenges
+CWE-201: Information Exposure Through Sent Data
 
- - The primary challenge is naturally the interpreted language, since it obscures the control flow of the service
- - Actual exploitation of the bug is difficult because of the very limited control of memory; though this is easier if relying on stack addresses and WX-stack
+### Challenges
 
-#### Difficulty
+* The hash value returned from the CB is deterministic and can be controlled by 2 bytes in user input. The CRS will need taint tracking to learn that the hash value contains 4 bytes from the magic page. It need some complex logic to create the checksum, and to xor the checksum with the hash value to extract the bytes that came from the magic page. But it is more advanced than just tracking the taint and doing the xor, because the hash value contains a non-sequential set of bytes from the secret page and when extracted from the hash value they are in reverse order from their ordering in the secret page. Then, the CRS has to learn to perform enough repeated communications with the CB to gather a sufficiently long sequence of magic page bytes, put them all in order, and then submit them.
+* This CB was intentionally kept small to give the CRS's a chance at solving this vuln.
 
- - **Discovery**: medium
- - **Proving**: medium
- - **Patching**: medium
+### Difficulty
+
+* Discovering is medium
+* Proving is hard
+* Fixing is easy
+

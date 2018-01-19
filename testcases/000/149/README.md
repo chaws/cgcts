@@ -1,53 +1,51 @@
-# KPRCA-00031
+# CGC Challenge Binary Template
+
+## Author Information
+
+"Ben Schmidt" <info@narfindustries.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
 
-## Description:
+Narf Industries (NRFIN)
 
-This service implements a fictitious chat channel on the Enslavednode chat
-server. There are two bots in the channel named "case" and "molly". They are
-both markov chain bots that chat in the channel when the user enters text.
-They only respond a certain percentage of the time and since they are markov
-bots their responses are purely based off the input of the user and a small
-initial corpus of text that is fed into the system upon initialization. Case
-generates a response whenever the user enters text. This response is always
-sent to molly who uses it to build her markov chain and it is occasionally sent
-back to the user. Molly's generated text is only sent back to the user with
-some probability.
+## Description
+
+Tired of being limited to 160 characters?
+Want to send large, binary messages over current cellular networks?
+LMS (Long Message Service) is our proprietary alteranative to SMS, that allows for longer messages and more efficient transfer of your messages. 
+This is an alpha implementation of a reference client for this excellent new protocol.
 
 ### Feature List
 
-The bots implement a set of separate bot functions that can be activated if the
-input they are sent triggers them. They are listed below:
-
-  * case:
-    * `/hello` - Responds with a kind greeting to the user.
-    * `/rev` - Reverses the users input string
-    * `/howsmart` - Gives a metric on the bots "intelligence".
-
-  * molly:
-    * `/pont` - Pontificates about the topic at hand.
-
-The user can also quit with the `/part` command.
+LMS supports raw message sizes of 256 bytes, and can use up 2**16 fragments, and supports a number of different base encodings.
+This client will process a series of LMS fragments and decode the message.
 
 ## Vulnerability
 
-The vulnerability for this service is in the `/pont` command for molly. She constructs
-a response and initialiez a new string with the response before returning it to
-the user. The string constructor however does not check the size of the string
-it is copying into itself at initialization. This results in a heap overflow.
+Two seperate dangling pointer vulnerabilities exists in the delete_session function, leading to a use after free situation in later packet processing.
+By adding two or more sessions, causing the first to complete, then forcing an appropriately sized allocation to occupy the same memory, it is possible trigger this condition and cause a segfault.
+
+Additionally, an off-by-one vulnerability exists in add_msg that allows an OOB write of a 1, one byte outside the bounds of the sess->received array.
 
 ### Generic class of vulnerability
-Heap-based Buffer Overflow
+
+Use-after-free
+Heap overflow
 
 ### CWE classification
-CWE-122: Heap-based Buffer Overflow
+
+CWE-122: Heap-based buffer overflow
+CWE-193: Off-by-one error
+CWE-416: Use After Free
+CWE-825: Expired Pointer Dereference
 
 ## Challenges
 
-The vulnerability in this service is simple enough, but is guarded behind
-a fairly complex layer of logic. I.e. the markov chain text generation. An
-attacker must be able to corrently insert text into the system that will result
-in a vulnerability triggering emission for the `/pont` command. This will
-require a fairly decent dataflow analysis system.
+Creating multiple sessions from a capture of a single session. This requires reasoning about bitfields and using control over them to create new sessions, as well as crafting well-formed new sessions that parse correctly.
+
+Autonomously discovering UAF/dangling pointer vulnerabilities in a CB utilizing a custom allocator is quite difficult; we anticipate this to be a significant barrier to competitors.
+
+Manipulating allocations in such a way as to overwrite the freed memory is necessary to actually prove vulnerability.
+Once the vulnerability is discovered, however, this will likely be relatively easy by design.
+
+Correctly patching the vulnerability by removing the dangling pointer, as well as restoring the integrity of the linked list, will likely prove very challenging.

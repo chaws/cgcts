@@ -23,6 +23,7 @@
  *
  */
 
+#include "cgc_wrapper.h"
 #include "libcgc.h"
 #include "cgc_malloc.h"
 #include "cgc_stdlib.h"
@@ -73,6 +74,8 @@ static void *malloc_huge(cgc_size_t size)
 {
     void *mem;
     size += HEADER_PADDING;
+    // pad to page size
+    size = (size + 4096 - 1) & ~(4096 - 1);
     if (cgc_allocate(size, 0, &mem) != 0)
         return NULL;
     struct blk_t *blk = mem;
@@ -93,20 +96,23 @@ void *cgc_malloc(cgc_size_t size)
   if (size + HEADER_PADDING >= NEW_CHUNK_SIZE)
     return malloc_huge(size);
 
+#ifdef FILAMENTS
+  cgc_mutex_lock(&cgc_malloc_mutex);
+#endif
+
   if (size % ALIGNMENT != 0)
     size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
 
-  if (size >= 0x80000000)
-    return NULL;
   size += HEADER_PADDING;
 
   struct blk_t *blk = NULL;
   int sc_i = find_fit(size, &blk);
+  void *result = NULL;
 
   /* Allocate a new block if no fit */
   if (blk == NULL) {
     if (allocate_new_blk() != 0) {
-      return NULL;
+      goto fail;
     } else {
       sc_i = NUM_FREE_LISTS - 1;
       blk = cgc_free_lists[sc_i];
@@ -139,5 +145,10 @@ void *cgc_malloc(cgc_size_t size)
     cgc_insert_into_flist(nb);
   }
 
-  return (void *)((intptr_t)blk + HEADER_PADDING);
+  result = (void *)((intptr_t)blk + HEADER_PADDING);
+fail:
+#ifdef FILAMENTS
+  cgc_mutex_unlock(&cgc_malloc_mutex);
+#endif
+  return result;
 }

@@ -23,6 +23,21 @@
 ---
 nodes:
 - name: start
-- name: game
+- name: add_haiku
+- name: get_haiku_by_id
+- name: get_haiku_random
+- name: get_haiku_count
+- name: get_haiku_ids
+- name: cmd_done
 edges:
-- start: game
+- start: add_haiku
+- add_haiku: cmd_done
+- get_haiku_random: cmd_done
+- get_haiku_by_id: cmd_done
+- get_haiku_ids: cmd_done
+
+- cmd_done: add_haiku
+- cmd_done: get_haiku_by_id
+- cmd_done: get_haiku_random
+- cmd_done: get_haiku_count
+- cmd_done: get_haiku_ids

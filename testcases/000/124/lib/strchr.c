@@ -30,8 +30,14 @@ char *cgc_strchr(const char *s, int c)
   const char *p = s;
 
   while (*p)
-    if (*p++ == c)
+  {
+    if (*p == c)
       return (char *) p;
+    p++;
+  }
+
+  if (c == (int)NULL)
+    return (char *)p;
 
   return NULL;
 }

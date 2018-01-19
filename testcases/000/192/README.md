@@ -1,31 +1,43 @@
-# KPRCA-00009 
+# Network_File_System
 
 ## Author Information
 
-"Andrew Wesie" <andrew.wesie@kapricasecurity.com>
+"Joe Rogers" <joe@cromulence.com>
 
 ### DARPA performer group
-Kaprica Security (KPRCA)
+Cromulence (CROMU)
 
-## Description:
-This service implements an emulator of a game system. The user sends a cartridge data which is run by the emulator. The user can send commands to simulate input controls or to quit the emulator. Several times per second the emulator will send the current screen of the game system to the user as ASCII art.
+## Description
+
+ShortDescription: A basic network file system
 
 ### Feature List
-The emulator supports basic I/O, interrupts, timers, and many types of instructions. The emulated ISA is a variation of the Z80, which features variable-length instructions, 8-bit and 16-bit registers, and a 16-bit address space. Capabilities include a 1 MIPS (million instructions per second) CPU, 32KB of ROM, 8KB of RAM, and 8 digital inputs.
+
+The file system supports these functions: Login, Read, Write, WriteAppend, List, Delete, and Rename.  Reads can be requested with an offset allowing specific sections of a file to be retrieved.  
 
 ## Vulnerability
-The vulnerability is present in the cartridge loading functionality. Every cartridge has a header which includes a title field. The emulator iterates over the title field until it hits a non-uppercase character, and copying the characters unless it is passed the end of the title buffer. However, after the loop, it adds a NULL-byte which may be past the end of the buffer if the original title field was not properly terminated.
 
-With this vulnerability, an attacker is able to set a byte of the __bg__ pointer to zero, which will result in a segmentation fault on access. Additionally, the attacker has some control of which bytes get written to the __bg__ memory, though this is not necessary to prove vulnerability.
+A function called CallocAndRead() is used throughout the CB when new filesystem requests are received.  The function allocates space to hold values from the request and copies those values into the allocated buffers.  In order to avoid unterminated strings, the function adds one to any length value it's passed to ensure there's sufficient space for the terminating null character.  However, a mistake in the function declaration resulted in the length parameter being passed as an unsigned 8-bit integer, rather than something larger.  So, if the function is called with a value of 255, the added byte will overflow the 8-bit integer and cause the resulting calloc'd buffer to be too small for the subsequent read which will lead to a heap overflow.
+
+The malloc library uses a linked list for various size free blocks of memory.  By carefully overflowing the first available block in this list, control over the subsequent 'next' pointers is possible resulting in the ability to write to arbitrary memory locations.
+
+The POV in this CB takes advantage of the Rename function and the above vulnerability to overwrite the stack copies of EBP and EIP for the HandleRequest() function.  Since the vulnerability requires a heap overflow of 255 bytes, quite a bit of the heap is corrupted by the overwrite.  In order to keep the CB functioning sufficiently for the Rename function to work, the exploit must reconstruct portions of the heap with valid values.  For example, since the filesystem also relies on heap memory, the inode structures including filenames and data allocations are stored on the heap.  These are obviously critical to the Rename function's file operations and must be correct for that function to work.
 
 ### Generic class of vulnerability
-Buffer Overflow
+
+Integer overflow leading to an incorrect buffer allocation size and subsequent heap overflow.
 
 ### CWE classification
-CWE-170: Improper Null Termination
+
+CWE-131: Incorrect Calculation of Buffer Size
+CWE-190: Integer Overflow or Wraparound
+CWE-122: Heap-based Buffer Overflow
 
 ## Challenges
 
-Analysis of this service will face challenges with state-space explosion due to the size of the input and the multiple effects of each byte. 
+Due to the required size of the heap overflow, large portions of the heap are overwritten causing issues with the CB's key data structures.  While the vulnerability should be easy to identify and patch, crafting a POV which correctly reconstructs the heap while utilizing the malloc library functions to perform the desired stack overwrites should be challenging for the CRS.
 
-In order to increase the probability of a solution, the vulnerability can be triggered by modifying only the bytes in the cartridge header. Additionally, the vulnerability occurs before the main loop and allows for setting an arbitrary byte of a pointer to zero, which may help narrow the search space for a solution.
+Subjective Quantification:
+Discovering - Easy
+Proving - Hard
+Fixing - Easy

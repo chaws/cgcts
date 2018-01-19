@@ -21,16 +21,23 @@
 */
 
 #ifndef STDINT_H
-#define STDINT_H
+#define STDINT_H 1
 
-#define FALSE 0
-#define uint64_t unsigned long long
-#define uint32_t unsigned int
-#define uint16_t unsigned short
-#define uint8_t unsigned char
-#define bool uint8_t
-#define int32_t int
-#define int16_t short
-#define int8_t char
+#define	false 0
+#define	true 1
+
+
+typedef unsigned char uint8_t;
+typedef uint8_t byte_t;
+typedef unsigned short uint16_t; 
+typedef unsigned int uint32_t;
+typedef unsigned long long uint64_t;
+
+typedef char int8_t;
+typedef short int16_t;
+typedef int int32_t;
+typedef long long int64_t;
+
+typedef uint8_t bool;
 
 #endif
